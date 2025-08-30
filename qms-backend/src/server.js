@@ -17,7 +17,6 @@ const invoiceRoutes = require('./routes/invoices');
 const stockMovementRoutes = require('./routes/stockMovements');
 const documentRoutes = require('./routes/documents');
 const indexRoutes = require('./routes/index');
-const salesRoutes = require('./routes/sales');
 
 const app = express();
 
@@ -55,7 +54,7 @@ app.use(helmet({
 
 // CORS configuration
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001'],
+  origin: config.corsOrigin,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -104,7 +103,6 @@ app.use('/api/v1/purchase-orders', purchaseOrderRoutes);
 app.use('/api/v1/invoices', invoiceRoutes);
 app.use('/api/v1/stock-movements', stockMovementRoutes);
 app.use('/api/v1/documents', documentRoutes);
-app.use('/api/v1/sales', salesRoutes);
 app.use('/api/v1', indexRoutes);
 
 // 404 handler

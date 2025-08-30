@@ -46,6 +46,8 @@ export default function HomePage() {
         router.push('/dashboard');
       }
     }
+    
+    setIsLoading(false);
   };
 
   return (
@@ -87,6 +89,7 @@ export default function HomePage() {
               id="email"
               className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
               placeholder="Enter your email"
+              defaultValue={DUMMY_EMAIL}
             />
             {errors.email && (
               <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
@@ -110,6 +113,7 @@ export default function HomePage() {
               id="password"
               className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
               placeholder="Enter your password"
+              defaultValue={DUMMY_PASSWORD}
             />
             {errors.password && (
               <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>

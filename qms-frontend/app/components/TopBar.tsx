@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import { apiClient } from '../lib/api';
+import { usePathname } from 'next/navigation';
 
 const pageTitles: { [key: string]: string } = {
   '/dashboard': 'Dashboard',
@@ -18,40 +17,9 @@ const pageTitles: { [key: string]: string } = {
 export default function TopBar() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
   const pathname = usePathname();
-  const router = useRouter();
   const notificationsRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
-
-  // Load user profile on component mount
-  useEffect(() => {
-    const loadUserProfile = async () => {
-      if (apiClient.isAuthenticated()) {
-        try {
-          const profile = await apiClient.getProfile();
-          if (profile.success) {
-            setUserProfile(profile.data);
-          }
-        } catch (error) {
-          console.error('Failed to load user profile:', error);
-        }
-      }
-    };
-    loadUserProfile();
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      await apiClient.logout();
-      router.push('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Force logout even if API call fails
-      apiClient.clearToken();
-      router.push('/');
-    }
-  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -135,15 +103,15 @@ export default function TopBar() {
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
-              <span className="text-sm font-medium">{userProfile?.name || 'User'}</span>
+              <span className="text-sm font-medium">Admin User</span>
             </button>
 
             {/* Profile dropdown */}
             {showProfile && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                 <div className="px-4 py-2 border-b border-gray-200">
-                  <p className="text-sm font-medium text-gray-800">{userProfile?.name || 'User'}</p>
-                  <p className="text-xs text-gray-500">{userProfile?.email || 'user@qms.com'}</p>
+                  <p className="text-sm font-medium text-gray-800">Admin User</p>
+                  <p className="text-xs text-gray-500">admin@qms.com</p>
                 </div>
                 <div className="py-1">
                   <a href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
@@ -152,10 +120,7 @@ export default function TopBar() {
                   <a href="/account" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                     Account Settings
                   </a>
-                  <button 
-                    onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                  >
+                  <button className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
                     Sign Out
                   </button>
                 </div>
