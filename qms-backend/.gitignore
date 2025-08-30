@@ -4,21 +4,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> parent of 7da0a93 (Merge pull request #2 from malikadan212/authetication-)
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-<<<<<<< HEAD
->>>>>>> parent of ac87562 (Merge branch 'main' of https://github.com/malikadan212/QMS)
-=======
->>>>>>> parent of 7da0a93 (Merge pull request #2 from malikadan212/authetication-)
 
 # Logs
 logs
@@ -57,13 +42,7 @@ jspm_packages/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
-.env
-.env.test
-<<<<<<< HEAD
 
-=======
->>>>>>> parent of 7da0a93 (Merge pull request #2 from malikadan212/authetication-)
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
