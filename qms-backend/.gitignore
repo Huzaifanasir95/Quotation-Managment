@@ -4,6 +4,15 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+<<<<<<< HEAD
+=======
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+>>>>>>> parent of bd6ea51 (env)
 
 # Logs
 logs
@@ -42,6 +51,9 @@ jspm_packages/
 # Yarn Integrity file
 .yarn-integrity
 
+# dotenv environment variables file
+.env
+.env.test
 
 
 # parcel-bundler cache (https://parceljs.org/)
