@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
+import { apiClient } from './lib/api';
 
 interface AuthFormData {
   email: string;
@@ -18,38 +19,54 @@ export default function HomePage() {
   const { register, handleSubmit, formState: { errors }, watch } = useForm<AuthFormData>();
   const password = watch('password');
 
-  // Dummy credentials for testing
-  const DUMMY_EMAIL = 'test@example.com';
-  const DUMMY_PASSWORD = 'password123';
-
   const onSubmit = async (data: AuthFormData) => {
     setIsLoading(true);
     setError('');
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    if (isLogin) {
-      // Login logic
-      if (data.email === DUMMY_EMAIL && data.password === DUMMY_PASSWORD) {
-        console.log('Login successful:', { email: data.email });
-        // Redirect to dashboard
-        router.push('/dashboard');
+    try {
+      if (isLogin) {
+        // Login with backend API
+        const response = await apiClient.login(data.email, data.password);
+        
+        if (response.success) {
+          console.log('Login successful:', response.data);
+          router.push('/dashboard');
+        } else {
+          setError(response.message || 'Login failed');
+        }
       } else {
-        setError('Invalid email or password. Use test@example.com / password123');
+        // Register with backend API
+        if (data.password !== data.confirmPassword) {
+          setError('Passwords do not match');
+          return;
+        }
+        
+        const response = await apiClient.register({
+          email: data.email,
+          password: data.password,
+          name: data.email.split('@')[0], // Use email prefix as default name
+          role: 'Sales' // Default role
+        });
+        
+        if (response.success) {
+          console.log('Registration successful:', response.data);
+          // Auto-login after successful registration
+          const loginResponse = await apiClient.login(data.email, data.password);
+          if (loginResponse.success) {
+            router.push('/dashboard');
+          } else {
+            setError('Registration successful, but auto-login failed. Please login manually.');
+          }
+        } else {
+          setError(response.message || 'Registration failed');
+        }
       }
-    } else {
-      // Signup logic
-      if (data.password !== data.confirmPassword) {
-        setError('Passwords do not match');
-      } else {
-        console.log('Signup successful:', data);
-        // For demo purposes, also redirect to dashboard after signup
-        router.push('/dashboard');
-      }
+    } catch (error: any) {
+      console.error('Auth error:', error);
+      setError(error.message || 'An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   return (
@@ -91,7 +108,6 @@ export default function HomePage() {
               id="email"
               className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
               placeholder="Enter your email"
-              defaultValue={DUMMY_EMAIL}
             />
             {errors.email && (
               <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
@@ -115,7 +131,6 @@ export default function HomePage() {
               id="password"
               className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
               placeholder="Enter your password"
-              defaultValue={DUMMY_PASSWORD}
             />
             {errors.password && (
               <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
@@ -137,7 +152,6 @@ export default function HomePage() {
                 id="confirmPassword"
                 className="w-full px-4 py-3 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                 placeholder="Confirm your password"
-                defaultValue={DUMMY_PASSWORD}
               />
               {errors.confirmPassword && (
                 <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
