@@ -7,7 +7,7 @@ const router = express.Router();
 
 // Convert quotation to sales order
 router.post('/convert-quote', authenticateToken, authorize(['admin', 'sales']), asyncHandler(async (req, res) => {
-  const { quotation_id, expected_delivery, priority, notes, status = 'pending' } = req.body;
+  const { quotation_id, expected_delivery, notes, status = 'pending' } = req.body;
 
   if (!quotation_id) {
     return res.status(400).json({
@@ -42,10 +42,11 @@ router.post('/convert-quote', authenticateToken, authorize(['admin', 'sales']), 
     });
   }
 
-  if (quotation.status !== 'approved' && quotation.status !== 'sent') {
+  if (!['draft', 'sent', 'approved'].includes(quotation.status)) {
     return res.status(400).json({
-      error: 'Only approved or sent quotations can be converted',
-      code: 'INVALID_STATUS'
+      error: 'Only draft, sent, or approved quotations can be converted',
+      code: 'INVALID_STATUS',
+      current_status: quotation.status
     });
   }
 
@@ -74,8 +75,7 @@ router.post('/convert-quote', authenticateToken, authorize(['admin', 'sales']), 
     customer_id: quotation.customer_id,
     business_entity_id: quotation.business_entity_id,
     order_date: new Date().toISOString().split('T')[0],
-    expected_delivery,
-    priority: priority || 'normal',
+    expected_delivery_date: expected_delivery,
     notes,
     subtotal: quotation.subtotal,
     tax_amount: quotation.tax_amount,
@@ -101,7 +101,7 @@ router.post('/convert-quote', authenticateToken, authorize(['admin', 'sales']), 
 
   // Create order items from quotation items
   const orderItems = quotation.quotation_items.map(item => ({
-    order_id: order.id,
+    sales_order_id: order.id,
     product_id: item.product_id,
     description: item.description,
     quantity: item.quantity,
@@ -129,9 +129,7 @@ router.post('/convert-quote', authenticateToken, authorize(['admin', 'sales']), 
   const { error: updateError } = await supabaseAdmin
     .from('quotations')
     .update({ 
-      status: 'converted',
-      converted_to_order_id: order.id,
-      converted_at: new Date().toISOString()
+      status: 'converted'
     })
     .eq('id', quotation_id);
 
