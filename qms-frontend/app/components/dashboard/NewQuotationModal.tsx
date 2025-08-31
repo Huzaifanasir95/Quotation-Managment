@@ -87,6 +87,8 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
     setItems(items.map(item => {
       if (item.id === id) {
         const updatedItem = { ...item, [field]: value };
+        
+        // Recalculate line total for numeric fields
         if (field === 'quantity' || field === 'unit_price' || field === 'discount_percent' || field === 'tax_percent') {
           const quantity = Number(updatedItem.quantity);
           const unitPrice = Number(updatedItem.unit_price);
@@ -250,32 +252,89 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Create New Quotation</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
-          >
+    <>
+      {/* Custom CSS for animations */}
+      <style jsx>{`
+        @keyframes slideInScale {
+          from {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.95) translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1) translateY(0);
+          }
+        }
+        
+        @keyframes slideOutScale {
+          from {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1) translateY(0);
+          }
+          to {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.95) translateY(20px);
+          }
+        }
+        
+        .modal-enter {
+          animation: slideInScale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        
+        .modal-backdrop {
+          backdrop-filter: blur(3px);
+          background: rgba(59, 130, 246, 0.05);
+          transition: all 0.3s ease;
+        }
+        
+        .modal-widget {
+          background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+          border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+      `}</style>
+      
+      {/* Subtle backdrop with blur effect */}
+      <div className="fixed inset-0 z-40 modal-backdrop" onClick={onClose} />
+      
+      {/* Floating modal widget */}
+      <div 
+        className="fixed top-1/2 left-1/2 z-50 modal-enter"
+        style={{
+          transform: 'translate(-50%, -50%)',
+          maxWidth: '90vw',
+          maxHeight: '90vh',
+          width: '1000px'
+        }}
+      >
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 modal-widget"
+             style={{
+               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.12), 0 10px 25px -5px rgba(59, 130, 246, 0.1)',
+             }}>
+          <div className="max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <h2 className="text-2xl font-bold text-gray-900">Create New Quotation</h2>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-1 rounded-full hover:bg-white/50"
+              >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </button>
-        </div>
-
-        {/* Form */}
-        <div className="p-6">
-          {/* Error Display */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-600 text-sm">{error}</p>
+              </button>
             </div>
-          )}
 
-          {/* Customer Selection and Dates */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {/* Form */}
+            <div className="p-6">
+              {/* Error Display */}
+              {error && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+              )}
+
+              {/* Customer Selection and Dates */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Customer *</label>
               <select
@@ -384,7 +443,10 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
                       <input
                         type="number"
                         value={item.quantity}
-                        onChange={(e) => updateItem(item.id, 'quantity', Number(e.target.value))}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 1 : parseInt(e.target.value) || 1;
+                          updateItem(item.id, 'quantity', value);
+                        }}
                         className="w-full px-3 py-2 text-black border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                         placeholder="Qty"
                         min="1"
@@ -393,8 +455,16 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
                     <div className="col-span-2">
                       <input
                         type="number"
-                        value={item.unit_price}
-                        onChange={(e) => updateItem(item.id, 'unit_price', Number(e.target.value))}
+                        value={item.unit_price === 0 ? '' : item.unit_price}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
+                          updateItem(item.id, 'unit_price', value);
+                        }}
+                        onFocus={(e) => {
+                          if (e.target.value === '0') {
+                            e.target.select();
+                          }
+                        }}
                         className="w-full px-3 py-2 text-black border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                         placeholder="Unit Price"
                         min="0"
@@ -404,8 +474,16 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
                     <div className="col-span-1">
                       <input
                         type="number"
-                        value={item.discount_percent}
-                        onChange={(e) => updateItem(item.id, 'discount_percent', Number(e.target.value))}
+                        value={item.discount_percent === 0 ? '' : item.discount_percent}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
+                          updateItem(item.id, 'discount_percent', value);
+                        }}
+                        onFocus={(e) => {
+                          if (e.target.value === '0') {
+                            e.target.select();
+                          }
+                        }}
                         className="w-full px-3 py-2 text-black border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                         placeholder="0"
                         min="0"
@@ -416,8 +494,16 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
                     <div className="col-span-1">
                       <input
                         type="number"
-                        value={item.tax_percent}
-                        onChange={(e) => updateItem(item.id, 'tax_percent', Number(e.target.value))}
+                        value={item.tax_percent === 0 ? '' : item.tax_percent}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
+                          updateItem(item.id, 'tax_percent', value);
+                        }}
+                        onFocus={(e) => {
+                          if (e.target.value === '0') {
+                            e.target.select();
+                          }
+                        }}
                         className="w-full px-3 py-2 text-black border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                         placeholder="18"
                         min="0"
@@ -498,7 +584,9 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
             {isLoading ? 'Sending...' : 'Send to Customer'}
           </button>
         </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

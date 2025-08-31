@@ -36,7 +36,10 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto">
+      <div className={`max-w-7xl mx-auto transition-all duration-300 ${
+        (showNewQuotation || showUploadInquiry || showConvertQuote || showCreateInvoice || showQuickReorder) 
+          ? 'filter brightness-95' : ''
+      }`}>
         {/* Header */}
         <div className="mb-8">
         </div>
