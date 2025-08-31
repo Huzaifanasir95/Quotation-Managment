@@ -163,7 +163,14 @@ export default function DashboardPage() {
       </div>
 
       {/* Modals */}
-      <NewQuotationModal isOpen={showNewQuotation} onClose={() => setShowNewQuotation(false)} />
+      <NewQuotationModal 
+        isOpen={showNewQuotation} 
+        onClose={() => setShowNewQuotation(false)}
+        onQuotationCreated={() => {
+          console.log('Quotation created successfully');
+          // You can add any refresh logic here if needed
+        }}
+      />
       <UploadInquiryModal isOpen={showUploadInquiry} onClose={() => setShowUploadInquiry(false)} />
       <ConvertQuoteModal isOpen={showConvertQuote} onClose={() => setShowConvertQuote(false)} />
       <CreateInvoiceModal isOpen={showCreateInvoice} onClose={() => setShowCreateInvoice(false)} />
