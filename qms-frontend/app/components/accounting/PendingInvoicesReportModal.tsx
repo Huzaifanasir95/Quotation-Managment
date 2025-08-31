@@ -1,10 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { apiClient } from '../../lib/api';
 
 interface PendingInvoicesReportModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface TransformedInvoice {
+  id: string;
+  customer: string;
+  amount: number;
+  dueDate: string;
+  status: string;
+  daysOverdue: number;
+  fbrSync: string;
+  lastReminder: string;
+  notes: string;
 }
 
 export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingInvoicesReportModalProps) {
@@ -16,104 +29,75 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
     amountRange: 'All'
   });
   const [isExporting, setIsExporting] = useState(false);
+  const [invoices, setInvoices] = useState<TransformedInvoice[]>([]);
+  const [customers, setCustomers] = useState<string[]>(['All']);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data for pending invoices
-  const pendingInvoices = [
-    {
-      id: 'INV-2024-001',
-      customer: 'ABC Corp',
-      amount: 2500,
-      dueDate: '2024-02-15',
-      status: 'Overdue',
-      daysOverdue: 5,
-      fbrSync: 'Synced',
-      lastReminder: '2024-02-10',
-      notes: 'Customer requested payment extension'
-    },
-    {
-      id: 'INV-2024-002',
-      customer: 'XYZ Ltd',
-      amount: 1200,
-      dueDate: '2024-02-20',
-      status: 'Due Soon',
-      daysOverdue: 0,
-      fbrSync: 'Synced',
-      lastReminder: '2024-02-12',
-      notes: 'Follow up scheduled for next week'
-    },
-    {
-      id: 'INV-2024-003',
-      customer: 'Tech Solutions Inc',
-      amount: 4500,
-      dueDate: '2024-02-05',
-      status: 'Overdue',
-      daysOverdue: 15,
-      fbrSync: 'Pending',
-      lastReminder: '2024-02-08',
-      notes: 'Payment plan discussed, awaiting confirmation'
-    },
-    {
-      id: 'INV-2024-004',
-      customer: 'Global Industries',
-      amount: 800,
-      dueDate: '2024-02-25',
-      status: 'Due Soon',
-      daysOverdue: 0,
-      fbrSync: 'Synced',
-      lastReminder: '2024-02-14',
-      notes: 'Standard reminder sent'
-    },
-    {
-      id: 'INV-2024-005',
-      customer: 'Startup Ventures',
-      amount: 3200,
-      dueDate: '2024-01-30',
-      status: 'Overdue',
-      daysOverdue: 20,
-      fbrSync: 'Failed',
-      lastReminder: '2024-02-01',
-      notes: 'Legal action may be required'
-    },
-    {
-      id: 'INV-2024-006',
-      customer: 'Enterprise Solutions',
-      amount: 1800,
-      dueDate: '2024-02-28',
-      status: 'Due Soon',
-      daysOverdue: 0,
-      fbrSync: 'Synced',
-      lastReminder: '2024-02-15',
-      notes: 'Customer confirmed payment this week'
-    },
-    {
-      id: 'INV-2024-007',
-      customer: 'Innovation Labs',
-      amount: 6500,
-      dueDate: '2024-02-01',
-      status: 'Overdue',
-      daysOverdue: 19,
-      fbrSync: 'Synced',
-      lastReminder: '2024-02-05',
-      notes: 'Payment arrangement in progress'
-    },
-    {
-      id: 'INV-2024-008',
-      customer: 'Digital Dynamics',
-      amount: 950,
-      dueDate: '2024-02-22',
-      status: 'Due Soon',
-      daysOverdue: 0,
-      fbrSync: 'Pending',
-      lastReminder: '2024-02-16',
-      notes: 'Customer acknowledged receipt'
-    }
-  ];
-
-  const customers = ['All', ...Array.from(new Set(pendingInvoices.map(invoice => invoice.customer)))];
-  const statuses = ['All', 'Overdue', 'Due Soon', 'Paid'];
+  const statuses = ['All', 'pending', 'paid', 'overdue', 'cancelled'];
   const amountRanges = ['All', 'Under $1000', '$1000-$5000', 'Over $5000'];
 
-  const filteredInvoices = pendingInvoices.filter(invoice => {
+  // Fetch invoices and customers data
+  useEffect(() => {
+    if (isOpen) {
+      fetchInvoicesData();
+    }
+  }, [isOpen]);
+
+  const fetchInvoicesData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Fetch invoices with pending status
+      const invoicesResponse = await apiClient.getInvoices({ 
+        limit: 100, 
+        status: 'pending' 
+      });
+      
+      if (invoicesResponse.success) {
+        const transformedInvoices: TransformedInvoice[] = invoicesResponse.data.invoices.map((invoice: any) => {
+          const today = new Date();
+          const dueDate = new Date(invoice.due_date);
+          const daysOverdue = Math.max(0, Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)));
+          
+          let status = 'Due Soon';
+          if (daysOverdue > 0) {
+            status = 'Overdue';
+          } else if (invoice.status === 'paid') {
+            status = 'Paid';
+          }
+          
+          return {
+            id: invoice.invoice_number,
+            customer: invoice.customers?.name || 'Unknown Customer',
+            amount: invoice.total_amount || 0,
+            dueDate: invoice.due_date,
+            status: status,
+            daysOverdue: daysOverdue,
+            fbrSync: invoice.fbr_sync_status === 'synced' ? 'Synced' : 
+                     invoice.fbr_sync_status === 'pending' ? 'Pending' : 'Failed',
+            lastReminder: invoice.last_reminder_date || 'N/A',
+            notes: invoice.notes || 'No notes'
+          };
+        });
+        
+        setInvoices(transformedInvoices);
+        
+        // Extract unique customers
+        const uniqueCustomers = Array.from(new Set(transformedInvoices.map(inv => inv.customer)));
+        setCustomers(['All', ...uniqueCustomers]);
+      } else {
+        setError('Failed to fetch invoices');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch data');
+      console.error('Error fetching invoices:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filteredInvoices = invoices.filter(invoice => {
     const matchesDateFrom = !filters.dateFrom || invoice.dueDate >= filters.dateFrom;
     const matchesDateTo = !filters.dateTo || invoice.dueDate <= filters.dateTo;
     const matchesCustomer = filters.customer === 'All' || invoice.customer === filters.customer;
@@ -212,7 +196,7 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Pending Invoices Report</h2>
@@ -306,7 +290,7 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
 
             <div className="mt-4 flex items-center justify-between">
               <p className="text-sm text-gray-600">
-                Found {filteredInvoices.length} invoice(s) out of {pendingInvoices.length} total
+                Found {filteredInvoices.length} invoice(s) out of {invoices.length} total
               </p>
               <button
                 onClick={clearFilters}
@@ -355,7 +339,21 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
             </div>
 
             <div className="overflow-x-auto">
-              {filteredInvoices.length === 0 ? (
+              {isLoading ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Loading invoices...</p>
+                </div>
+              ) : error ? (
+                <div className="text-center py-8">
+                  <p className="text-red-500">Error: {error}</p>
+                  <button 
+                    onClick={fetchInvoicesData}
+                    className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : filteredInvoices.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-gray-500">No pending invoices found.</p>
                 </div>

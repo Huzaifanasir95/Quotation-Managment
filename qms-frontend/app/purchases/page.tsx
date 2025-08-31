@@ -1,18 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
 import CreatePurchaseOrderModal from '../components/purchases/CreatePurchaseOrderModal';
 import UploadVendorBillModal from '../components/purchases/UploadVendorBillModal';
 import GenerateDeliveryChallanModal from '../components/purchases/GenerateDeliveryChallanModal';
 import PurchaseOrderDetailsModal from '../components/purchases/PurchaseOrderDetailsModal';
+import { apiClient, type PurchaseOrder, type Vendor } from '../lib/api';
 
 export default function PurchasesPage() {
   const [showCreatePO, setShowCreatePO] = useState(false);
   const [showUploadBill, setShowUploadBill] = useState(false);
   const [showGenerateChallan, setShowGenerateChallan] = useState(false);
   const [showPODetails, setShowPODetails] = useState(false);
-  const [selectedPO, setSelectedPO] = useState<any>(null);
+  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
+  
+  // Data state
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Filters state
   const [filters, setFilters] = useState({
@@ -23,141 +30,110 @@ export default function PurchasesPage() {
     poId: ''
   });
 
-  // Mock data for purchase orders
-  const purchaseOrders = [
-    {
-      id: 'PO-2024-001',
-      vendor: 'Tech Supplies Inc',
-      linkedQuotation: 'Q-2024-001',
-      linkedOrder: 'SO-2024-001',
-      dateCreated: '2024-01-15',
-      status: 'Approved',
-      totalAmount: 2500,
-      attachedBills: ['bill_001.pdf', 'bill_002.pdf'],
-      items: [
-        { name: 'Laptop Dell XPS 13', quantity: 2, unitPrice: 1200, subtotal: 2400 },
-        { name: 'Wireless Mouse', quantity: 2, unitPrice: 50, subtotal: 100 }
-      ],
-      vendorDetails: {
-        name: 'Tech Supplies Inc',
-        gst: 'GST123456789',
-        contact: 'John Smith',
-        phone: '+1 (555) 123-4567',
-        email: 'john@techsupplies.com'
-      },
-      statusHistory: [
-        { status: 'Draft', date: '2024-01-15', user: 'Admin' },
-        { status: 'Pending Approval', date: '2024-01-16', user: 'Manager' },
-        { status: 'Approved', date: '2024-01-17', user: 'Finance' }
-      ],
-      deliveryChallans: ['DC-2024-001', 'DC-2024-002']
-    },
-    {
-      id: 'PO-2024-002',
-      vendor: 'Display Solutions',
-      linkedQuotation: 'Q-2024-002',
-      linkedOrder: 'SO-2024-002',
-      dateCreated: '2024-01-18',
-      status: 'Pending Approval',
-      totalAmount: 1800,
-      attachedBills: ['bill_003.pdf'],
-      items: [
-        { name: 'Monitor 27" 4K', quantity: 1, unitPrice: 800, subtotal: 800 },
-        { name: 'USB-C Hub', quantity: 2, unitPrice: 45, subtotal: 90 },
-        { name: 'Keyboard', quantity: 2, unitPrice: 75, subtotal: 150 },
-        { name: 'Mouse Pad', quantity: 2, unitPrice: 15, subtotal: 30 }
-      ],
-      vendorDetails: {
-        name: 'Display Solutions',
-        gst: 'GST234567890',
-        contact: 'Sarah Johnson',
-        phone: '+1 (555) 234-5678',
-        email: 'sarah@displaysolutions.com'
-      },
-      statusHistory: [
-        { status: 'Draft', date: '2024-01-18', user: 'Admin' },
-        { status: 'Pending Approval', date: '2024-01-19', user: 'Manager' }
-      ],
-      deliveryChallans: []
-    },
-    {
-      id: 'PO-2024-003',
-      vendor: 'Input Devices Co',
-      linkedQuotation: 'Q-2024-003',
-      linkedOrder: 'SO-2024-003',
-      dateCreated: '2024-01-20',
-      status: 'Draft',
-      totalAmount: 4200,
-      attachedBills: [],
-      items: [
-        { name: 'Server Rack', quantity: 1, unitPrice: 2500, subtotal: 2500 },
-        { name: 'Network Switch', quantity: 1, unitPrice: 800, subtotal: 800 },
-        { name: 'Cables', quantity: 10, unitPrice: 25, subtotal: 250 },
-        { name: 'Installation Service', quantity: 1, unitPrice: 650, subtotal: 650 }
-      ],
-      vendorDetails: {
-        name: 'Input Devices Co',
-        gst: 'GST345678901',
-        contact: 'Mike Davis',
-        phone: '+1 (555) 345-6789',
-        email: 'mike@inputdevices.com'
-      },
-      statusHistory: [
-        { status: 'Draft', date: '2024-01-20', user: 'Admin' }
-      ],
-      deliveryChallans: []
+  // Fetch data from backend
+  const loadPurchaseOrders = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Fetch purchase orders and vendors in parallel
+      const [poResponse, vendorsResponse] = await Promise.all([
+        apiClient.getPurchaseOrders({ limit: 100 }),
+        apiClient.getVendors({ limit: 100 })
+      ]);
+      
+      if (poResponse.success) {
+        setPurchaseOrders(poResponse.data.purchaseOrders || []);
+      }
+      
+      if (vendorsResponse.success) {
+        setVendors(vendorsResponse.data.vendors || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      setError('Failed to load purchase orders. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const vendors = ['All', ...Array.from(new Set(purchaseOrders.map(po => po.vendor)))];
-  const statuses = ['All', 'Draft', 'Pending Approval', 'Approved', 'Closed'];
+  useEffect(() => {
+    loadPurchaseOrders();
+  }, []);
+
+  const vendorOptions = ['All', ...vendors.map(v => v.name)];
+  const statuses = ['All', 'draft', 'pending_approval', 'approved', 'sent', 'received', 'closed', 'cancelled'];
 
   const filteredPOs = purchaseOrders.filter(po => {
-    const matchesVendor = filters.vendor === 'All' || po.vendor === filters.vendor;
+    const matchesVendor = filters.vendor === 'All' || po.vendors?.name === filters.vendor;
     const matchesStatus = filters.status === 'All' || po.status === filters.status;
-    const matchesDateFrom = !filters.dateFrom || po.dateCreated >= filters.dateFrom;
-    const matchesDateTo = !filters.dateTo || po.dateCreated <= filters.dateTo;
-    const matchesPOId = !filters.poId || po.id.toLowerCase().includes(filters.poId.toLowerCase());
+    const matchesDateFrom = !filters.dateFrom || po.po_date >= filters.dateFrom;
+    const matchesDateTo = !filters.dateTo || po.po_date <= filters.dateTo;
+    const matchesPOId = !filters.poId || po.po_number.toLowerCase().includes(filters.poId.toLowerCase());
     
     return matchesVendor && matchesStatus && matchesDateFrom && matchesDateTo && matchesPOId;
   });
 
-  // Debug logging
-  console.log('Purchase Orders:', purchaseOrders);
-  console.log('Filters:', filters);
-  console.log('Filtered POs:', filteredPOs);
+  // Refresh data function
+  const refreshData = async () => {
+    try {
+      const response = await apiClient.getPurchaseOrders({ limit: 100 });
+      if (response.success) {
+        setPurchaseOrders(response.data.purchaseOrders || []);
+      }
+    } catch (error) {
+      console.error('Failed to refresh purchase orders:', error);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Approved': return 'bg-green-100 text-green-800';
-      case 'Pending Approval': return 'bg-yellow-100 text-yellow-800';
-      case 'Draft': return 'bg-gray-100 text-gray-800';
-      case 'Closed': return 'bg-blue-100 text-blue-800';
+      case 'approved': return 'bg-green-100 text-green-800';
+      case 'pending_approval': return 'bg-yellow-100 text-yellow-800';
+      case 'draft': return 'bg-gray-100 text-gray-800';
+      case 'sent': return 'bg-blue-100 text-blue-800';
+      case 'received': return 'bg-purple-100 text-purple-800';
+      case 'closed': return 'bg-indigo-100 text-indigo-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const handleViewPODetails = (po: any) => {
+  const formatStatus = (status: string) => {
+    return status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  };
+
+  const handleViewPODetails = (po: PurchaseOrder) => {
     setSelectedPO(po);
     setShowPODetails(true);
   };
 
-  const handleEditPO = (po: any) => {
+  const handleEditPO = (po: PurchaseOrder) => {
     console.log('Editing PO:', po);
-    alert(`Editing ${po.id}`);
+    alert(`Editing ${po.po_number}`);
   };
 
-  const handleApprovePO = (po: any) => {
-    console.log('Approving PO:', po);
-    alert(`Approving ${po.id}`);
+  const handleApprovePO = async (po: PurchaseOrder) => {
+    try {
+      const response = await apiClient.updatePurchaseOrderStatus(po.id, 'approved');
+      if (response.success) {
+        alert(`Purchase Order ${po.po_number} approved successfully!`);
+        refreshData();
+      } else {
+        throw new Error(response.message || 'Failed to approve purchase order');
+      }
+    } catch (error) {
+      console.error('Failed to approve PO:', error);
+      alert(`Failed to approve ${po.po_number}: ${error instanceof Error ? error.message : 'Please try again.'}`);
+    }
   };
 
-  const handleAttachBill = (po: any) => {
+  const handleAttachBill = (po: PurchaseOrder) => {
     setSelectedPO(po);
     setShowUploadBill(true);
   };
 
-  const handleGenerateChallan = (po: any) => {
+  const handleGenerateChallan = (po: PurchaseOrder) => {
     setSelectedPO(po);
     setShowGenerateChallan(true);
   };
@@ -171,6 +147,42 @@ export default function PurchasesPage() {
       poId: ''
     });
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Error loading purchase orders</h3>
+                <p className="mt-1 text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -225,7 +237,7 @@ export default function PurchasesPage() {
                 onChange={(e) => setFilters({ ...filters, vendor: e.target.value })}
                 className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                {vendors.map(vendor => (
+                {vendorOptions.map(vendor => (
                   <option key={vendor} value={vendor}>{vendor}</option>
                 ))}
               </select>
@@ -239,7 +251,7 @@ export default function PurchasesPage() {
                 className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 {statuses.map(status => (
-                  <option key={status} value={status}>{status}</option>
+                  <option key={status} value={status}>{status === 'All' ? 'All' : formatStatus(status)}</option>
                 ))}
               </select>
             </div>
@@ -300,7 +312,6 @@ export default function PurchasesPage() {
               <div className="text-center py-8">
                 <p className="text-gray-500">No purchase orders found.</p>
                 <p className="text-sm text-gray-400 mt-1">Total POs: {purchaseOrders.length} | Filtered: {filteredPOs.length}</p>
-                <p className="text-sm text-gray-400">Filters: Vendor={filters.vendor}, Status={filters.status}</p>
               </div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200">
@@ -320,47 +331,34 @@ export default function PurchasesPage() {
                 {filteredPOs.map((po) => (
                   <tr key={po.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{po.id}</div>
+                      <div className="text-sm font-medium text-gray-900">{po.po_number}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{po.vendor}</div>
-                        <div className="text-sm text-gray-500">{po.vendorDetails.gst}</div>
+                        <div className="text-sm font-medium text-gray-900">{po.vendors?.name || 'Unknown Vendor'}</div>
+                        <div className="text-sm text-gray-500">{po.vendors?.gst_number || 'N/A'}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        <div>Quote: {po.linkedQuotation}</div>
-                        <div>Order: {po.linkedOrder}</div>
+                        <div>Quote: {po.quotation_id || 'N/A'}</div>
+                        <div>Order: {po.sales_order_id || 'N/A'}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{po.dateCreated}</div>
+                      <div className="text-sm text-gray-900">{new Date(po.po_date).toLocaleDateString()}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(po.status)}`}>
-                        {po.status}
+                        {formatStatus(po.status)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">${po.totalAmount.toLocaleString()}</div>
+                      <div className="text-sm font-medium text-gray-900">${po.total_amount.toLocaleString()}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {po.attachedBills.length > 0 ? (
-                          <div className="space-y-1">
-                            {po.attachedBills.map((bill, index) => (
-                              <div key={index} className="flex items-center space-x-2">
-                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                <span className="text-blue-600 hover:text-blue-800 cursor-pointer">{bill}</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">No bills</span>
-                        )}
+                        <span className="text-gray-400">No bills</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -377,7 +375,7 @@ export default function PurchasesPage() {
                         >
                           Edit
                         </button>
-                        {po.status === 'Pending Approval' && (
+                        {po.status === 'pending_approval' && (
                           <button
                             onClick={() => handleApprovePO(po)}
                             className="text-purple-600 hover:text-purple-700 font-medium"
@@ -409,10 +407,28 @@ export default function PurchasesPage() {
       </div>
 
       {/* Modals */}
-      <CreatePurchaseOrderModal isOpen={showCreatePO} onClose={() => setShowCreatePO(false)} />
-      <UploadVendorBillModal isOpen={showUploadBill} onClose={() => setShowUploadBill(false)} selectedPO={selectedPO} />
-      <GenerateDeliveryChallanModal isOpen={showGenerateChallan} onClose={() => setShowGenerateChallan(false)} selectedPO={selectedPO} />
-      <PurchaseOrderDetailsModal isOpen={showPODetails} onClose={() => setShowPODetails(false)} po={selectedPO} />
+        <CreatePurchaseOrderModal
+          isOpen={showCreatePO}
+          onClose={() => setShowCreatePO(false)}
+          onPOCreated={loadPurchaseOrders}
+        />
+      <UploadVendorBillModal 
+        isOpen={showUploadBill} 
+        onClose={() => setShowUploadBill(false)} 
+        selectedPO={selectedPO}
+        onBillAttached={loadPurchaseOrders}
+      />
+      <GenerateDeliveryChallanModal 
+        isOpen={showGenerateChallan} 
+        onClose={() => setShowGenerateChallan(false)} 
+        selectedPO={selectedPO}
+        onChallanGenerated={loadPurchaseOrders}
+      />
+      <PurchaseOrderDetailsModal 
+        isOpen={showPODetails} 
+        onClose={() => setShowPODetails(false)} 
+        po={selectedPO} 
+      />
     </AppLayout>
   );
 }

@@ -54,7 +54,7 @@ export const signIn = async (email: string, password: string): Promise<LoginResp
 
     // Store token in localStorage
     if (data.data?.token) {
-      localStorage.setItem('authToken', data.data.token);
+      localStorage.setItem('auth_token', data.data.token);
       localStorage.setItem('user', JSON.stringify(data.data.user));
     }
 
@@ -95,7 +95,7 @@ export const signUp = async (
 
     // Store token in localStorage
     if (data.data?.token) {
-      localStorage.setItem('authToken', data.data.token);
+      localStorage.setItem('auth_token', data.data.token);
       localStorage.setItem('user', JSON.stringify(data.data.user));
     }
 
@@ -108,7 +108,7 @@ export const signUp = async (
 
 export const signOut = async () => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('auth_token');
     
     if (token) {
       await fetch(`${API_URL}/auth/logout`, {
@@ -121,19 +121,19 @@ export const signOut = async () => {
     }
 
     // Clear local storage
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
   } catch (error) {
     console.error('Sign out error:', error);
     // Still clear local storage even if API call fails
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
   }
 };
 
 export const getCurrentUser = () => {
   try {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('auth_token');
     const userStr = localStorage.getItem('user');
     
     if (!token || !userStr) {
@@ -149,7 +149,7 @@ export const getCurrentUser = () => {
 };
 
 export const isAuthenticated = (): boolean => {
-  const token = localStorage.getItem('authToken');
+  const token = localStorage.getItem('auth_token');
   return !!token;
 };
 

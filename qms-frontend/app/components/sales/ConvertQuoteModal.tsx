@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { apiClient } from '../../lib/api';
 
 interface ConvertQuoteModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOrderCreated?: () => void;
 }
 
 interface Quote {
@@ -23,7 +25,7 @@ interface Quote {
   }>;
 }
 
-export default function ConvertQuoteModal({ isOpen, onClose }: ConvertQuoteModalProps) {
+export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: ConvertQuoteModalProps) {
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [isConverting, setIsConverting] = useState(false);
   const [orderDetails, setOrderDetails] = useState({
@@ -32,49 +34,40 @@ export default function ConvertQuoteModal({ isOpen, onClose }: ConvertQuoteModal
     notes: ''
   });
 
-  // Mock data for available quotes
-  const availableQuotes: Quote[] = [
-    {
-      id: '1',
-      number: 'Q-2024-001',
-      customer: 'ABC Corporation',
-      amount: 2500,
-      status: 'Accepted',
-      validUntil: '2024-12-31',
-      items: [
-        { id: '1', description: 'Laptop Dell XPS 13', quantity: 2, unitPrice: 1200, total: 2400 },
-        { id: '2', description: 'Wireless Mouse', quantity: 2, unitPrice: 50, total: 100 }
-      ]
-    },
-    {
-      id: '2',
-      number: 'Q-2024-002',
-      customer: 'XYZ Ltd',
-      amount: 1800,
-      status: 'Accepted',
-      validUntil: '2024-12-15',
-      items: [
-        { id: '3', description: 'Monitor 27" 4K', quantity: 1, unitPrice: 800, total: 800 },
-        { id: '4', description: 'USB-C Hub', quantity: 2, unitPrice: 45, total: 90 },
-        { id: '5', description: 'Keyboard', quantity: 2, unitPrice: 75, total: 150 },
-        { id: '6', description: 'Mouse Pad', quantity: 2, unitPrice: 15, total: 30 }
-      ]
-    },
-    {
-      id: '3',
-      number: 'Q-2024-003',
-      customer: 'Tech Solutions Inc',
-      amount: 4200,
-      status: 'Pending',
-      validUntil: '2024-11-30',
-      items: [
-        { id: '7', description: 'Server Rack', quantity: 1, unitPrice: 2500, total: 2500 },
-        { id: '8', description: 'Network Switch', quantity: 1, unitPrice: 800, total: 800 },
-        { id: '9', description: 'Cables', quantity: 10, unitPrice: 25, total: 250 },
-        { id: '10', description: 'Installation Service', quantity: 1, unitPrice: 650, total: 650 }
-      ]
+  const [availableQuotes, setAvailableQuotes] = useState<Quote[]>([]);
+
+  // Load quotations when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadQuotations();
     }
-  ];
+  }, [isOpen]);
+
+  const loadQuotations = async () => {
+    try {
+      const response = await apiClient.getQuotations({ limit: 50 });
+      if (response.success) {
+        // Transform API data to match our Quote interface
+        const quotes = response.data.quotations.map((q: any) => ({
+          id: q.id.toString(),
+          number: q.quotation_number || `QUO-${q.id}`,
+          customer: q.customers?.name || 'Unknown Customer',
+          amount: parseFloat(q.total_amount) || 0,
+          status: q.status,
+          validUntil: q.valid_until || '',
+          items: q.quotation_items || []
+        }));
+        
+        // Filter out quotes that have already been converted
+        const availableQuotes = quotes.filter((q: any) => q.status !== 'converted');
+        setAvailableQuotes(availableQuotes);
+      }
+    } catch (error) {
+      console.error('Failed to load quotations:', error);
+      // Fallback to empty array if API fails
+      setAvailableQuotes([]);
+    }
+  };
 
   const handleQuoteSelect = (quote: Quote) => {
     setSelectedQuote(quote);
@@ -91,31 +84,38 @@ export default function ConvertQuoteModal({ isOpen, onClose }: ConvertQuoteModal
     setIsConverting(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
       const orderData = {
-        quoteId: selectedQuote.id,
-        quoteNumber: selectedQuote.number,
-        customer: selectedQuote.customer,
-        items: selectedQuote.items,
-        orderDetails,
-        totalAmount: selectedQuote.amount
+        quotation_id: parseInt(selectedQuote.id),
+        expected_delivery: orderDetails.expectedDelivery,
+        priority: orderDetails.priority,
+        notes: orderDetails.notes,
+        status: 'pending'
       };
       
-      console.log('Converting quote to order:', orderData);
+      const response = await apiClient.convertQuoteToOrder(orderData);
       
-      // Here you would make the actual API call to POST /api/orders
-      // const response = await fetch('/api/orders', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(orderData)
-      // });
-      
-      alert(`Quote ${selectedQuote.number} successfully converted to order!`);
-      onClose();
+      if (response.success) {
+        alert(`Quote ${selectedQuote.number} successfully converted to order!`);
+        onClose();
+        
+        // Call callback to refresh order list
+        if (onOrderCreated) {
+          onOrderCreated();
+        }
+        
+        // Reset state
+        setSelectedQuote(null);
+        setOrderDetails({
+          expectedDelivery: '',
+          priority: 'normal',
+          notes: ''
+        });
+      } else {
+        throw new Error(response.message || 'Failed to convert quote');
+      }
     } catch (error) {
       console.error('Failed to convert quote:', error);
-      alert('Failed to convert quote. Please try again.');
+      alert(`Failed to convert quote: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally {
       setIsConverting(false);
     }
@@ -124,7 +124,7 @@ export default function ConvertQuoteModal({ isOpen, onClose }: ConvertQuoteModal
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Convert Quote to Order</h2>
@@ -185,11 +185,11 @@ export default function ConvertQuoteModal({ isOpen, onClose }: ConvertQuoteModal
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">{item.description}</p>
                         <p className="text-sm text-gray-600">
-                          Qty: {item.quantity} × ${item.unitPrice} = ${item.total.toLocaleString()}
+                          Qty: {item.quantity} × ${item.unitPrice} = ${(item.quantity * item.unitPrice).toLocaleString()}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium text-gray-900">${item.total.toLocaleString()}</p>
+                        <p className="font-medium text-gray-900">${(item.quantity * item.unitPrice).toLocaleString()}</p>
                       </div>
                     </div>
                   ))}

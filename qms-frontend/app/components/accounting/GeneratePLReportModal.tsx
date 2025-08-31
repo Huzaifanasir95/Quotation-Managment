@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { apiClient } from '../../lib/api';
 
 interface GeneratePLReportModalProps {
   isOpen: boolean;
@@ -40,42 +41,53 @@ export default function GeneratePLReportModal({ isOpen, onClose }: GeneratePLRep
     setIsGenerating(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Fetch real financial metrics from the backend
+      const metricsResponse = await apiClient.getFinancialMetrics({
+        date_from: reportConfig.dateFrom,
+        date_to: reportConfig.dateTo
+      });
       
-      // Mock report data
-      const mockReportData = {
-        period: `${reportConfig.dateFrom} to ${reportConfig.dateTo}`,
-        revenue: {
-          sales: 189000,
-          otherIncome: 5000,
-          total: 194000
-        },
-        costs: {
-          purchases: 125000,
-          directExpenses: 15000,
-          total: 140000
-        },
-        expenses: {
-          salaries: 25000,
-          rent: 8000,
-          utilities: 3000,
-          office: 2000,
-          marketing: 5000,
-          other: 2000,
-          total: 45000
-        },
-        summary: {
-          grossProfit: 194000 - 140000,
-          netProfit: 194000 - 140000 - 45000,
-          margin: ((194000 - 140000 - 45000) / 194000 * 100).toFixed(2)
-        }
-      };
+      if (metricsResponse.success) {
+        const metrics = metricsResponse.data.metrics;
+        
+        // Transform backend data to match the expected report structure
+        const reportData = {
+          period: `${reportConfig.dateFrom} to ${reportConfig.dateTo}`,
+          revenue: {
+            sales: metrics.totalSales || 0,
+            otherIncome: 0, // Can be calculated from other revenue accounts if needed
+            total: metrics.totalSales || 0
+          },
+          costs: {
+            purchases: metrics.totalPurchases || 0,
+            directExpenses: 0, // Can be calculated from specific expense accounts
+            total: metrics.totalPurchases || 0
+          },
+          expenses: {
+            salaries: 0, // These would need to be calculated from specific accounts
+            rent: 0,
+            utilities: 0,
+            office: 0,
+            marketing: 0,
+            other: metrics.expenses || 0,
+            total: metrics.expenses || 0
+          },
+          summary: {
+            grossProfit: (metrics.totalSales || 0) - (metrics.totalPurchases || 0),
+            netProfit: metrics.netProfit || 0,
+            margin: metrics.totalSales > 0 ? 
+              ((metrics.netProfit || 0) / metrics.totalSales * 100).toFixed(2) : '0.00'
+          }
+        };
+        
+        setReportData(reportData);
+      } else {
+        throw new Error('Failed to fetch financial metrics');
+      }
       
-      setReportData(mockReportData);
-      
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to generate report:', error);
-      alert('Failed to generate report. Please try again.');
+      alert(`Failed to generate report: ${error.message || 'Please try again.'}`);
     } finally {
       setIsGenerating(false);
     }
@@ -105,7 +117,7 @@ export default function GeneratePLReportModal({ isOpen, onClose }: GeneratePLRep
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Generate Profit & Loss Report</h2>
@@ -207,6 +219,9 @@ export default function GeneratePLReportModal({ isOpen, onClose }: GeneratePLRep
                 <h4 className="font-medium text-blue-900 mb-3">Report Generated Successfully!</h4>
                 <p className="text-sm text-blue-800">
                   Period: {reportData.period} | Format: {reportConfig.format.toUpperCase()}
+                </p>
+                <p className="text-xs text-blue-700 mt-1">
+                  Data sourced from live accounting ledger entries
                 </p>
               </div>
 

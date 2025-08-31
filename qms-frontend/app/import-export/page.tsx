@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { apiClient, DocumentAttachment } from '@/app/lib/api';
 import AppLayout from '../components/AppLayout';
 import UploadTradeDocumentModal from '../components/import-export/UploadTradeDocumentModal';
 import DocumentDetailsModal from '../components/import-export/DocumentDetailsModal';
@@ -8,11 +9,15 @@ import DocumentDetailsModal from '../components/import-export/DocumentDetailsMod
 export default function ImportExportPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showDocumentDetails, setShowDocumentDetails] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<any>(null);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentAttachment | null>(null);
+  const [documents, setDocuments] = useState<DocumentAttachment[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Filters state
   const [filters, setFilters] = useState({
-    entity: 'All',
     documentType: 'All',
     customerVendor: 'All',
     dateFrom: '',
@@ -20,56 +25,97 @@ export default function ImportExportPage() {
     linkedReference: ''
   });
 
-  // Mock data for business entities
-  const businessEntities = [
-    { id: 'entity-001', name: 'QMS Trading Co.', type: 'Trading Company', country: 'Pakistan' },
-    { id: 'entity-002', name: 'QMS Manufacturing Ltd.', type: 'Manufacturing', country: 'Pakistan' },
-    { id: 'entity-003', name: 'QMS International LLC', type: 'International Trade', country: 'UAE' },
-    { id: 'entity-004', name: 'QMS Export Solutions', type: 'Export Services', country: 'Pakistan' },
-    { id: 'entity-005', name: 'QMS Import Division', type: 'Import Services', country: 'Pakistan' }
-  ];
+  // Data fetching
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  // Mock data for trade documents
-  const tradeDocuments = [
-    {
-      id: 'DOC-2024-001',
-      entity: 'QMS Trading Co.',
-      entityId: 'entity-001',
-      documentType: 'Bill of Lading',
-      documentTypeCode: 'BL',
-      linkedReference: 'Q-2024-001',
-      linkedType: 'Quotation',
-      customerVendor: 'ABC Corp',
-      customerVendorType: 'Customer',
-      dateUploaded: '2024-01-20',
-      fileSize: '2.4 MB',
-      fileType: 'PDF',
-      status: 'Active',
-      complianceStatus: 'Compliant',
-      notes: 'Original BL for shipment ABC-001',
-      uploadedBy: 'Trade Team',
-      lastModified: '2024-01-20 14:30'
-    },
-    {
-      id: 'DOC-2024-002',
-      entity: 'QMS Manufacturing Ltd.',
-      entityId: 'entity-002',
-      documentType: 'Customs Form',
-      documentTypeCode: 'CF',
-      linkedReference: 'PO-2024-001',
-      linkedType: 'Purchase Order',
-      customerVendor: 'Tech Supplies Inc',
-      customerVendorType: 'Vendor',
-      dateUploaded: '2024-01-19',
-      fileSize: '1.8 MB',
-      fileType: 'PDF',
-      status: 'Active',
-      complianceStatus: 'Pending Review',
-      notes: 'Customs declaration for machinery import',
-      uploadedBy: 'Procurement Team',
-      lastModified: '2024-01-19 16:45'
+        // Fetch customers, vendors, and documents in parallel
+        const [customersResponse, vendorsResponse] = await Promise.all([
+          apiClient.getCustomers({ limit: 1000 }),
+          apiClient.getVendors({ limit: 1000 })
+        ]);
+
+        const customersData = Array.isArray(customersResponse?.data) ? customersResponse.data : [];
+        const vendorsData = Array.isArray(vendorsResponse?.data) ? vendorsResponse.data : [];
+        
+        setCustomers(customersData);
+        setVendors(vendorsData);
+
+        // Fetch documents for customers and vendors
+        const allDocuments: DocumentAttachment[] = [];
+        
+        // Fetch customer documents
+        for (const customer of customersData) {
+          try {
+            const documentsResponse = await apiClient.getDocuments('customer', customer.id);
+            if (documentsResponse?.data && Array.isArray(documentsResponse.data)) {
+              allDocuments.push(...documentsResponse.data);
+            }
+          } catch (err) {
+            console.warn(`Failed to fetch documents for customer ${customer.id}:`, err);
+          }
+        }
+        
+        // Fetch vendor documents
+        for (const vendor of vendorsData) {
+          try {
+            const documentsResponse = await apiClient.getDocuments('vendor', vendor.id);
+            if (documentsResponse?.data && Array.isArray(documentsResponse.data)) {
+              allDocuments.push(...documentsResponse.data);
+            }
+          } catch (err) {
+            console.warn(`Failed to fetch documents for vendor ${vendor.id}:`, err);
+          }
+        }
+        
+        setDocuments(allDocuments);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError('Failed to load data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const refreshDocuments = async () => {
+    try {
+      const allDocuments: DocumentAttachment[] = [];
+      
+      // Fetch customer documents
+      for (const customer of customers) {
+        try {
+          const documentsResponse = await apiClient.getDocuments('customer', customer.id);
+          if (documentsResponse.data) {
+            allDocuments.push(...documentsResponse.data);
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch documents for customer ${customer.id}:`, err);
+        }
+      }
+      
+      // Fetch vendor documents
+      for (const vendor of vendors) {
+        try {
+          const documentsResponse = await apiClient.getDocuments('vendor', vendor.id);
+          if (documentsResponse.data) {
+            allDocuments.push(...documentsResponse.data);
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch documents for vendor ${vendor.id}:`, err);
+        }
+      }
+      
+      setDocuments(allDocuments);
+    } catch (err) {
+      console.error('Error refreshing documents:', err);
     }
-  ];
+  };
 
   const documentTypes = [
     { code: 'BL', name: 'Bill of Lading', description: 'Shipping document for cargo' },
@@ -79,66 +125,76 @@ export default function ImportExportPage() {
     { code: 'CO', name: 'Certificate of Origin', description: 'Country of origin certificate' }
   ];
 
-  const customersVendors = ['All', ...Array.from(new Set(tradeDocuments.map(doc => doc.customerVendor)))];
-  const entities = ['All', ...Array.from(new Set(tradeDocuments.map(doc => doc.entity)))];
-  const documentTypeCodes = ['All', ...Array.from(new Set(tradeDocuments.map(doc => doc.documentTypeCode)))];
+  // Generate filter options from real data
+  const customersVendors = [
+    'All', 
+    ...Array.from(new Set([
+      ...(Array.isArray(customers) ? customers.map(c => c.name) : []),
+      ...(Array.isArray(vendors) ? vendors.map(v => v.name) : [])
+    ]))
+  ];
+  
+  const documentTypeCodes = ['All', ...Array.from(new Set((Array.isArray(documents) ? documents.map(doc => doc.document_type) : [])))];
 
-  const filteredDocuments = tradeDocuments.filter(doc => {
-    const matchesEntity = filters.entity === 'All' || doc.entity === filters.entity;
-    const matchesDocumentType = filters.documentType === 'All' || doc.documentTypeCode === filters.documentType;
-    const matchesCustomerVendor = filters.customerVendor === 'All' || doc.customerVendor === filters.customerVendor;
-    const matchesDateFrom = !filters.dateFrom || doc.dateUploaded >= filters.dateFrom;
-    const matchesDateTo = !filters.dateTo || doc.dateUploaded <= filters.dateTo;
-    const matchesLinkedReference = !filters.linkedReference || 
-      doc.linkedReference.toLowerCase().includes(filters.linkedReference.toLowerCase());
+  const filteredDocuments = (Array.isArray(documents) ? documents : []).filter(doc => {
+    const customerVendorName = doc.customers?.name || doc.vendors?.name || '';
     
-    return matchesEntity && matchesDocumentType && matchesCustomerVendor && 
+    const matchesDocumentType = filters.documentType === 'All' || doc.document_type === filters.documentType;
+    const matchesCustomerVendor = filters.customerVendor === 'All' || customerVendorName === filters.customerVendor;
+    const matchesDateFrom = !filters.dateFrom || doc.created_at.split('T')[0] >= filters.dateFrom;
+    const matchesDateTo = !filters.dateTo || doc.created_at.split('T')[0] <= filters.dateTo;
+    const matchesLinkedReference = !filters.linkedReference || 
+      (doc.linked_reference_number && doc.linked_reference_number.toLowerCase().includes(filters.linkedReference.toLowerCase()));
+    
+    return matchesDocumentType && matchesCustomerVendor && 
            matchesDateFrom && matchesDateTo && matchesLinkedReference;
   });
 
   const getDocumentTypeColor = (type: string) => {
     switch (type) {
-      case 'BL': return 'bg-blue-100 text-blue-800';
-      case 'CF': return 'bg-green-100 text-green-800';
-      case 'CI': return 'bg-purple-100 text-purple-800';
-      case 'PL': return 'bg-orange-100 text-orange-800';
-      case 'CO': return 'bg-red-100 text-red-800';
+      case 'bill_of_lading': return 'bg-blue-100 text-blue-800';
+      case 'customs_form': return 'bg-green-100 text-green-800';
+      case 'commercial_invoice': return 'bg-purple-100 text-purple-800';
+      case 'packing_list': return 'bg-orange-100 text-orange-800';
+      case 'certificate_of_origin': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getComplianceStatusColor = (status: string) => {
     switch (status) {
-      case 'Compliant': return 'bg-green-100 text-green-800';
-      case 'Pending Review': return 'bg-yellow-100 text-yellow-800';
-      case 'Under Review': return 'bg-blue-100 text-blue-800';
-      case 'Non-Compliant': return 'bg-red-100 text-red-800';
+      case 'approved': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getOCRStatusColor = (status: string) => {
     switch (status) {
-      case 'Active': return 'bg-green-100 text-green-800';
-      case 'Archived': return 'bg-gray-100 text-gray-800';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800';
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'processing': return 'bg-blue-100 text-blue-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'failed': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const exportToExcel = () => {
     const csvContent = [
-      ['Doc ID', 'Entity', 'Type', 'Linked Reference', 'Customer/Vendor', 'Date Uploaded', 'Status', 'Compliance Status'],
-      ...filteredDocuments.map(doc => [
-        doc.id,
-        doc.entity,
-        doc.documentType,
-        doc.linkedReference,
-        doc.customerVendor,
-        doc.dateUploaded,
-        doc.status,
-        doc.complianceStatus
-      ])
+      ['Doc ID', 'Type', 'Linked Reference', 'Customer/Vendor', 'Date Uploaded', 'Compliance Status', 'OCR Status'],
+      ...filteredDocuments.map((doc: DocumentAttachment) => {
+        const customerVendorName = doc.customers?.name || doc.vendors?.name || '';
+        return [
+          doc.id,
+          doc.document_type,
+          doc.linked_reference_number || '',
+          customerVendorName,
+          doc.created_at.split('T')[0],
+          doc.compliance_status,
+          doc.ocr_status
+        ];
+      })
     ].map(row => row.join(',')).join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -154,7 +210,6 @@ export default function ImportExportPage() {
 
   const clearFilters = () => {
     setFilters({
-      entity: 'All',
       documentType: 'All',
       customerVendor: 'All',
       dateFrom: '',
@@ -163,15 +218,67 @@ export default function ImportExportPage() {
     });
   };
 
-  const handleViewDocument = (document: any) => {
+  const handleViewDocument = (document: DocumentAttachment) => {
     setSelectedDocument(document);
     setShowDocumentDetails(true);
   };
 
+  const handleDownload = async (documentId: string) => {
+    try {
+      const blob = await apiClient.downloadDocument(documentId);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `document_${documentId}`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error downloading document:', err);
+      alert('Failed to download document. Please try again.');
+    }
+  };
+
   const totalDocuments = filteredDocuments.length;
-  const totalEntities = businessEntities.length;
-  const totalCompliant = filteredDocuments.filter(doc => doc.complianceStatus === 'Compliant').length;
-  const totalPendingReview = filteredDocuments.filter(doc => doc.complianceStatus === 'Pending Review').length;
+  const totalEntities = customers.length + vendors.length;
+  const totalCompliant = filteredDocuments.filter((doc: DocumentAttachment) => doc.compliance_status === 'approved').length;
+  const totalPendingReview = filteredDocuments.filter((doc: DocumentAttachment) => doc.compliance_status === 'pending').length;
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-lg text-gray-600">Loading documents...</span>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <div className="text-red-600 mb-4">
+              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Data</h3>
+            <p className="text-red-600 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -280,19 +387,6 @@ export default function ImportExportPage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Business Entity</label>
-              <select
-                value={filters.entity}
-                onChange={(e) => setFilters({ ...filters, entity: e.target.value })}
-                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {entities.map(entity => (
-                  <option key={entity} value={entity}>{entity}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Document Type</label>
               <select
                 value={filters.documentType}
@@ -352,7 +446,7 @@ export default function ImportExportPage() {
 
           <div className="mt-4 flex items-center justify-between">
             <p className="text-sm text-gray-600">
-              Found {filteredDocuments.length} document(s) out of {tradeDocuments.length} total
+              Found {filteredDocuments.length} document(s) out of {documents.length} total
             </p>
           </div>
         </div>
@@ -373,7 +467,6 @@ export default function ImportExportPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doc ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entity</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Linked Reference</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer/Vendor</th>
@@ -383,62 +476,67 @@ export default function ImportExportPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredDocuments.map((document) => (
-                    <tr key={document.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer">
-                          {document.id}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{document.entity}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getDocumentTypeColor(document.documentTypeCode)}`}>
-                          {document.documentTypeCode}
-                        </span>
-                        <div className="text-xs text-gray-500 mt-1">{document.documentType}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm">
-                          <span className="text-gray-900">{document.linkedReference}</span>
-                          <div className="text-xs text-gray-500">{document.linkedType}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm">
-                          <span className="text-gray-900">{document.customerVendor}</span>
-                          <div className="text-xs text-gray-500">{document.customerVendorType}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{document.dateUploaded}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="space-y-1">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(document.status)}`}>
-                            {document.status}
-                          </span>
-                          <div>
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getComplianceStatusColor(document.complianceStatus)}`}>
-                              {document.complianceStatus}
-                            </span>
+                  {filteredDocuments.map((document: DocumentAttachment) => {
+                    const customerVendorName = document.customers?.name || document.vendors?.name || '';
+                    const customerVendorType = document.customer_id ? 'Customer' : document.vendor_id ? 'Vendor' : '';
+
+                    return (
+                      <tr key={document.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer">
+                            {document.id.slice(0, 8)}...
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <button 
-                          onClick={() => handleViewDocument(document)}
-                          className="text-blue-600 hover:text-blue-700 font-medium mr-3"
-                        >
-                          View
-                        </button>
-                        <button className="text-green-600 hover:text-green-700 font-medium">
-                          Download
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getDocumentTypeColor(document.document_type)}`}>
+                            {document.document_type.replace('_', ' ').toUpperCase()}
+                          </span>
+                          <div className="text-xs text-gray-500 mt-1">{document.file_name}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm">
+                            <span className="text-gray-900">{document.linked_reference_number || 'N/A'}</span>
+                            <div className="text-xs text-gray-500">{document.linked_reference_type || ''}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm">
+                            <span className="text-gray-900">{customerVendorName || 'N/A'}</span>
+                            <div className="text-xs text-gray-500">{customerVendorType}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{document.created_at.split('T')[0]}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="space-y-1">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getComplianceStatusColor(document.compliance_status)}`}>
+                              {document.compliance_status}
+                            </span>
+                            <div>
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getOCRStatusColor(document.ocr_status)}`}>
+                                OCR: {document.ocr_status}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <button 
+                            onClick={() => handleViewDocument(document)}
+                            className="text-blue-600 hover:text-blue-700 font-medium mr-3"
+                          >
+                            View
+                          </button>
+                          <button 
+                            onClick={() => handleDownload(document.id)}
+                            className="text-green-600 hover:text-green-700 font-medium"
+                          >
+                            Download
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -447,8 +545,19 @@ export default function ImportExportPage() {
       </div>
 
       {/* Modals */}
-      <UploadTradeDocumentModal isOpen={showUploadModal} onClose={() => setShowUploadModal(false)} />
-      <DocumentDetailsModal isOpen={showDocumentDetails} onClose={() => setShowDocumentDetails(false)} document={selectedDocument} />
+      <UploadTradeDocumentModal 
+        isOpen={showUploadModal} 
+        onClose={() => setShowUploadModal(false)}
+        onUploadSuccess={refreshDocuments}
+        customers={customers}
+        vendors={vendors}
+      />
+      <DocumentDetailsModal 
+        isOpen={showDocumentDetails} 
+        onClose={() => setShowDocumentDetails(false)} 
+        document={selectedDocument}
+        onDocumentUpdate={refreshDocuments}
+      />
     </AppLayout>
   );
 }

@@ -1,20 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { apiClient, type Vendor } from '../../lib/api';
 
 interface CreatePurchaseOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onPOCreated?: () => void;
 }
 
-interface Vendor {
-  id: string;
-  name: string;
-  gst: string;
-  contact: string;
-  phone: string;
-  email: string;
-}
 
 interface Product {
   id: string;
@@ -36,7 +30,7 @@ interface POItem {
   subtotal: number;
 }
 
-export default function CreatePurchaseOrderModal({ isOpen, onClose }: CreatePurchaseOrderModalProps) {
+export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated }: CreatePurchaseOrderModalProps) {
   const [formData, setFormData] = useState({
     vendorId: '',
     expectedDelivery: '',
@@ -44,15 +38,27 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose }: CreatePurc
     terms: ''
   });
   const [items, setItems] = useState<POItem[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [action, setAction] = useState<'save' | 'approve'>('save');
 
-  // Mock data
-  const vendors: Vendor[] = [
-    { id: '1', name: 'Tech Supplies Inc', gst: 'GST123456789', contact: 'John Smith', phone: '+1 (555) 123-4567', email: 'john@techsupplies.com' },
-    { id: '2', name: 'Display Solutions', gst: 'GST234567890', contact: 'Sarah Johnson', phone: '+1 (555) 234-5678', email: 'sarah@displaysolutions.com' },
-    { id: '3', name: 'Input Devices Co', gst: 'GST345678901', contact: 'Mike Davis', phone: '+1 (555) 345-6789', email: 'mike@inputdevices.com' }
-  ];
+  // Load vendors when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadVendors();
+    }
+  }, [isOpen]);
+
+  const loadVendors = async () => {
+    try {
+      const response = await apiClient.getVendors({ limit: 100 });
+      if (response.success) {
+        setVendors(response.data.vendors || []);
+      }
+    } catch (error) {
+      console.error('Failed to load vendors:', error);
+    }
+  };
 
   const products: Product[] = [
     { id: '1', name: 'Laptop Dell XPS 13', sku: 'LAP-001', price: 1200, category: 'Electronics', currentStock: 5 },
@@ -105,6 +111,11 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose }: CreatePurc
   };
 
   const handleSubmit = async () => {
+    if (!formData.vendorId) {
+      alert('Please select a vendor.');
+      return;
+    }
+    
     if (items.length === 0) {
       alert('Please add at least one item to the purchase order.');
       return;
@@ -113,27 +124,53 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose }: CreatePurc
     setIsLoading(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
       const poData = {
-        ...formData,
-        items,
-        totals: calculateTotals(),
-        action
+        vendor_id: formData.vendorId,
+        po_date: new Date().toISOString().split('T')[0],
+        expected_delivery_date: formData.expectedDelivery || null,
+        status: action === 'approve' ? 'approved' : 'draft',
+        notes: formData.notes || null,
+        terms_conditions: formData.terms || null,
+        items: items.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          discount_percent: item.discount,
+          tax_percent: item.tax
+        }))
       };
       
-      console.log('Creating purchase order:', poData);
+      const response = await apiClient.createPurchaseOrder(poData);
       
-      if (action === 'approve') {
-        alert('Purchase order created and approved successfully!');
+      if (response.success) {
+        if (action === 'approve') {
+          alert('Purchase order created and approved successfully!');
+        } else {
+          alert('Purchase order saved as draft successfully!');
+        }
+        
+        // Reset form
+        setFormData({
+          vendorId: '',
+          expectedDelivery: '',
+          notes: '',
+          terms: ''
+        });
+        setItems([]);
+        setAction('save');
+        
+        onClose();
+        
+        // Call callback to refresh purchase orders list
+        if (onPOCreated) {
+          onPOCreated();
+        }
       } else {
-        alert('Purchase order saved as draft successfully!');
+        throw new Error(response.message || 'Failed to create purchase order');
       }
-      
-      onClose();
     } catch (error) {
       console.error('Failed to create purchase order:', error);
-      alert('Failed to create purchase order. Please try again.');
+      alert(`Failed to create purchase order: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally {
       setIsLoading(false);
     }
@@ -142,7 +179,7 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose }: CreatePurc
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Create New Purchase Order</h2>
@@ -161,9 +198,7 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose }: CreatePurc
               >
                 <option value="">Choose a vendor</option>
                 {vendors.map((vendor) => (
-                  <option key={vendor.id} value={vendor.id}>
-                    {vendor.name} - {vendor.gst}
-                  </option>
+                  <option key={vendor.id} value={vendor.id}>{vendor.name} - {vendor.gst_number || 'N/A'}</option>
                 ))}
               </select>
             </div>

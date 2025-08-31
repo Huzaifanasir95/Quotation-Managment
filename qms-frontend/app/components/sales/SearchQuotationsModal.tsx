@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { apiClient } from '../../lib/api';
 
 interface SearchQuotationsModalProps {
   isOpen: boolean;
@@ -25,76 +26,50 @@ interface Quotation {
 
 export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotationsModalProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [customerFilter, setCustomerFilter] = useState('All');
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
-  const [customerFilter, setCustomerFilter] = useState('');
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Mock data for quotations
-  const quotations: Quotation[] = [
-    {
-      id: '1',
-      number: 'Q-2024-001',
-      customer: 'ABC Corporation',
-      amount: 2500,
-      status: 'Pending',
-      date: '2024-01-15',
-      validUntil: '2024-12-31',
-      items: [
-        { id: '1', description: 'Laptop Dell XPS 13', quantity: 2, unitPrice: 1200 },
-        { id: '2', description: 'Wireless Mouse', quantity: 2, unitPrice: 50 }
-      ]
-    },
-    {
-      id: '2',
-      number: 'Q-2024-002',
-      customer: 'XYZ Ltd',
-      amount: 1800,
-      status: 'Accepted',
-      date: '2024-01-18',
-      validUntil: '2024-12-15',
-      items: [
-        { id: '3', description: 'Monitor 27" 4K', quantity: 1, unitPrice: 800 },
-        { id: '4', description: 'USB-C Hub', quantity: 2, unitPrice: 45 }
-      ]
-    },
-    {
-      id: '3',
-      number: 'Q-2024-003',
-      customer: 'Tech Solutions Inc',
-      amount: 4200,
-      status: 'Draft',
-      date: '2024-01-20',
-      validUntil: '2024-11-30',
-      items: [
-        { id: '7', description: 'Server Rack', quantity: 1, unitPrice: 2500 },
-        { id: '8', description: 'Network Switch', quantity: 1, unitPrice: 800 }
-      ]
-    },
-    {
-      id: '4',
-      number: 'Q-2024-004',
-      customer: 'Global Industries',
-      amount: 3200,
-      status: 'Rejected',
-      date: '2024-01-22',
-      validUntil: '2024-12-20',
-      items: [
-        { id: '9', description: 'Workstation', quantity: 2, unitPrice: 1600 }
-      ]
-    },
-    {
-      id: '5',
-      number: 'Q-2024-005',
-      customer: 'Innovation Corp',
-      amount: 1500,
-      status: 'Pending',
-      date: '2024-01-25',
-      validUntil: '2024-12-25',
-      items: [
-        { id: '10', description: 'Software License', quantity: 1, unitPrice: 1500 }
-      ]
+  // Load quotations when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadQuotations();
     }
-  ];
+  }, [isOpen]);
+
+  const loadQuotations = async () => {
+    setIsLoading(true);
+    try {
+      const response = await apiClient.getQuotations({ limit: 100 });
+      if (response.success) {
+        // Transform API data to match our Quotation interface
+        const transformedQuotations = response.data.quotations.map((q: any) => ({
+          id: q.id.toString(),
+          number: q.quotation_number || `QUO-${q.id}`,
+          customer: q.customers?.name || 'Unknown Customer',
+          amount: parseFloat(q.total_amount) || 0,
+          status: q.status,
+          date: q.quotation_date || (q.created_at ? new Date(q.created_at).toISOString().split('T')[0] : ''),
+          validUntil: q.valid_until || '',
+          items: q.quotation_items?.map((item: any) => ({
+            id: item.id.toString(),
+            description: item.description || 'No description',
+            quantity: item.quantity || 0,
+            unitPrice: item.unit_price || 0
+          })) || []
+        }));
+        setQuotations(transformedQuotations);
+      }
+    } catch (error) {
+      console.error('Failed to load quotations:', error);
+      // Keep empty array on error
+      setQuotations([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const statuses = ['All', 'Draft', 'Pending', 'Accepted', 'Rejected', 'Expired'];
   const customers = ['All', ...Array.from(new Set(quotations.map(q => q.customer)))];
@@ -139,7 +114,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Search Quotations</h2>
@@ -212,9 +187,9 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
             <button
               onClick={() => {
                 setSearchTerm('');
-                setStatusFilter('');
+                setStatusFilter('All');
                 setDateRange({ from: '', to: '' });
-                setCustomerFilter('');
+                setCustomerFilter('All');
               }}
               className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >

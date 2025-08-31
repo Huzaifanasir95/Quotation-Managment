@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { apiClient } from '../../lib/api';
 
 interface StockDetailModalProps {
   isOpen: boolean;
@@ -10,6 +11,37 @@ interface StockDetailModalProps {
 
 export default function StockDetailModal({ isOpen, onClose, item }: StockDetailModalProps) {
   const [activeTab, setActiveTab] = useState<'details' | 'stock' | 'history' | 'alerts'>('details');
+  const [stockHistory, setStockHistory] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
+  // Fetch stock history when modal opens and history tab is active
+  useEffect(() => {
+    if (isOpen && item && activeTab === 'history') {
+      fetchStockHistory();
+    }
+  }, [isOpen, item, activeTab]);
+
+  const fetchStockHistory = async () => {
+    if (!item?.id) return;
+    
+    setIsLoadingHistory(true);
+    setHistoryError(null);
+    
+    try {
+      const response = await apiClient.getProductStockHistory(item.id);
+      if (response.success) {
+        setStockHistory(response.data || []);
+      } else {
+        setHistoryError(response.message || 'Failed to fetch stock history');
+      }
+    } catch (error) {
+      console.error('Error fetching stock history:', error);
+      setHistoryError('Failed to fetch stock history');
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
 
   if (!isOpen || !item) return null;
 
@@ -31,11 +63,11 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
   };
 
   const getStockAlert = () => {
-    if (item.currentStock === 0) {
+    if (item.current_stock === 0) {
       return { type: 'error', message: 'Item is out of stock', color: 'text-red-600' };
-    } else if (item.currentStock <= item.reorderPoint) {
+    } else if (item.current_stock <= item.reorder_point) {
       return { type: 'warning', message: 'Reorder point reached', color: 'text-yellow-600' };
-    } else if (item.currentStock <= item.reorderPoint * 1.5) {
+    } else if (item.current_stock <= item.reorder_point * 1.5) {
       return { type: 'info', message: 'Stock level is getting low', color: 'text-blue-600' };
     }
     return null;
@@ -64,7 +96,7 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-500">Current Stock</p>
-              <p className="text-2xl font-bold text-blue-600">{item.currentStock} {item.unitOfMeasure}</p>
+              <p className="text-2xl font-bold text-blue-600">{item.current_stock} {item.unit_of_measure}</p>
             </div>
           </div>
         </div>
@@ -112,7 +144,7 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Unit of Measure:</span>
-                      <span className="font-medium">{item.unitOfMeasure}</span>
+                      <span className="font-medium">{item.unit_of_measure}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Status:</span>
@@ -136,15 +168,15 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Last Purchase Price:</span>
-                      <span className="font-medium">${item.lastPurchasePrice.toFixed(2)}</span>
+                      <span className="font-medium">${(item.last_purchase_price || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Average Cost:</span>
-                      <span className="font-medium">${item.averageCost.toFixed(2)}</span>
+                      <span className="text-gray-500">Selling Price:</span>
+                      <span className="font-medium">${(item.selling_price || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Last Updated:</span>
-                      <span className="font-medium">{item.lastUpdated}</span>
+                      <span className="font-medium">{new Date(item.updated_at).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </div>
@@ -178,17 +210,17 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-blue-50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-600">{item.currentStock}</div>
+                  <div className="text-2xl font-bold text-blue-600">{item.current_stock}</div>
                   <div className="text-sm text-blue-800">Current Stock</div>
-                  <div className="text-xs text-blue-600 mt-1">{item.unitOfMeasure}</div>
+                  <div className="text-xs text-blue-600 mt-1">{item.unit_of_measure}</div>
                 </div>
                 <div className="bg-yellow-50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-yellow-600">{item.reorderPoint}</div>
+                  <div className="text-2xl font-bold text-yellow-600">{item.reorder_point}</div>
                   <div className="text-sm text-yellow-800">Reorder Point</div>
                   <div className="text-xs text-yellow-600 mt-1">Trigger Level</div>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-green-600">${item.totalValue.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-green-600">${((item.current_stock || 0) * (item.last_purchase_price || 0)).toLocaleString()}</div>
                   <div className="text-sm text-green-800">Total Value</div>
                   <div className="text-xs text-green-600 mt-1">Stock × Price</div>
                 </div>
@@ -203,24 +235,24 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
                       <div className="w-32 bg-gray-200 rounded-full h-2">
                         <div 
                           className={`h-2 rounded-full ${
-                            item.currentStock === 0 ? 'bg-red-500' :
-                            item.currentStock <= item.reorderPoint ? 'bg-yellow-500' : 'bg-green-500'
+                            item.current_stock === 0 ? 'bg-red-500' :
+                            item.current_stock <= item.reorder_point ? 'bg-yellow-500' : 'bg-green-500'
                           }`}
                           style={{ 
-                            width: `${Math.min(100, (item.currentStock / Math.max(item.reorderPoint * 2, 1)) * 100)}%` 
+                            width: `${Math.min(100, (item.current_stock / Math.max(item.reorder_point * 2, 1)) * 100)}%` 
                           }}
                         ></div>
                       </div>
                       <span className="text-sm text-gray-600">
-                        {item.currentStock}/{Math.max(item.reorderPoint * 2, item.currentStock)}
+                        {item.current_stock}/{Math.max(item.reorder_point * 2, item.current_stock)}
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Days Until Stockout:</span>
                     <span className="font-medium">
-                      {item.currentStock === 0 ? 'Out of Stock' : 
-                       item.currentStock <= item.reorderPoint ? 'Critical' : 'Safe'}
+                      {item.current_stock === 0 ? 'Out of Stock' : 
+                       item.current_stock <= item.reorder_point ? 'Critical' : 'Safe'}
                     </span>
                   </div>
                 </div>
@@ -233,25 +265,46 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
             <div>
               <h4 className="font-medium text-gray-900 mb-4">Stock Movement History</h4>
               <div className="bg-gray-50 rounded-lg p-4">
-                {item.stockHistory.length > 0 ? (
+                {isLoadingHistory ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span className="ml-3 text-gray-600">Loading stock history...</span>
+                  </div>
+                ) : historyError ? (
+                  <div className="text-center py-8">
+                    <p className="text-red-500">{historyError}</p>
+                    <button 
+                      onClick={fetchStockHistory}
+                      className="mt-2 text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : stockHistory.length > 0 ? (
                   <div className="space-y-4">
-                    {item.stockHistory.map((entry: any, index: number) => (
+                    {stockHistory.map((entry: any, index: number) => (
                       <div key={index} className="flex items-start space-x-4">
                         <div className={`w-3 h-3 rounded-full mt-2 ${
-                          entry.type === 'Purchase' ? 'bg-green-500' : 
-                          entry.type === 'Sale' ? 'bg-red-500' : 'bg-blue-500'
+                          entry.movement_type === 'in' ? 'bg-green-500' : 'bg-red-500'
                         }`} />
                         <div className="flex-1">
                           <div className="flex items-center justify-between">
-                            <p className="font-medium text-gray-900">{entry.type}</p>
-                            <p className="text-sm text-gray-500">{entry.date}</p>
+                            <p className="font-medium text-gray-900">
+                              {entry.movement_type === 'in' ? 'Stock In' : 'Stock Out'}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {new Date(entry.movement_date).toLocaleDateString()}
+                            </p>
                           </div>
                           <p className="text-sm text-gray-600">
-                            Quantity: {entry.quantity > 0 ? '+' : ''}{entry.quantity} {item.unitOfMeasure}
+                            Quantity: {entry.movement_type === 'in' ? '+' : '-'}{entry.quantity} {item.unit_of_measure}
                           </p>
                           <p className="text-sm text-gray-600">
-                            Reference: {entry.reference}
+                            Reference: {entry.reference_type} - {entry.reference_id}
                           </p>
+                          {entry.notes && (
+                            <p className="text-sm text-gray-500">{entry.notes}</p>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -283,7 +336,7 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
                     <div>
                       <p className={`font-medium ${stockAlert.color}`}>{stockAlert.message}</p>
                       <p className="text-sm text-gray-600 mt-1">
-                        Current stock: {item.currentStock} {item.unitOfMeasure} | Reorder point: {item.reorderPoint} {item.unitOfMeasure}
+                        Current stock: {item.current_stock} {item.unit_of_measure} | Reorder point: {item.reorder_point} {item.unit_of_measure}
                       </p>
                     </div>
                   </div>
@@ -314,11 +367,11 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Stock Value:</span>
-                    <span className="text-gray-900">${item.totalValue.toLocaleString()}</span>
+                    <span className="text-gray-900">${((item.current_stock || 0) * (item.last_purchase_price || 0)).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Average Cost:</span>
-                    <span className="text-gray-900">${item.averageCost.toFixed(2)}</span>
+                    <span className="text-gray-900">${(item.average_cost || item.last_purchase_price || 0).toFixed(2)}</span>
                   </div>
                 </div>
               </div>

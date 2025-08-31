@@ -312,6 +312,23 @@ CREATE TABLE vendor_bills (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Delivery Challans
+CREATE TABLE delivery_challans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    challan_number VARCHAR(50) UNIQUE NOT NULL,
+    purchase_order_id UUID NOT NULL REFERENCES purchase_orders(id),
+    challan_date DATE NOT NULL,
+    delivery_date DATE,
+    delivery_address TEXT,
+    contact_person VARCHAR(255),
+    phone VARCHAR(50),
+    notes TEXT,
+    status VARCHAR(20) DEFAULT 'generated' CHECK (status IN ('generated', 'dispatched', 'in_transit', 'delivered', 'cancelled')),
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- =============================================
 -- 7. ACCOUNTING & FINANCE
 -- =============================================

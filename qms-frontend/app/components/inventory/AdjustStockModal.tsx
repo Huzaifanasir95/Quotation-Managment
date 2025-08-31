@@ -1,14 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import { apiClient } from '../../lib/api';
 
 interface AdjustStockModalProps {
   isOpen: boolean;
   onClose: () => void;
   item: any;
+  onStockAdjusted?: () => void;
 }
 
-export default function AdjustStockModal({ isOpen, onClose, item }: AdjustStockModalProps) {
+export default function AdjustStockModal({ isOpen, onClose, item, onStockAdjusted }: AdjustStockModalProps) {
   const [adjustmentData, setAdjustmentData] = useState({
     type: 'increase',
     quantity: 0,
@@ -51,44 +53,60 @@ export default function AdjustStockModal({ isOpen, onClose, item }: AdjustStockM
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setIsProcessing(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Calculate new stock level
+      let newStock;
+      if (adjustmentData.type === 'correction') {
+        newStock = adjustmentData.quantity;
+      } else if (adjustmentData.type === 'increase') {
+        newStock = (item?.current_stock || 0) + adjustmentData.quantity;
+      } else {
+        newStock = Math.max(0, (item?.current_stock || 0) - adjustmentData.quantity);
+      }
+
+      // Create stock movement record
+      const stockMovementData = {
+        product_id: item.id,
+        movement_type: adjustmentData.type === 'increase' ? 'in' : 'out',
+        quantity: adjustmentData.quantity,
+        reference_type: 'adjustment',
+        reference_id: adjustmentData.reference,
+        notes: `${adjustmentData.reason}${adjustmentData.notes ? ` - ${adjustmentData.notes}` : ''}`,
+        unit_cost: item.last_purchase_price || 0
+      };
       
-             const adjustment = {
-         ...adjustmentData,
-         itemId: item?.id || 'unknown',
-         itemSku: item?.sku || 'unknown',
-         itemName: item?.name || 'unknown',
-         previousStock: item?.currentStock || 0,
-         newStock: adjustmentData.type === 'increase' 
-           ? (item?.currentStock || 0) + adjustmentData.quantity
-           : Math.max(0, (item?.currentStock || 0) - adjustmentData.quantity),
-         timestamp: new Date().toISOString(),
-         userId: 'Current User' // In real app, get from auth context
-       };
+      const response = await apiClient.createStockMovement(stockMovementData);
       
-      console.log('Processing stock adjustment:', adjustment);
-      
-      alert('Stock adjustment processed successfully!');
-      onClose();
-      
-      // Reset form
-      setAdjustmentData({
-        type: 'increase',
-        quantity: 0,
-        reason: '',
-        reference: '',
-        notes: ''
-      });
-      setErrors({});
+      if (response.success) {
+        alert('Stock adjustment processed successfully!');
+        
+        // Call callback to refresh data if provided
+        if (onStockAdjusted) {
+          onStockAdjusted();
+        }
+        
+        onClose();
+        
+        // Reset form
+        setAdjustmentData({
+          type: 'increase',
+          quantity: 0,
+          reason: '',
+          reference: '',
+          notes: ''
+        });
+        setErrors({});
+      } else {
+        throw new Error(response.message || 'Failed to process stock adjustment');
+      }
     } catch (error) {
       console.error('Failed to process stock adjustment:', error);
-      alert('Failed to process stock adjustment. Please try again.');
+      alert(`Failed to process stock adjustment: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally {
       setIsProcessing(false);
     }
@@ -104,23 +122,23 @@ export default function AdjustStockModal({ isOpen, onClose, item }: AdjustStockM
   };
 
   const getNewStockLevel = () => {
-    if (!item || typeof item.currentStock !== 'number') return 0;
+    if (!item || typeof item.current_stock !== 'number') return 0;
     
     if (adjustmentData.type === 'increase') {
-      return item.currentStock + adjustmentData.quantity;
+      return item.current_stock + adjustmentData.quantity;
     } else if (adjustmentData.type === 'decrease') {
-      return Math.max(0, item.currentStock - adjustmentData.quantity);
+      return Math.max(0, item.current_stock - adjustmentData.quantity);
     } else if (adjustmentData.type === 'correction') {
       return adjustmentData.quantity;
     }
-    return item.currentStock;
+    return item.current_stock;
   };
 
   const getStockStatus = (stockLevel: number) => {
-    if (!item || typeof item.reorderPoint !== 'number') return { status: 'Unknown', color: 'text-gray-600', bg: 'bg-gray-100' };
+    if (!item || typeof item.reorder_point !== 'number') return { status: 'Unknown', color: 'text-gray-600', bg: 'bg-gray-100' };
     
     if (stockLevel === 0) return { status: 'Out of Stock', color: 'text-red-600', bg: 'bg-red-100' };
-    if (stockLevel <= item.reorderPoint) return { status: 'Low Stock', color: 'text-yellow-600', bg: 'bg-yellow-100' };
+    if (stockLevel <= item.reorder_point) return { status: 'Low Stock', color: 'text-yellow-600', bg: 'bg-yellow-100' };
     return { status: 'In Stock', color: 'text-green-600', bg: 'bg-green-100' };
   };
 
@@ -144,19 +162,19 @@ export default function AdjustStockModal({ isOpen, onClose, item }: AdjustStockM
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                              <div>
                  <span className="text-blue-700">Current Stock:</span>
-                 <span className="ml-2 font-medium">{item?.currentStock || 0} {item?.unitOfMeasure || 'units'}</span>
+                 <span className="ml-2 font-medium">{item?.current_stock || 0} {item?.unit_of_measure || 'units'}</span>
                </div>
                <div>
                  <span className="text-blue-700">Reorder Point:</span>
-                 <span className="ml-2 font-medium">{item?.reorderPoint || 0} {item?.unitOfMeasure || 'units'}</span>
+                 <span className="ml-2 font-medium">{item?.reorder_point || 0} {item?.unit_of_measure || 'units'}</span>
                </div>
                <div>
                  <span className="text-blue-700">Unit Cost:</span>
-                 <span className="ml-2 font-medium">${(item?.averageCost || 0).toFixed(2)}</span>
+                 <span className="ml-2 font-medium">${(item?.last_purchase_price || 0).toFixed(2)}</span>
                </div>
                <div>
                  <span className="text-blue-700">Total Value:</span>
-                 <span className="ml-2 font-medium">${(item?.totalValue || 0).toLocaleString()}</span>
+                 <span className="ml-2 font-medium">${((item?.current_stock || 0) * (item?.last_purchase_price || 0)).toLocaleString()}</span>
                </div>
             </div>
           </div>
@@ -252,19 +270,19 @@ export default function AdjustStockModal({ isOpen, onClose, item }: AdjustStockM
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                <div>
                  <span className="text-gray-600">Current Stock:</span>
-                 <span className="ml-2 font-medium">{item?.currentStock || 0} {item?.unitOfMeasure || 'units'}</span>
+                 <span className="ml-2 font-medium">{item?.current_stock || 0} {item?.unit_of_measure || 'units'}</span>
                </div>
                <div>
                  <span className="text-gray-600">Adjustment:</span>
                  <span className={`ml-2 font-medium ${
                    adjustmentData.type === 'increase' ? 'text-green-600' : 'text-red-600'
                  }`}>
-                   {adjustmentData.type === 'increase' ? '+' : '-'}{adjustmentData.quantity} {item?.unitOfMeasure || 'units'}
+                   {adjustmentData.type === 'increase' ? '+' : '-'}{adjustmentData.quantity} {item?.unit_of_measure || 'units'}
                  </span>
                </div>
                <div>
                  <span className="text-gray-600">New Stock:</span>
-                 <span className="ml-2 font-medium">{newStockLevel} {item?.unitOfMeasure || 'units'}</span>
+                 <span className="ml-2 font-medium">{newStockLevel} {item?.unit_of_measure || 'units'}</span>
                </div>
                 <div>
                   <span className="text-gray-600">New Status:</span>
@@ -275,14 +293,14 @@ export default function AdjustStockModal({ isOpen, onClose, item }: AdjustStockM
               </div>
 
                              {/* Stock Level Warning */}
-               {newStockLevel <= (item?.reorderPoint || 0) && (
+               {newStockLevel <= (item?.reorder_point || 0) && (
                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                    <div className="flex items-center space-x-2">
                      <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                      </svg>
                      <span className="text-sm text-yellow-800">
-                       Warning: New stock level ({newStockLevel}) is at or below reorder point ({item?.reorderPoint || 0})
+                       Warning: New stock level ({newStockLevel}) is at or below reorder point ({item?.reorder_point || 0})
                      </span>
                    </div>
                  </div>

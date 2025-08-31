@@ -1,29 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import apiClient, { ChartOfAccount } from '../../lib/api';
 
 interface AddLedgerEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onEntryAdded?: () => void;
 }
 
-export default function AddLedgerEntryModal({ isOpen, onClose }: AddLedgerEntryModalProps) {
+export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: AddLedgerEntryModalProps) {
   const [entryData, setEntryData] = useState({
     date: new Date().toISOString().split('T')[0],
     type: 'manual',
-    accountType: 'Expense',
     reference: '',
-    customerVendor: '',
     description: '',
-    debit: 0,
-    credit: 0,
-    taxAmount: 0,
-    taxType: 'GST',
+    lines: [
+      { accountId: '', debitAmount: 0, creditAmount: 0, description: '' },
+      { accountId: '', debitAmount: 0, creditAmount: 0, description: '' }
+    ],
     notes: '',
     attachments: [] as File[]
   });
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isProcessing, setIsProcessing] = useState(false);
+  const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
 
   const entryTypes = [
     { value: 'manual', label: 'Manual Adjustment', icon: '✏️' },
@@ -34,15 +36,35 @@ export default function AddLedgerEntryModal({ isOpen, onClose }: AddLedgerEntryM
   ];
 
   const accountTypes = [
-    'Assets',
-    'Liabilities',
-    'Equity',
-    'Revenue',
-    'Expenses',
-    'Cost of Goods Sold',
-    'Other Income',
-    'Other Expenses'
+    'asset',
+    'liability',
+    'equity',
+    'revenue',
+    'expense'
   ];
+
+  // Fetch chart of accounts
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      if (!isOpen) return;
+      
+      try {
+        setLoadingAccounts(true);
+        await apiClient.refreshToken();
+        const response = await apiClient.getChartOfAccounts();
+        
+        if (response.success) {
+          setAccounts(response.data.accounts || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch chart of accounts:', error);
+      } finally {
+        setLoadingAccounts(false);
+      }
+    };
+    
+    fetchAccounts();
+  }, [isOpen]);
 
   const taxTypes = [
     'GST',
@@ -55,26 +77,31 @@ export default function AddLedgerEntryModal({ isOpen, onClose }: AddLedgerEntryM
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
-
-    if (!entryData.date) newErrors.date = 'Date is required';
-    if (!entryData.accountType) newErrors.accountType = 'Account type is required';
-    if (!entryData.reference.trim()) newErrors.reference = 'Reference is required';
-    if (!entryData.description.trim()) newErrors.description = 'Description is required';
     
-    // Either debit or credit must be greater than 0, but not both
-    if (entryData.debit <= 0 && entryData.credit <= 0) {
-      newErrors.debit = 'Either debit or credit amount must be greater than 0';
+    if (!entryData.date) newErrors.date = 'Date is required';
+    if (!entryData.description) newErrors.description = 'Description is required';
+    
+    // Validate each line
+    entryData.lines.forEach((line, index) => {
+      if (!line.accountId) {
+        newErrors[`line${index}Account`] = 'Account is required';
+      }
+      if (line.debitAmount === 0 && line.creditAmount === 0) {
+        newErrors[`line${index}Amount`] = 'Amount is required';
+      }
+      if (line.debitAmount > 0 && line.creditAmount > 0) {
+        newErrors[`line${index}Amount`] = 'Cannot have both debit and credit';
+      }
+    });
+    
+    // Check if debits equal credits
+    const totalDebits = entryData.lines.reduce((sum, line) => sum + line.debitAmount, 0);
+    const totalCredits = entryData.lines.reduce((sum, line) => sum + line.creditAmount, 0);
+    
+    if (Math.abs(totalDebits - totalCredits) > 0.01) {
+      newErrors.balance = 'Total debits must equal total credits';
     }
-    if (entryData.debit > 0 && entryData.credit > 0) {
-      newErrors.debit = 'Cannot have both debit and credit amounts';
-    }
-
-    // Validate tax amount
-    if (entryData.taxAmount < 0) newErrors.taxAmount = 'Tax amount cannot be negative';
-    if (entryData.taxAmount > 0 && entryData.taxType === 'None') {
-      newErrors.taxType = 'Tax type must be selected when tax amount is specified';
-    }
-
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -87,44 +114,52 @@ export default function AddLedgerEntryModal({ isOpen, onClose }: AddLedgerEntryM
     setIsProcessing(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const ledgerEntry = {
-        ...entryData,
-        id: `LE-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        userId: 'Current User',
-        balance: entryData.credit - entryData.debit,
-        fbrSync: 'Pending',
-        auditTrail: [
-          { action: 'Created', user: 'Current User', timestamp: new Date().toISOString() }
-        ]
+      // Prepare ledger entry data for API
+      const ledgerEntryData = {
+        entry_date: entryData.date,
+        reference_type: entryData.type,
+        reference_number: entryData.reference || undefined,
+        description: entryData.description,
+        lines: entryData.lines.map(line => ({
+          account_id: line.accountId,
+          debit_amount: line.debitAmount,
+          credit_amount: line.creditAmount,
+          description: line.description || entryData.description
+        }))
       };
       
-      console.log('Processing ledger entry:', ledgerEntry);
+      await apiClient.refreshToken();
+      const response = await apiClient.createLedgerEntry(ledgerEntryData);
       
-      alert('Ledger entry added successfully!');
-      onClose();
-      
-      // Reset form
-      setEntryData({
-        date: new Date().toISOString().split('T')[0],
-        type: 'manual',
-        accountType: 'Expense',
-        reference: '',
-        customerVendor: '',
-        description: '',
-        debit: 0,
-        credit: 0,
-        taxAmount: 0,
-        taxType: 'GST',
-        notes: '',
-        attachments: []
-      });
-      setErrors({});
-    } catch (error) {
+      if (response.success) {
+        alert('Ledger entry added successfully!');
+        onClose();
+        
+        // Call the callback to refresh parent data
+        if (onEntryAdded) {
+          onEntryAdded();
+        }
+        
+        // Reset form
+        setEntryData({
+          date: new Date().toISOString().split('T')[0],
+          type: 'manual',
+          reference: '',
+          description: '',
+          lines: [
+            { accountId: '', debitAmount: 0, creditAmount: 0, description: '' },
+            { accountId: '', debitAmount: 0, creditAmount: 0, description: '' }
+          ],
+          notes: '',
+          attachments: []
+        });
+        setErrors({});
+      } else {
+        throw new Error(response.error || 'Failed to create ledger entry');
+      }
+    } catch (error: any) {
       console.error('Failed to add ledger entry:', error);
-      alert('Failed to add ledger entry. Please try again.');
+      alert(`Failed to add ledger entry: ${error.message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -136,6 +171,37 @@ export default function AddLedgerEntryModal({ isOpen, onClose }: AddLedgerEntryM
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+  
+  const handleLineChange = (index: number, field: string, value: string | number) => {
+    setEntryData(prev => ({
+      ...prev,
+      lines: prev.lines.map((line, i) => 
+        i === index ? { ...line, [field]: value } : line
+      )
+    }));
+    
+    // Clear line-specific errors
+    const errorKey = `line${index}${field.charAt(0).toUpperCase() + field.slice(1)}`;
+    if (errors[errorKey]) {
+      setErrors(prev => ({ ...prev, [errorKey]: '' }));
+    }
+  };
+  
+  const addLine = () => {
+    setEntryData(prev => ({
+      ...prev,
+      lines: [...prev.lines, { accountId: '', debitAmount: 0, creditAmount: 0, description: '' }]
+    }));
+  };
+  
+  const removeLine = (index: number) => {
+    if (entryData.lines.length > 2) {
+      setEntryData(prev => ({
+        ...prev,
+        lines: prev.lines.filter((_, i) => i !== index)
+      }));
     }
   };
 
@@ -168,7 +234,7 @@ export default function AddLedgerEntryModal({ isOpen, onClose }: AddLedgerEntryM
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Add Ledger Entry</h2>
@@ -214,46 +280,13 @@ export default function AddLedgerEntryModal({ isOpen, onClose }: AddLedgerEntryM
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Account Type *</label>
-              <select
-                value={entryData.accountType}
-                onChange={(e) => handleInputChange('accountType', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.accountType ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                {accountTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-              {errors.accountType && <p className="text-red-500 text-xs mt-1">{errors.accountType}</p>}
-            </div>
-          </div>
-
-          {/* Reference and Description */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Reference *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Reference</label>
               <input
                 type="text"
                 value={entryData.reference}
                 onChange={(e) => handleInputChange('reference', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.reference ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="e.g., ADJ-2024-001, COR-2024-001"
-              />
-              {errors.reference && <p className="text-red-500 text-xs mt-1">{errors.reference}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Customer/Vendor</label>
-              <input
-                type="text"
-                value={entryData.customerVendor}
-                onChange={(e) => handleInputChange('customerVendor', e.target.value)}
-                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Leave empty if not applicable"
               />
             </div>
           </div>
@@ -264,7 +297,7 @@ export default function AddLedgerEntryModal({ isOpen, onClose }: AddLedgerEntryM
             <textarea
               value={entryData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
-              rows={3}
+              rows={2}
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                 errors.description ? 'border-red-500' : 'border-gray-300'
               }`}
@@ -273,88 +306,135 @@ export default function AddLedgerEntryModal({ isOpen, onClose }: AddLedgerEntryM
             {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
           </div>
 
-          {/* Amounts */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Debit Amount</label>
-              <input
-                type="number"
-                value={entryData.debit}
-                onChange={(e) => handleInputChange('debit', Number(e.target.value))}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.debit ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-              />
-              {errors.debit && <p className="text-red-500 text-xs mt-1">{errors.debit}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Credit Amount</label>
-              <input
-                type="number"
-                value={entryData.credit}
-                onChange={(e) => handleInputChange('credit', Number(e.target.value))}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.credit ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-              />
-              {errors.credit && <p className="text-red-500 text-xs mt-1">{errors.credit}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Net Amount</label>
-              <div className="px-3 text-black py-2 bg-gray-50 border border-gray-300 rounded-lg">
-                <span className={`text-lg font-medium ${
-                  entryData.credit - entryData.debit >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  ${Math.abs(entryData.credit - entryData.debit).toFixed(2)}
-                </span>
-                <span className="text-sm text-gray-500 ml-2">
-                  {entryData.credit - entryData.debit >= 0 ? 'Credit' : 'Debit'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Tax Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Tax Amount</label>
-              <input
-                type="number"
-                value={entryData.taxAmount}
-                onChange={(e) => handleInputChange('taxAmount', Number(e.target.value))}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.taxAmount ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-              />
-              {errors.taxAmount && <p className="text-red-500 text-xs mt-1">{errors.taxAmount}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Tax Type</label>
-              <select
-                value={entryData.taxType}
-                onChange={(e) => handleInputChange('taxType', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.taxType ? 'border-red-500' : 'border-gray-300'
-                }`}
+          {/* Ledger Lines */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <label className="block text-sm font-medium text-gray-700">Ledger Lines *</label>
+              <button
+                type="button"
+                onClick={addLine}
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                {taxTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-              {errors.taxType && <p className="text-red-500 text-xs mt-1">{errors.taxType}</p>}
+                + Add Line
+              </button>
             </div>
+            
+            {loadingAccounts ? (
+              <div className="text-center py-4">
+                <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="ml-2 text-sm text-gray-500">Loading accounts...</span>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {entryData.lines.map((line, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-gray-900">Line {index + 1}</h4>
+                      {entryData.lines.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => removeLine(index)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="lg:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Account *</label>
+                        <select
+                          value={line.accountId}
+                          onChange={(e) => handleLineChange(index, 'accountId', e.target.value)}
+                          className={`w-full text-black px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                            errors[`line${index}Account`] ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                        >
+                          <option value="">Select account...</option>
+                          {accounts.map(account => (
+                            <option key={account.id} value={account.id}>
+                              {account.account_code} - {account.account_name}
+                            </option>
+                          ))}
+                        </select>
+                        {errors[`line${index}Account`] && <p className="text-red-500 text-xs mt-1">{errors[`line${index}Account`]}</p>}
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Debit</label>
+                        <input
+                          type="number"
+                          value={line.debitAmount}
+                          onChange={(e) => handleLineChange(index, 'debitAmount', Number(e.target.value))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Credit</label>
+                        <input
+                          type="number"
+                          value={line.creditAmount}
+                          onChange={(e) => handleLineChange(index, 'creditAmount', Number(e.target.value))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mt-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Line Description</label>
+                      <input
+                        type="text"
+                        value={line.description}
+                        onChange={(e) => handleLineChange(index, 'description', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Optional line-specific description"
+                      />
+                    </div>
+                    
+                    {errors[`line${index}Amount`] && <p className="text-red-500 text-xs mt-2">{errors[`line${index}Amount`]}</p>}
+                  </div>
+                ))}
+                
+                {/* Balance Summary */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-sm text-gray-600">Total Debits</p>
+                      <p className="text-lg font-semibold text-red-600">
+                        ${entryData.lines.reduce((sum, line) => sum + line.debitAmount, 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Total Credits</p>
+                      <p className="text-lg font-semibold text-green-600">
+                        ${entryData.lines.reduce((sum, line) => sum + line.creditAmount, 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Difference</p>
+                      <p className={`text-lg font-semibold ${
+                        Math.abs(entryData.lines.reduce((sum, line) => sum + line.debitAmount, 0) - 
+                                 entryData.lines.reduce((sum, line) => sum + line.creditAmount, 0)) < 0.01 
+                          ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        ${Math.abs(entryData.lines.reduce((sum, line) => sum + line.debitAmount, 0) - 
+                                   entryData.lines.reduce((sum, line) => sum + line.creditAmount, 0)).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                  {errors.balance && <p className="text-red-500 text-sm mt-2 text-center">{errors.balance}</p>}
+                </div>
+              </div>
+            )}
+
           </div>
 
           {/* Attachments */}
@@ -391,47 +471,10 @@ export default function AddLedgerEntryModal({ isOpen, onClose }: AddLedgerEntryM
             <textarea
               value={entryData.notes}
               onChange={(e) => handleInputChange('notes', e.target.value)}
-              rows={3}
+              rows={2}
               className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Any additional notes or explanations..."
             />
-          </div>
-
-          {/* Preview */}
-          <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <h4 className="font-medium text-gray-900 mb-3">Entry Preview</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-600">Account Type:</span>
-                <span className={`ml-2 font-medium ${getAccountTypeColor(entryData.accountType)}`}>
-                  {entryData.accountType}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-600">Entry Type:</span>
-                <span className="ml-2 font-medium">{entryData.type}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Reference:</span>
-                <span className="ml-2 font-medium">{entryData.reference}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Date:</span>
-                <span className="ml-2 font-medium">{entryData.date}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Net Amount:</span>
-                <span className={`ml-2 font-medium ${
-                  entryData.credit - entryData.debit >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  ${Math.abs(entryData.credit - entryData.debit).toFixed(2)}
-                </span>
-              </div>
-              <div>
-                <span className="text-gray-600">Tax Amount:</span>
-                <span className="ml-2 font-medium">${entryData.taxAmount.toFixed(2)}</span>
-              </div>
-            </div>
           </div>
         </form>
 

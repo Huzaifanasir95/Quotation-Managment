@@ -1,13 +1,25 @@
 'use client';
 
+import { apiClient, DocumentAttachment } from '@/app/lib/api';
 import { useState } from 'react';
 
 interface UploadTradeDocumentModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onUploadSuccess?: () => void;
+  businessEntities?: any[];
+  customers?: any[];
+  vendors?: any[];
 }
 
-export default function UploadTradeDocumentModal({ isOpen, onClose }: UploadTradeDocumentModalProps) {
+export default function UploadTradeDocumentModal({ 
+  isOpen, 
+  onClose, 
+  onUploadSuccess, 
+  businessEntities = [], 
+  customers = [], 
+  vendors = [] 
+}: UploadTradeDocumentModalProps) {
   const [uploadData, setUploadData] = useState({
     entity: '',
     documentType: '',
@@ -22,24 +34,15 @@ export default function UploadTradeDocumentModal({ isOpen, onClose }: UploadTrad
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isUploading, setIsUploading] = useState(false);
 
-  // Mock data for business entities
-  const businessEntities = [
-    { id: 'entity-001', name: 'QMS Trading Co.', type: 'Trading Company', country: 'Pakistan' },
-    { id: 'entity-002', name: 'QMS Manufacturing Ltd.', type: 'Manufacturing', country: 'Pakistan' },
-    { id: 'entity-003', name: 'QMS International LLC', type: 'International Trade', country: 'UAE' },
-    { id: 'entity-004', name: 'QMS Export Solutions', type: 'Export Services', country: 'Pakistan' },
-    { id: 'entity-005', name: 'QMS Import Division', type: 'Import Services', country: 'Pakistan' }
-  ];
-
   const documentTypes = [
-    { code: 'BL', name: 'Bill of Lading', description: 'Shipping document for cargo', icon: '🚢' },
-    { code: 'CF', name: 'Customs Form', description: 'Customs declaration and clearance', icon: '📋' },
-    { code: 'CI', name: 'Commercial Invoice', description: 'Commercial transaction invoice', icon: '💰' },
-    { code: 'PL', name: 'Packing List', description: 'Detailed packing information', icon: '📦' },
-    { code: 'CO', name: 'Certificate of Origin', description: 'Country of origin certificate', icon: '🏛️' },
-    { code: 'IC', name: 'Insurance Certificate', description: 'Insurance coverage document', icon: '🛡️' },
-    { code: 'QC', name: 'Quality Certificate', description: 'Quality assurance document', icon: '✅' },
-    { code: 'OT', name: 'Other', description: 'Other trade documents', icon: '📄' }
+    { code: 'bill_of_lading', name: 'Bill of Lading', description: 'Shipping document for cargo', icon: '🚢' },
+    { code: 'customs_form', name: 'Customs Form', description: 'Customs declaration and clearance', icon: '📋' },
+    { code: 'commercial_invoice', name: 'Commercial Invoice', description: 'Commercial transaction invoice', icon: '💰' },
+    { code: 'packing_list', name: 'Packing List', description: 'Detailed packing information', icon: '📦' },
+    { code: 'certificate_of_origin', name: 'Certificate of Origin', description: 'Country of origin certificate', icon: '🏛️' },
+    { code: 'insurance_certificate', name: 'Insurance Certificate', description: 'Insurance coverage document', icon: '🛡️' },
+    { code: 'quality_certificate', name: 'Quality Certificate', description: 'Quality assurance document', icon: '✅' },
+    { code: 'other', name: 'Other', description: 'Other trade documents', icon: '📄' }
   ];
 
   const linkedTypes = [
@@ -77,22 +80,41 @@ export default function UploadTradeDocumentModal({ isOpen, onClose }: UploadTrad
     setIsUploading(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Find customer or vendor ID
+      let customerId = null;
+      let vendorId = null;
       
-      const uploadedDocument = {
-        ...uploadData,
-        id: `DOC-${Date.now()}`,
-        dateUploaded: new Date().toISOString().split('T')[0],
-        status: 'Active',
-        complianceStatus: 'Pending Review',
-        uploadedBy: 'Current User',
-        lastModified: new Date().toISOString()
-      };
+      if (uploadData.customerVendorType === 'Customer') {
+        const customer = customers.find(c => c.name === uploadData.customerVendor);
+        customerId = customer?.id;
+      } else if (uploadData.customerVendorType === 'Vendor') {
+        const vendor = vendors.find(v => v.name === uploadData.customerVendor);
+        vendorId = vendor?.id;
+      }
+
+      // Upload each file
+      for (const file of uploadData.files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('entity_type', 'business_entity');
+        formData.append('entity_id', uploadData.entity);
+        formData.append('document_type', uploadData.documentType);
+        formData.append('linked_reference_type', uploadData.linkedType);
+        formData.append('linked_reference_number', uploadData.linkedReference);
+        if (customerId) formData.append('customer_id', customerId);
+        if (vendorId) formData.append('vendor_id', vendorId);
+        if (uploadData.notes) formData.append('notes', uploadData.notes);
+
+        await apiClient.uploadDocument(formData);
+      }
       
-      console.log('Uploading trade document:', uploadedDocument);
-      
-      alert('Trade document uploaded successfully!');
+      alert('Trade document(s) uploaded successfully!');
       onClose();
+      
+      // Refresh documents in parent component
+      if (onUploadSuccess) {
+        onUploadSuccess();
+      }
       
       // Reset form
       setUploadData({
@@ -151,7 +173,7 @@ export default function UploadTradeDocumentModal({ isOpen, onClose }: UploadTrad
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Upload Trade Document</h2>
@@ -168,7 +190,7 @@ export default function UploadTradeDocumentModal({ isOpen, onClose }: UploadTrad
                   key={entity.id}
                   type="button"
                   onClick={() => handleInputChange('entity', entity.id)}
-                  className={`p-4 border rounded-lg text-left transition-colors duration-200 ${
+                  className={`p-4 border rounded-lg text-left text-black transition-colors duration-200 ${
                     uploadData.entity === entity.id
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
                       : 'border-gray-300 hover:border-gray-400'
@@ -192,14 +214,13 @@ export default function UploadTradeDocumentModal({ isOpen, onClose }: UploadTrad
                   key={type.code}
                   type="button"
                   onClick={() => handleInputChange('documentType', type.code)}
-                  className={`p-3 border rounded-lg text-center transition-colors duration-200 ${
+                  className={`p-3 border rounded-lg text-black text-center transition-colors duration-200 ${
                     uploadData.documentType === type.code
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
                       : 'border-gray-300 hover:border-gray-400'
                   }`}
                 >
                   <div className="text-lg mb-1">{type.icon}</div>
-                  <div className="text-xs font-medium">{type.code}</div>
                   <div className="text-xs text-gray-600">{type.name}</div>
                 </button>
               ))}
@@ -215,7 +236,7 @@ export default function UploadTradeDocumentModal({ isOpen, onClose }: UploadTrad
                 type="text"
                 value={uploadData.linkedReference}
                 onChange={(e) => handleInputChange('linkedReference', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 text-black border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.linkedReference ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="e.g., Q-2024-001, PO-2024-001, SO-2024-001"
@@ -228,7 +249,7 @@ export default function UploadTradeDocumentModal({ isOpen, onClose }: UploadTrad
               <select
                 value={uploadData.linkedType}
                 onChange={(e) => handleInputChange('linkedType', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.linkedType ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -244,30 +265,50 @@ export default function UploadTradeDocumentModal({ isOpen, onClose }: UploadTrad
           {/* Customer/Vendor Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Customer/Vendor *</label>
-              <input
-                type="text"
-                value={uploadData.customerVendor}
-                onChange={(e) => handleInputChange('customerVendor', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.customerVendor ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="Enter customer or vendor name"
-              />
-              {errors.customerVendor && <p className="text-red-500 text-xs mt-1">{errors.customerVendor}</p>}
-            </div>
-
-            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
               <select
                 value={uploadData.customerVendorType}
-                onChange={(e) => handleInputChange('customerVendorType', e.target.value)}
+                onChange={(e) => {
+                  handleInputChange('customerVendorType', e.target.value);
+                  handleInputChange('customerVendor', ''); // Reset selection when type changes
+                }}
                 className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 {customerVendorTypes.map(type => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {uploadData.customerVendorType === 'Customer' ? 'Customer' : 
+                 uploadData.customerVendorType === 'Vendor' ? 'Vendor' : 'Customer/Vendor'} *
+              </label>
+              <select
+                value={uploadData.customerVendor}
+                onChange={(e) => handleInputChange('customerVendor', e.target.value)}
+                className={`w-full text-black px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.customerVendor ? 'border-red-500' : 'border-gray-300'
+                }`}
+              >
+                <option value="">Select {uploadData.customerVendorType.toLowerCase()}</option>
+                {uploadData.customerVendorType === 'Customer' && customers.map(customer => (
+                  <option key={customer.id} value={customer.name}>{customer.name}</option>
+                ))}
+                {uploadData.customerVendorType === 'Vendor' && vendors.map(vendor => (
+                  <option key={vendor.id} value={vendor.name}>{vendor.name}</option>
+                ))}
+                {uploadData.customerVendorType === 'Both' && [
+                  ...customers.map(customer => ({ ...customer, type: 'Customer' })),
+                  ...vendors.map(vendor => ({ ...vendor, type: 'Vendor' }))
+                ].map(entity => (
+                  <option key={`${entity.type}-${entity.id}`} value={entity.name}>
+                    {entity.name} ({entity.type})
+                  </option>
+                ))}
+              </select>
+              {errors.customerVendor && <p className="text-red-500 text-xs mt-1">{errors.customerVendor}</p>}
             </div>
           </div>
 
@@ -278,7 +319,7 @@ export default function UploadTradeDocumentModal({ isOpen, onClose }: UploadTrad
               type="file"
               multiple
               onChange={handleFileUpload}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+              className={`w-full px-3 py-2 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                 errors.files ? 'border-red-500' : 'border-gray-300'
               }`}
               accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.tiff"

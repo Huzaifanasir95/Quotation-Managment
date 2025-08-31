@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
 import AddEditItemModal from '../components/inventory/AddEditItemModal';
 import ImportInventoryModal from '../components/inventory/ImportInventoryModal';
 import StockDetailModal from '../components/inventory/StockDetailModal';
 import AdjustStockModal from '../components/inventory/AdjustStockModal';
+import { apiClient, Product, ProductCategory, StockMovement } from '../lib/api';
 
 export default function InventoryPage() {
   const [showAddItem, setShowAddItem] = useState(false);
@@ -13,7 +14,15 @@ export default function InventoryPage() {
   const [showStockDetail, setShowStockDetail] = useState(false);
   const [showAdjustStock, setShowAdjustStock] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [isAdjustStockModalOpen, setIsAdjustStockModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  
+  // Data state
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Filters state
   const [filters, setFilters] = useState({
@@ -24,118 +33,82 @@ export default function InventoryPage() {
     status: 'All'
   });
 
-  // Mock data for inventory items
-  const inventoryItems = [
-    {
-      id: '1',
-      sku: 'LAP-001',
-      name: 'Laptop Dell XPS 13',
-      description: '13-inch premium laptop with Intel i7 processor',
-      category: 'Finished Good',
-      vendor: 'Tech Supplies Inc',
-      currentStock: 15,
-      unitOfMeasure: 'Piece',
-      lastPurchasePrice: 1200,
-      averageCost: 1180,
-      reorderPoint: 5,
-      status: 'In Stock',
-      totalValue: 17700,
-      lastUpdated: '2024-01-20',
-      linkedPOs: ['PO-2024-001', 'PO-2024-003'],
-      stockHistory: [
-        { date: '2024-01-20', type: 'Purchase', quantity: 20, balance: 15, reference: 'PO-2024-003' },
-        { date: '2024-01-15', type: 'Sale', quantity: -5, balance: -5, reference: 'SO-2024-001' }
-      ]
-    },
-    {
-      id: '2',
-      sku: 'MON-002',
-      name: 'Monitor 27" 4K',
-      description: 'Ultra HD monitor for professional use',
-      category: 'Finished Good',
-      vendor: 'Display Solutions',
-      currentStock: 3,
-      unitOfMeasure: 'Piece',
-      lastPurchasePrice: 800,
-      averageCost: 780,
-      reorderPoint: 3,
-      status: 'Low Stock',
-      totalValue: 2340,
-      lastUpdated: '2024-01-18',
-      linkedPOs: ['PO-2024-002'],
-      stockHistory: [
-        { date: '2024-01-18', type: 'Purchase', quantity: 5, balance: 3, reference: 'PO-2024-002' },
-        { date: '2024-01-10', type: 'Sale', quantity: -2, balance: -2, reference: 'SO-2024-002' }
-      ]
-    },
-    {
-      id: '3',
-      sku: 'KEY-003',
-      name: 'Wireless Keyboard',
-      description: 'Ergonomic wireless keyboard',
-      category: 'Finished Good',
-      vendor: 'Input Devices Co',
-      currentStock: 0,
-      unitOfMeasure: 'Piece',
-      lastPurchasePrice: 45,
-      averageCost: 42,
-      reorderPoint: 10,
-      status: 'Out of Stock',
-      totalValue: 0,
-      lastUpdated: '2024-01-15',
-      linkedPOs: ['PO-2024-001'],
-      stockHistory: [
-        { date: '2024-01-15', type: 'Sale', quantity: -15, balance: 0, reference: 'SO-2024-003' },
-        { date: '2024-01-10', type: 'Purchase', quantity: 15, balance: 15, reference: 'PO-2024-001' }
-      ]
-    },
-    {
-      id: '4',
-      sku: 'RAW-004',
-      name: 'Aluminum Sheet',
-      description: 'High-grade aluminum for manufacturing',
-      category: 'Raw Material',
-      vendor: 'Metal Suppliers Ltd',
-      currentStock: 250,
-      unitOfMeasure: 'KG',
-      lastPurchasePrice: 8.5,
-      averageCost: 8.2,
-      reorderPoint: 100,
-      status: 'In Stock',
-      totalValue: 2050,
-      lastUpdated: '2024-01-19',
-      linkedPOs: ['PO-2024-004'],
-      stockHistory: [
-        { date: '2024-01-19', type: 'Purchase', quantity: 300, balance: 250, reference: 'PO-2024-004' },
-        { date: '2024-01-18', type: 'Consumption', quantity: -50, balance: -50, reference: 'MFG-2024-001' }
-      ]
-    },
-    {
-      id: '5',
-      sku: 'SVC-005',
-      name: 'Installation Service',
-      description: 'Professional installation and setup service',
-      category: 'Service',
-      vendor: 'Service Pro Inc',
-      currentStock: 0,
-      unitOfMeasure: 'Hour',
-      lastPurchasePrice: 65,
-      averageCost: 65,
-      reorderPoint: 0,
-      status: 'Available',
-      totalValue: 0,
-      lastUpdated: '2024-01-20',
-      linkedPOs: ['PO-2024-003'],
-      stockHistory: [
-        { date: '2024-01-20', type: 'Purchase', quantity: 10, balance: 0, reference: 'PO-2024-003' }
-      ]
+  // Data fetching
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Refresh token from localStorage before making API calls
+      apiClient.refreshToken();
+      
+      const [productsResponse, categoriesResponse, vendorsResponse] = await Promise.all([
+        apiClient.getProducts({ limit: 1000 }),
+        apiClient.getProductCategories({ limit: 100 }),
+        apiClient.getVendors({ limit: 100 })
+      ]);
+      
+      if (productsResponse.success) {
+        setProducts(productsResponse.data.products || []);
+      }
+      
+      if (categoriesResponse.success) {
+        setCategories(categoriesResponse.data.categories || []);
+      }
+      
+      if (vendorsResponse.success) {
+        setVendors(vendorsResponse.data.vendors || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch inventory data:', err);
+      setError('Failed to load inventory data. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+  
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  const categories = ['All', 'Raw Material', 'Finished Good', 'Service', 'Spare Parts'];
-  const vendors = ['All', ...Array.from(new Set(inventoryItems.map(item => item.vendor)))];
+  // Helper functions to get status and calculate values
+  const getProductStatus = (product: Product) => {
+    if (product.current_stock <= 0) return 'Out of Stock';
+    if (product.current_stock <= product.reorder_point) return 'Low Stock';
+    return 'In Stock';
+  };
+  
+  const getProductTotalValue = (product: Product) => {
+    return product.current_stock * (product.average_cost || product.last_purchase_price || 0);
+  };
+  
+  // Transform products for display
+  const inventoryItems = products.map(product => ({
+    id: product.id,
+    sku: product.sku,
+    name: product.name,
+    description: product.description || '',
+    category: product.product_categories?.name || 'Uncategorized',
+    type: product.type,
+    vendor: 'N/A', // Will be populated when we have vendor relationships
+    currentStock: product.current_stock,
+    unitOfMeasure: product.unit_of_measure,
+    lastPurchasePrice: product.last_purchase_price || 0,
+    averageCost: product.average_cost || 0,
+    sellingPrice: product.selling_price || 0,
+    reorderPoint: product.reorder_point,
+    maxStockLevel: product.max_stock_level || 0,
+    status: getProductStatus(product),
+    totalValue: getProductTotalValue(product),
+    lastUpdated: new Date(product.updated_at).toISOString().split('T')[0],
+    linkedPOs: [], // Will be populated when we have PO relationships
+    stockHistory: [] // Will be populated when we fetch stock movements
+  }));
+  
+  const categoryOptions = ['All', ...categories.map(cat => cat.name)];
+  const vendorOptions = ['All', ...Array.from(new Set(vendors.map(vendor => vendor.name)))];
   const stockLevels = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
-  const statuses = ['All', 'In Stock', 'Low Stock', 'Out of Stock', 'Available', 'Already Owned'];
+  const statuses = ['All', 'In Stock', 'Low Stock', 'Out of Stock', 'Available'];
 
   const filteredItems = inventoryItems.filter(item => {
     const matchesSearch = !filters.search || 
@@ -155,12 +128,8 @@ export default function InventoryPage() {
   const lowStockItems = inventoryItems.filter(item => item.status === 'Low Stock').length;
   const outOfStockItems = inventoryItems.filter(item => item.status === 'Out of Stock').length;
   const fastMovingItems = inventoryItems
-    .filter(item => item.stockHistory.some(h => h.type === 'Sale'))
-    .sort((a, b) => {
-      const aSales = a.stockHistory.filter(h => h.type === 'Sale').reduce((sum, h) => sum + Math.abs(h.quantity), 0);
-      const bSales = b.stockHistory.filter(h => h.type === 'Sale').reduce((sum, h) => sum + Math.abs(h.quantity), 0);
-      return bSales - aSales;
-    })
+    .filter(item => item.currentStock > 0)
+    .sort((a, b) => b.currentStock - a.currentStock)
     .slice(0, 5);
 
   const getStatusColor = (status: string) => {
@@ -186,14 +155,33 @@ export default function InventoryPage() {
 
   const handleAdjustStock = (item: any) => {
     setSelectedItem(item);
-    setShowAdjustStock(true);
+    setIsAdjustStockModalOpen(true);
   };
 
-  const handleDeleteItem = (item: any) => {
+  const handleDeleteItem = async (item: any) => {
     if (confirm(`Are you sure you want to delete ${item.name}?`)) {
-      console.log('Deleting item:', item);
-      alert(`Deleted ${item.name}`);
+      try {
+        const response = await apiClient.deleteProduct(item.id);
+        if (response.success) {
+          alert(`Deleted ${item.name}`);
+          fetchData(); // Refresh data
+        } else {
+          alert('Failed to delete item');
+        }
+      } catch (error) {
+        console.error('Failed to delete item:', error);
+        alert('Failed to delete item');
+      }
     }
+  };
+
+  const handleItemSaved = () => {
+    fetchData(); // Refresh data after adding/editing item
+    setEditingItem(null);
+  };
+
+  const handleStockAdjusted = () => {
+    fetchData(); // Refresh data after stock adjustment
   };
 
   const clearFilters = () => {
@@ -230,12 +218,50 @@ export default function InventoryPage() {
     window.URL.revokeObjectURL(url);
   };
 
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-lg text-gray-600">Loading inventory data...</span>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <div className="flex items-center">
+              <svg className="w-6 h-6 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <h3 className="text-lg font-medium text-red-800">Error Loading Inventory</h3>
+                <p className="text-red-600">{error}</p>
+                <button 
+                  onClick={fetchData}
+                  className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-        </div>
+        <div className="mb-8"></div>
 
         {/* KPI Dashboard */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -364,7 +390,7 @@ export default function InventoryPage() {
                 onChange={(e) => setFilters({ ...filters, category: e.target.value })}
                 className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                {categories.map(category => (
+                {categoryOptions.map(category => (
                   <option key={category} value={category}>{category}</option>
                 ))}
               </select>
@@ -377,7 +403,7 @@ export default function InventoryPage() {
                 onChange={(e) => setFilters({ ...filters, vendor: e.target.value })}
                 className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                {vendors.map(vendor => (
+                {vendorOptions.map(vendor => (
                   <option key={vendor} value={vendor}>{vendor}</option>
                 ))}
               </select>
@@ -419,7 +445,7 @@ export default function InventoryPage() {
 
         {/* Fast Moving Items */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top 5 Fast-Moving Items</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top 5 Items by Stock Level</h3>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {fastMovingItems.map((item, index) => (
               <div key={item.id} className="text-center p-4 bg-gray-50 rounded-lg">
@@ -427,7 +453,7 @@ export default function InventoryPage() {
                 <div className="text-sm font-medium text-gray-900 truncate">{item.name}</div>
                 <div className="text-xs text-gray-500">{item.sku}</div>
                 <div className="text-sm text-green-600 font-medium">
-                  {item.stockHistory.filter(h => h.type === 'Sale').reduce((sum, h) => sum + Math.abs(h.quantity), 0)} sold
+                  {item.currentStock} {item.unitOfMeasure}
                 </div>
               </div>
             ))}
@@ -547,10 +573,25 @@ export default function InventoryPage() {
           setEditingItem(null);
         }} 
         editingItem={editingItem}
+        onItemSaved={handleItemSaved}
+        categories={categories}
       />
-      <ImportInventoryModal isOpen={showImport} onClose={() => setShowImport(false)} />
-      <StockDetailModal isOpen={showStockDetail} onClose={() => setShowStockDetail(false)} item={selectedItem} />
-      <AdjustStockModal isOpen={showAdjustStock} onClose={() => setShowAdjustStock(false)} item={selectedItem} />
+      <ImportInventoryModal 
+        isOpen={showImport} 
+        onClose={() => setShowImport(false)} 
+        onImportComplete={fetchData}
+      />
+      <StockDetailModal 
+        isOpen={showStockDetail} 
+        onClose={() => setShowStockDetail(false)} 
+        item={selectedItem} 
+      />
+      <AdjustStockModal
+        isOpen={isAdjustStockModalOpen}
+        onClose={() => setIsAdjustStockModalOpen(false)}
+        item={selectedItem}
+        onStockAdjusted={fetchData}
+      />
     </AppLayout>
   );
 }

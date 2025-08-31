@@ -1,50 +1,172 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
 import CreateQuotationModal from '../components/sales/CreateQuotationModal';
 import AddCustomerModal from '../components/sales/AddCustomerModal';
 import ConvertQuoteModal from '../components/sales/ConvertQuoteModal';
 import SearchQuotationsModal from '../components/sales/SearchQuotationsModal';
+import EditCustomerModal from '../components/sales/EditCustomerModal';
+import ViewCustomerQuotesModal from '../components/sales/ViewCustomerQuotesModal';
+import { apiClient, type SalesDashboardData, type QuotationTrend, type Customer } from '../lib/api';
 
 export default function SalesPage() {
   const [showCreateQuotation, setShowCreateQuotation] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showConvertQuote, setShowConvertQuote] = useState(false);
   const [showSearchQuotations, setShowSearchQuotations] = useState(false);
+  const [showEditCustomer, setShowEditCustomer] = useState(false);
+  const [showViewQuotes, setShowViewQuotes] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
-  // Mock data for KPIs
-  const salesKPIs = {
-    pendingQuotations: 12,
-    salesThisMonth: 45600,
-    topCustomers: [
-      { name: 'ABC Corporation', totalQuotes: 125000, quotesCount: 8 },
-      { name: 'XYZ Ltd', totalQuotes: 89000, quotesCount: 5 },
-      { name: 'Tech Solutions Inc', totalQuotes: 67000, quotesCount: 4 },
-      { name: 'Global Industries', totalQuotes: 54000, quotesCount: 3 },
-      { name: 'Innovation Corp', totalQuotes: 42000, quotesCount: 3 }
-    ],
-    recentInquiries: 8
+  // State for real data
+  const [salesData, setSalesData] = useState<SalesDashboardData | null>(null);
+  const [quotationTrends, setQuotationTrends] = useState<QuotationTrend[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Fetch data from backend
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Fetch all data in parallel
+        const [dashboardResponse, trendsResponse, customersResponse] = await Promise.all([
+          apiClient.getSalesDashboard(),
+          apiClient.getQuotationTrends(),
+          apiClient.getSalesCustomers({ limit: 50 })
+        ]);
+        
+        if (dashboardResponse.success) {
+          setSalesData(dashboardResponse.data);
+        }
+        
+        if (trendsResponse.success) {
+          setQuotationTrends(trendsResponse.data.trends);
+        }
+        
+        if (customersResponse.success) {
+          setCustomers(customersResponse.data.customers);
+        }
+      } catch (err) {
+        console.error('Failed to fetch sales data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+  
+  // Filter customers based on search term
+  const filteredCustomers = customers.filter(customer => 
+    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.contact_person?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Handler functions for customer actions
+  const handleEditCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setShowEditCustomer(true);
   };
 
-  // Mock data for quotation trends (last 6 months)
-  const quotationTrends = [
-    { month: 'Aug', quotations: 45, accepted: 32, revenue: 38000 },
-    { month: 'Sep', quotations: 52, accepted: 38, revenue: 42000 },
-    { month: 'Oct', quotations: 48, accepted: 35, revenue: 41000 },
-    { month: 'Nov', quotations: 61, accepted: 44, revenue: 48000 },
-    { month: 'Dec', quotations: 58, accepted: 42, revenue: 45000 },
-    { month: 'Jan', quotations: 67, accepted: 48, revenue: 52000 }
-  ];
+  const handleViewQuotes = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setShowViewQuotes(true);
+  };
 
-  // Mock data for customers
-  const customers = [
-    { id: 1, name: 'ABC Corporation', contact: 'John Smith', email: 'john@abc.com', phone: '+1 (555) 123-4567', gst: 'GST123456789', totalQuotes: 125000, quotesCount: 8, status: 'active' },
-    { id: 2, name: 'XYZ Ltd', contact: 'Sarah Johnson', email: 'sarah@xyz.com', phone: '+1 (555) 234-5678', gst: 'GST234567890', totalQuotes: 89000, quotesCount: 5, status: 'active' },
-    { id: 3, name: 'Tech Solutions Inc', contact: 'Mike Davis', email: 'mike@tech.com', phone: '+1 (555) 345-6789', gst: 'GST345678901', totalQuotes: 67000, quotesCount: 4, status: 'active' },
-    { id: 4, name: 'Global Industries', contact: 'Lisa Wilson', email: 'lisa@global.com', phone: '+1 (555) 456-7890', gst: 'GST456789012', totalQuotes: 54000, quotesCount: 3, status: 'inactive' },
-    { id: 5, name: 'Innovation Corp', contact: 'David Brown', email: 'david@innovation.com', phone: '+1 (555) 567-8901', gst: 'GST567890123', totalQuotes: 42000, quotesCount: 3, status: 'active' }
-  ];
+  const handleDeleteCustomer = async (customer: Customer) => {
+    if (confirm(`Are you sure you want to delete customer "${customer.name}"? This action cannot be undone.`)) {
+      try {
+        const response = await apiClient.deleteCustomer(customer.id);
+        if (response.success) {
+          alert('Customer deleted successfully!');
+          // Refresh customer list
+          const customersResponse = await apiClient.getSalesCustomers({ limit: 50 });
+          if (customersResponse.success) {
+            setCustomers(customersResponse.data.customers);
+          }
+        } else {
+          throw new Error(response.message || 'Failed to delete customer');
+        }
+      } catch (error) {
+        console.error('Failed to delete customer:', error);
+        alert(`Failed to delete customer: ${error instanceof Error ? error.message : 'Please try again.'}`);
+      }
+    }
+  };
+
+  const refreshCustomers = async () => {
+    try {
+      const customersResponse = await apiClient.getSalesCustomers({ limit: 50 });
+      if (customersResponse.success) {
+        setCustomers(customersResponse.data.customers);
+      }
+    } catch (error) {
+      console.error('Failed to refresh customers:', error);
+    }
+  };
+
+  const refreshDashboardData = async () => {
+    try {
+      const [dashboardResponse, trendsResponse] = await Promise.all([
+        apiClient.getSalesDashboard(),
+        apiClient.getQuotationTrends()
+      ]);
+      
+      if (dashboardResponse.success) {
+        setSalesData(dashboardResponse.data);
+      }
+      
+      if (trendsResponse.success) {
+        setQuotationTrends(trendsResponse.data.trends);
+      }
+    } catch (error) {
+      console.error('Failed to refresh dashboard data:', error);
+    }
+  };
+  
+  // Loading state
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+  
+  // Error state
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Error loading sales data</h3>
+                <p className="mt-1 text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -56,8 +178,8 @@ export default function SalesPage() {
           <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Pending Quotations</p>
-                <p className="text-3xl font-bold text-gray-900">{salesKPIs.pendingQuotations}</p>
+                <p className="text-md font-medium text-gray-600">Pending Quotations</p>
+                <p className="text-4xl font-bold text-gray-900">{salesData?.pendingQuotations || 0}</p>
               </div> 
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,17 +187,14 @@ export default function SalesPage() {
                 </svg>
               </div>
             </div>
-            <button className="mt-4 text-sm text-blue-600 hover:text-blue-700 font-medium">
-              View All →
-            </button>
           </div>
 
           {/* Sales This Month */}
           <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Sales This Month</p>
-                <p className="text-3xl font-bold text-gray-900">${salesKPIs.salesThisMonth.toLocaleString()}</p>
+                <p className="text-md font-medium text-gray-600">Sales This Month</p>
+                <p className="text-4xl font-bold text-gray-900">${salesData?.salesThisMonth?.toLocaleString() || '0'}</p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,15 +202,14 @@ export default function SalesPage() {
                 </svg>
               </div>
             </div>
-            <p className="mt-2 text-sm text-green-600">+12% from last month</p>
           </div>
 
           {/* Top Customers */}
           <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Top Customers</p>
-                <p className="text-3xl font-bold text-gray-900">{salesKPIs.topCustomers.length}</p>
+                <p className="text-md font-medium text-gray-600">Top Customers</p>
+                <p className="text-4xl font-bold text-gray-900">{salesData?.topCustomers?.length || 0}</p>
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -99,15 +217,14 @@ export default function SalesPage() {
                 </svg>
               </div>
             </div>
-            <p className="mt-2 text-sm text-purple-600">${salesKPIs.topCustomers.reduce((sum, c) => sum + c.totalQuotes, 0).toLocaleString()} total value</p>
           </div>
 
           {/* Recent Inquiries */}
           <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Recent Inquiries</p>
-                <p className="text-3xl font-bold text-gray-900">{salesKPIs.recentInquiries}</p>
+                <p className="text-md font-medium text-gray-600">Recent Inquiries</p>
+                <p className="text-4xl font-bold text-gray-900">{salesData?.recentInquiries || 0}</p>
               </div>
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -138,7 +255,6 @@ export default function SalesPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-green-600">${trend.revenue.toLocaleString()}</p>
-                    <p className="text-xs text-gray-500">{Math.round((trend.accepted / trend.quotations) * 100)}% success</p>
                   </div>
                 </div>
               ))}
@@ -149,7 +265,7 @@ export default function SalesPage() {
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Customers by Value</h3>
             <div className="space-y-4">
-              {salesKPIs.topCustomers.map((customer, index) => (
+              {salesData?.topCustomers?.map((customer, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${
@@ -229,6 +345,8 @@ export default function SalesPage() {
                   <input
                     type="text"
                     placeholder="Search customers..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 pr-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -258,7 +376,7 @@ export default function SalesPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {customers.map((customer) => (
+                {filteredCustomers.map((customer) => (
                   <tr key={customer.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
@@ -268,13 +386,13 @@ export default function SalesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <p className="text-sm text-gray-900">{customer.contact}</p>
+                        <p className="text-sm text-gray-900">{customer.contact_person || 'N/A'}</p>
                         <p className="text-sm text-gray-500">{customer.phone}</p>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {customer.gst}
+                        {customer.gst_number || 'N/A'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -291,9 +409,24 @@ export default function SalesPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <button className="text-blue-600 hover:text-blue-700 mr-3">Edit</button>
-                      <button className="text-green-600 hover:text-green-700 mr-3">View Quotes</button>
-                      <button className="text-red-600 hover:text-red-700">Delete</button>
+                      <button 
+                        onClick={() => handleEditCustomer(customer)}
+                        className="text-blue-600 hover:text-blue-700 mr-3"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        onClick={() => handleViewQuotes(customer)}
+                        className="text-green-600 hover:text-green-700 mr-3"
+                      >
+                        View Quotes
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteCustomer(customer)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -304,10 +437,62 @@ export default function SalesPage() {
       </div>
 
       {/* Modals */}
-      <CreateQuotationModal isOpen={showCreateQuotation} onClose={() => setShowCreateQuotation(false)} />
-      <AddCustomerModal isOpen={showAddCustomer} onClose={() => setShowAddCustomer(false)} />
-      <ConvertQuoteModal isOpen={showConvertQuote} onClose={() => setShowConvertQuote(false)} />
-      <SearchQuotationsModal isOpen={showSearchQuotations} onClose={() => setShowSearchQuotations(false)} />
+      {showAddCustomer && (
+        <AddCustomerModal
+          isOpen={showAddCustomer}
+          onClose={() => setShowAddCustomer(false)}
+          onCustomerAdded={() => {
+            console.log('Customer added successfully');
+            refreshCustomers();
+          }}
+        />
+      )}
+
+      <CreateQuotationModal 
+        isOpen={showCreateQuotation} 
+        onClose={() => setShowCreateQuotation(false)}
+        onQuotationCreated={() => {
+          console.log('Quotation created successfully');
+          refreshDashboardData();
+          refreshCustomers();
+        }}
+      />
+      
+      <ConvertQuoteModal 
+        isOpen={showConvertQuote} 
+        onClose={() => setShowConvertQuote(false)}
+        onOrderCreated={() => {
+          console.log('Order created successfully');
+        }}
+      />
+      
+      <SearchQuotationsModal 
+        isOpen={showSearchQuotations} 
+        onClose={() => setShowSearchQuotations(false)} 
+      />
+
+      <EditCustomerModal
+        isOpen={showEditCustomer}
+        onClose={() => {
+          setShowEditCustomer(false);
+          setSelectedCustomer(null);
+        }}
+        onCustomerUpdated={() => {
+          refreshCustomers();
+          setShowEditCustomer(false);
+          setSelectedCustomer(null);
+        }}
+        customer={selectedCustomer}
+      />
+
+      <ViewCustomerQuotesModal
+        isOpen={showViewQuotes}
+        onClose={() => {
+          setShowViewQuotes(false);
+          setSelectedCustomer(null);
+        }}
+        customer={selectedCustomer}
+      />
     </AppLayout>
   );
 }

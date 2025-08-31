@@ -5,9 +5,10 @@ import { useState, useRef } from 'react';
 interface ImportInventoryModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onImportComplete: () => Promise<void>;
 }
 
-export default function ImportInventoryModal({ isOpen, onClose }: ImportInventoryModalProps) {
+export default function ImportInventoryModal({ isOpen, onClose, onImportComplete }: ImportInventoryModalProps) {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [importResults, setImportResults] = useState<any>(null);
@@ -91,6 +92,9 @@ export default function ImportInventoryModal({ isOpen, onClose }: ImportInventor
       };
       
       setImportResults(mockResults);
+      
+      // Call the completion callback to refresh the parent component's data
+      await onImportComplete();
       
     } catch (error) {
       console.error('Import processing failed:', error);

@@ -1,18 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
 import GeneratePLReportModal from '../components/accounting/GeneratePLReportModal';
 import PendingInvoicesReportModal from '../components/accounting/PendingInvoicesReportModal';
 import AddLedgerEntryModal from '../components/accounting/AddLedgerEntryModal';
 import LedgerEntryDetailsModal from '../components/accounting/LedgerEntryDetailsModal';
+import apiClient, { LedgerEntry, FinancialMetrics } from '../lib/api';
 
 export default function AccountingPage() {
   const [showPLReport, setShowPLReport] = useState(false);
   const [showPendingInvoices, setShowPendingInvoices] = useState(false);
   const [showAddLedger, setShowAddLedger] = useState(false);
   const [showEntryDetails, setShowEntryDetails] = useState(false);
-  const [selectedEntry, setSelectedEntry] = useState<any>(null);
+  const [selectedEntry, setSelectedEntry] = useState<LedgerEntry | null>(null);
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
+  const [financialMetrics, setFinancialMetrics] = useState<FinancialMetrics>({
+    totalSales: 0,
+    totalPurchases: 0,
+    expenses: 0,
+    netProfit: 0,
+    pendingInvoices: 0,
+    pendingAmount: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // Filters state
   const [filters, setFilters] = useState({
@@ -27,179 +39,101 @@ export default function AccountingPage() {
   // Active tab for ledger view
   const [activeTab, setActiveTab] = useState<'sales' | 'purchases' | 'expenses' | 'all'>('all');
 
-  // Mock data for financial metrics
-  const financialMetrics = {
-    totalPurchases: 125000,
-    totalSales: 189000,
-    expenses: 45600,
-    netProfit: 189000 - 125000 - 45600,
-    pendingInvoices: 8,
-    pendingAmount: 23400
-  };
+  // Filter options
+  const customers = ['All', 'Customer A', 'Customer B', 'Customer C'];
+  const vendors = ['All', 'Vendor A', 'Vendor B', 'Vendor C'];
+  const accountTypes = ['All', 'Assets', 'Liabilities', 'Equity', 'Revenue', 'Expenses'];
+  const entryTypes = ['All', 'Sale', 'Purchase', 'Expense', 'Adjustment'];
 
-  // Mock data for ledger entries
-  const ledgerEntries = [
-    {
-      id: 'LE-2024-001',
-      date: '2024-01-20',
-      type: 'Sale',
-      reference: 'INV-2024-001',
-      customerVendor: 'ABC Corp',
-      description: 'Laptop and Monitor Sale',
-      debit: 0,
-      credit: 2500,
-      balance: 2500,
-      accountType: 'Sales',
-      taxBreakdown: {
-        subtotal: 2200,
-        gst: 300,
-        total: 2500
-      },
-      fbrSync: 'Synced',
-      linkedTransactions: ['Q-2024-001', 'SO-2024-001', 'INV-2024-001'],
-      auditTrail: [
-        { action: 'Created', user: 'Sales Team', timestamp: '2024-01-20 10:30' },
-        { action: 'Invoice Generated', user: 'Finance', timestamp: '2024-01-20 14:15' }
-      ]
-    },
-    {
-      id: 'LE-2024-002',
-      date: '2024-01-19',
-      type: 'Purchase',
-      reference: 'PO-2024-001',
-      customerVendor: 'Tech Supplies Inc',
-      description: 'Hardware Purchase',
-      debit: 1800,
-      credit: 0,
-      balance: 700,
-      accountType: 'Purchases',
-      taxBreakdown: {
-        subtotal: 1600,
-        gst: 200,
-        total: 1800
-      },
-      fbrSync: 'Pending',
-      linkedTransactions: ['PO-2024-001', 'DC-2024-001'],
-      auditTrail: [
-        { action: 'PO Created', user: 'Procurement', timestamp: '2024-01-19 09:00' },
-        { action: 'Goods Received', user: 'Warehouse', timestamp: '2024-01-19 16:30' }
-      ]
-    },
-    {
-      id: 'LE-2024-003',
-      date: '2024-01-18',
-      type: 'Expense',
-      reference: 'EXP-2024-001',
-      customerVendor: 'Office Supplies Co',
-      description: 'Office Supplies',
-      debit: 450,
-      credit: 0,
-      balance: 250,
-      accountType: 'Expenses',
-      taxBreakdown: {
-        subtotal: 400,
-        gst: 50,
-        total: 450
-      },
-      fbrSync: 'N/A',
-      linkedTransactions: ['EXP-2024-001'],
-      auditTrail: [
-        { action: 'Expense Created', user: 'Admin', timestamp: '2024-01-18 11:45' },
-        { action: 'Approved', user: 'Manager', timestamp: '2024-01-18 15:20' }
-      ]
-    },
-    {
-      id: 'LE-2024-004',
-      date: '2024-01-17',
-      type: 'Sale',
-      reference: 'INV-2024-002',
-      customerVendor: 'XYZ Ltd',
-      description: 'Software License',
-      debit: 0,
-      credit: 1200,
-      balance: 3700,
-      accountType: 'Sales',
-      taxBreakdown: {
-        subtotal: 1050,
-        gst: 150,
-        total: 1200
-      },
-      fbrSync: 'Synced',
-      linkedTransactions: ['Q-2024-002', 'INV-2024-002'],
-      auditTrail: [
-        { action: 'Created', user: 'Sales Team', timestamp: '2024-01-17 13:20' },
-        { action: 'Invoice Generated', user: 'Finance', timestamp: '2024-01-17 16:45' }
-      ]
-    },
-    {
-      id: 'LE-2024-005',
-      date: '2024-01-16',
-      type: 'Purchase',
-      reference: 'PO-2024-002',
-      customerVendor: 'Display Solutions',
-      description: 'Monitor Purchase',
-      debit: 800,
-      credit: 0,
-      balance: 2900,
-      accountType: 'Purchases',
-      taxBreakdown: {
-        subtotal: 700,
-        gst: 100,
-        total: 800
-      },
-      fbrSync: 'Failed',
-      linkedTransactions: ['PO-2024-002'],
-      auditTrail: [
-        { action: 'PO Created', user: 'Procurement', timestamp: '2024-01-16 08:15' },
-        { action: 'FBR Sync Failed', user: 'System', timestamp: '2024-01-16 10:30' }
-      ]
-    }
-  ];
-
-  const customers = ['All', ...Array.from(new Set(ledgerEntries.filter(entry => entry.type === 'Sale').map(entry => entry.customerVendor)))];
-  const vendors = ['All', ...Array.from(new Set(ledgerEntries.filter(entry => entry.type === 'Purchase').map(entry => entry.customerVendor)))];
-  const accountTypes = ['All', 'Sales', 'Purchases', 'Expenses', 'Assets', 'Liabilities'];
-  const entryTypes = ['All', 'Sale', 'Purchase', 'Expense', 'Payment', 'Receipt'];
-
-  const filteredEntries = ledgerEntries.filter(entry => {
-    const matchesDateFrom = !filters.dateFrom || entry.date >= filters.dateFrom;
-    const matchesDateTo = !filters.dateTo || entry.date <= filters.dateTo;
-    const matchesCustomer = filters.customer === 'All' || entry.customerVendor === filters.customer;
-    const matchesVendor = filters.vendor === 'All' || entry.customerVendor === filters.vendor;
-    const matchesAccountType = filters.accountType === 'All' || entry.accountType === filters.accountType;
-    const matchesEntryType = filters.entryType === 'All' || entry.type === filters.entryType;
-    
-    // Additional tab filtering
-    const matchesTab = activeTab === 'all' || 
-      (activeTab === 'sales' && entry.type === 'Sale') ||
-      (activeTab === 'purchases' && entry.type === 'Purchase') ||
-      (activeTab === 'expenses' && entry.type === 'Expense');
-    
-    return matchesDateFrom && matchesDateTo && matchesCustomer && matchesVendor && 
-           matchesAccountType && matchesEntryType && matchesTab;
-  });
-
-  const getFBRStatusColor = (status: string) => {
-    switch (status) {
-      case 'Synced': return 'bg-green-100 text-green-800';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800';
-      case 'Failed': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  // Fetch ledger data from API
+  const fetchLedgerData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Refresh token before making API calls
+      await apiClient.refreshToken();
+      
+      // Fetch ledger entries with filters
+      const ledgerParams = {
+        page: 1,
+        limit: 100,
+        ...(filters.dateFrom && { date_from: filters.dateFrom }),
+        ...(filters.dateTo && { date_to: filters.dateTo }),
+        ...(filters.entryType !== 'All' && { reference_type: filters.entryType }),
+        ...(filters.accountType !== 'All' && { account_type: filters.accountType })
+      };
+      
+      const [ledgerResponse, metricsResponse] = await Promise.all([
+        apiClient.getLedgerEntries(ledgerParams),
+        apiClient.getFinancialMetrics({
+          ...(filters.dateFrom && { date_from: filters.dateFrom }),
+          ...(filters.dateTo && { date_to: filters.dateTo })
+        })
+      ]);
+      
+      if (ledgerResponse.success) {
+        setLedgerEntries(ledgerResponse.data.entries || []);
+      }
+      
+      if (metricsResponse.success) {
+        setFinancialMetrics(metricsResponse.data.metrics);
+      }
+      
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch ledger data');
+      console.error('Error fetching ledger data:', err);
+    } finally {
+      setLoading(false);
     }
   };
+  
+  // Load data on component mount and filter changes
+  useEffect(() => {
+    fetchLedgerData();
+  }, [filters, activeTab]);
 
-  const getFBRStatusIcon = (status: string) => {
-    switch (status) {
-      case 'Synced': return '✔';
-      case 'Pending': return '⏳';
-      case 'Failed': return '❌';
-      default: return '⚠️';
+
+  // Filter ledger entries based on active tab and filters
+  const getFilteredEntries = () => {
+    let filtered = ledgerEntries;
+
+    // Filter by tab
+    if (activeTab === 'sales') {
+      filtered = filtered.filter(entry => entry.reference_type === 'sale');
+    } else if (activeTab === 'purchases') {
+      filtered = filtered.filter(entry => entry.reference_type === 'purchase');
+    } else if (activeTab === 'expenses') {
+      filtered = filtered.filter(entry => entry.reference_type === 'expense');
     }
+
+    // Apply date filters
+    if (filters.dateFrom) {
+      filtered = filtered.filter(entry => 
+        new Date(entry.entry_date) >= new Date(filters.dateFrom)
+      );
+    }
+    if (filters.dateTo) {
+      filtered = filtered.filter(entry => 
+        new Date(entry.entry_date) <= new Date(filters.dateTo)
+      );
+    }
+    if (filters.entryType !== 'All') {
+      filtered = filtered.filter(entry => entry.reference_type === filters.entryType.toLowerCase());
+    }
+
+    return filtered;
   };
 
-  const handleViewEntryDetails = (entry: any) => {
+  const entriesWithBalance = getFilteredEntries();
+
+  const handleEntryClick = (entry: LedgerEntry) => {
     setSelectedEntry(entry);
     setShowEntryDetails(true);
+  };
+  
+  const handleLedgerEntryAdded = () => {
+    fetchLedgerData(); // Refresh data after adding new entry
   };
 
   const clearFilters = () => {
@@ -213,26 +147,11 @@ export default function AccountingPage() {
     });
   };
 
-  const calculateRunningBalance = () => {
-    let balance = 0;
-    return filteredEntries.map(entry => {
-      if (entry.type === 'Sale' || entry.type === 'Payment') {
-        balance += entry.credit;
-      } else {
-        balance -= entry.debit;
-      }
-      return { ...entry, runningBalance: balance };
-    });
-  };
-
-  const entriesWithBalance = calculateRunningBalance();
-
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-        </div>
+        <div className="mb-8"></div>
 
         {/* KPI Dashboard */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
@@ -445,66 +364,75 @@ export default function AccountingPage() {
               </select>
             </div>
           </div>
-
-          <div className="mt-4 flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              Found {filteredEntries.length} entry(s) out of {ledgerEntries.length} total
-            </p>
-          </div>
         </div>
 
-        {/* Ledger Table */}
-        <div className="bg-white rounded-lg shadow-md">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">General Ledger</h3>
-              <div className="flex space-x-1">
-                <button
-                  onClick={() => setActiveTab('all')}
-                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                    activeTab === 'all' 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  All Entries
-                </button>
-                <button
-                  onClick={() => setActiveTab('sales')}
-                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                    activeTab === 'sales' 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Sales Ledger
-                </button>
-                <button
-                  onClick={() => setActiveTab('purchases')}
-                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                    activeTab === 'purchases' 
-                      ? 'bg-red-100 text-red-700' 
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Purchase Ledger
-                </button>
-                <button
-                  onClick={() => setActiveTab('expenses')}
-                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                    activeTab === 'expenses' 
-                      ? 'bg-orange-100 text-orange-700' 
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Expense Ledger
-                </button>
-              </div>
+          {/* Ledger Table */}
+          <div className="bg-white rounded-lg shadow-md">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">General Ledger</h3>
+                <div className="flex space-x-1">
+                  <button
+                    onClick={() => setActiveTab('all')}
+                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+                      activeTab === 'all' 
+                        ? 'bg-blue-100 text-blue-700' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    All Entries
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('sales')}
+                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+                      activeTab === 'sales' 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Sales Ledger
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('purchases')}
+                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+                      activeTab === 'purchases' 
+                        ? 'bg-red-100 text-red-700' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Purchase Ledger
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('expenses')}
+                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+                      activeTab === 'expenses' 
+                        ? 'bg-orange-100 text-orange-700' 
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Expense Ledger
+                  </button>
+                </div>
             </div>
           </div>
 
           <div className="overflow-x-auto">
-            {entriesWithBalance.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                <p className="text-gray-500 mt-2">Loading ledger entries...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8">
+                <p className="text-red-500">Error: {error}</p>
+                <button 
+                  onClick={fetchLedgerData}
+                  className="mt-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : entriesWithBalance.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-500">No ledger entries found.</p>
                 <p className="text-sm text-gray-400 mt-1">Total Entries: {ledgerEntries.length} | Filtered: {entriesWithBalance.length}</p>
@@ -517,12 +445,9 @@ export default function AccountingPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entry ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer/Vendor</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Debit</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credit</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FBR Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
@@ -530,57 +455,48 @@ export default function AccountingPage() {
                   {entriesWithBalance.map((entry) => (
                     <tr key={entry.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{entry.date}</div>
+                        <div className="text-sm text-gray-900">
+                          {new Date(entry.entry_date).toLocaleDateString()}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{entry.id}</div>
+                        <div className="text-sm font-medium text-gray-900">#{entry.id}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          entry.type === 'Sale' ? 'bg-green-100 text-green-800' :
-                          entry.type === 'Purchase' ? 'bg-red-100 text-red-800' :
-                          'bg-orange-100 text-orange-800'
+                          entry.reference_type === 'sale' ? 'bg-green-100 text-green-800' :
+                          entry.reference_type === 'purchase' ? 'bg-red-100 text-red-800' :
+                          entry.reference_type === 'expense' ? 'bg-orange-100 text-orange-800' :
+                          'bg-blue-100 text-blue-800'
                         }`}>
-                          {entry.type}
+                          {entry.reference_type ? entry.reference_type.charAt(0).toUpperCase() + entry.reference_type.slice(1) : 'General'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer font-medium">
-                          {entry.reference}
+                          {entry.reference_number || '-'}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{entry.customerVendor}</div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm text-gray-900 truncate max-w-xs">{entry.description}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {entry.debit > 0 ? `$${entry.debit.toLocaleString()}` : '-'}
+                          ${Math.max(entry.total_debit || 0, entry.total_credit || 0).toLocaleString()}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {entry.credit > 0 ? `$${entry.credit.toLocaleString()}` : '-'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className={`text-sm font-medium ${
-                          entry.runningBalance >= 0 ? 'text-green-600' : 'text-red-600'
+                        <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                          entry.status === 'posted' ? 'bg-green-100 text-green-800' :
+                          entry.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
                         }`}>
-                          ${entry.runningBalance.toLocaleString()}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${getFBRStatusColor(entry.fbrSync)}`}>
-                          <span className="mr-1">{getFBRStatusIcon(entry.fbrSync)}</span>
-                          {entry.fbrSync}
+                          {entry.status?.charAt(0).toUpperCase() + entry.status?.slice(1)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <button
-                          onClick={() => handleViewEntryDetails(entry)}
+                          onClick={() => handleEntryClick(entry)}
                           className="text-blue-600 hover:text-blue-700 font-medium"
                         >
                           View Details
@@ -598,7 +514,7 @@ export default function AccountingPage() {
       {/* Modals */}
       <GeneratePLReportModal isOpen={showPLReport} onClose={() => setShowPLReport(false)} />
       <PendingInvoicesReportModal isOpen={showPendingInvoices} onClose={() => setShowPendingInvoices(false)} />
-      <AddLedgerEntryModal isOpen={showAddLedger} onClose={() => setShowAddLedger(false)} />
+      <AddLedgerEntryModal isOpen={showAddLedger} onClose={() => setShowAddLedger(false)} onEntryAdded={handleLedgerEntryAdded} />
       <LedgerEntryDetailsModal isOpen={showEntryDetails} onClose={() => setShowEntryDetails(false)} entry={selectedEntry} />
     </AppLayout>
   );

@@ -1,85 +1,343 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { apiClient } from '@/app/lib/api';
 import AppLayout from '../components/AppLayout';
 
 export default function ReportsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data for KPI Dashboard
-  const kpiData = {
-    pendingQuotations: 12,
-    totalOrders: 45,
-    totalInvoices: 38,
-    stockAlerts: 7,
-    totalRevenue: 125000,
-    profitMargin: 18.5,
-    pendingInvoiceAmount: 25000,
-    lowStockItems: 7
-  };
+  // Real data states
+  const [kpiData, setKpiData] = useState({
+    pendingQuotations: 0,
+    totalOrders: 0,
+    totalInvoices: 0,
+    stockAlerts: 0,
+    totalRevenue: 0,
+    profitMargin: 0,
+    pendingInvoiceAmount: 0,
+    lowStockItems: 0
+  });
 
-  // Mock data for Financial Reports
-  const financialData = {
+  const [financialData, setFinancialData] = useState<{
     profitLoss: {
-      revenue: 125000,
-      cogs: 85000,
-      grossProfit: 40000,
-      expenses: 25000,
-      netProfit: 15000
+      revenue: number;
+      cogs: number;
+      grossProfit: number;
+      expenses: number;
+      netProfit: number;
+    };
+    pendingInvoices: Array<{
+      id: string;
+      customer: string;
+      amount: number;
+      dueDate: string;
+      overdue: boolean;
+    }>;
+  }>({
+    profitLoss: {
+      revenue: 0,
+      cogs: 0,
+      grossProfit: 0,
+      expenses: 0,
+      netProfit: 0
     },
-    pendingInvoices: [
-      { id: 1, customer: 'ABC Corp', amount: 8500, dueDate: '2024-09-05', overdue: false },
-      { id: 2, customer: 'XYZ Ltd', amount: 12000, dueDate: '2024-08-25', overdue: true },
-      { id: 3, customer: 'Tech Solutions', amount: 4500, dueDate: '2024-09-10', overdue: false }
-    ]
-  };
+    pendingInvoices: []
+  });
 
-  // Mock data for Sales & Procurement
-  const salesData = {
-    monthlySales: [
-      { month: 'Jan', amount: 95000, orders: 32 },
-      { month: 'Feb', amount: 110000, orders: 38 },
-      { month: 'Mar', amount: 125000, orders: 45 }
-    ],
-    topCustomers: [
-      { name: 'ABC Corp', amount: 35000, orders: 12 },
-      { name: 'XYZ Ltd', amount: 28000, orders: 8 },
-      { name: 'Tech Solutions', amount: 22000, orders: 15 }
-    ]
-  };
+  const [salesData, setSalesData] = useState<{
+    monthlySales: Array<{ month: string; amount: number; orders: number }>;
+    topCustomers: Array<{ name: string; amount: number; orders: number }>;
+  }>({
+    monthlySales: [],
+    topCustomers: []
+  });
 
-  const procurementData = {
-    monthlyPurchases: [
-      { month: 'Jan', amount: 65000, orders: 18 },
-      { month: 'Feb', amount: 72000, orders: 22 },
-      { month: 'Mar', amount: 85000, orders: 28 }
-    ],
-    topVendors: [
-      { name: 'Tech Supplies Co', amount: 25000, orders: 8 },
-      { name: 'Office Equipment Ltd', amount: 18000, orders: 12 },
-      { name: 'Industrial Parts Inc', amount: 15000, orders: 6 }
-    ]
-  };
+  const [procurementData, setProcurementData] = useState<{
+    monthlyPurchases: Array<{ month: string; amount: number; orders: number }>;
+    topVendors: Array<{ name: string; amount: number; orders: number }>;
+  }>({
+    monthlyPurchases: [],
+    topVendors: []
+  });
 
-  // Mock data for Inventory
-  const inventoryData = {
-    totalItems: 245,
-    lowStockItems: 7,
-    outOfStock: 2,
-    totalValue: 185000,
-    criticalItems: [
-      { sku: 'LAP-001', name: 'Laptop Dell XPS 13', current: 2, reorder: 5, status: 'critical' },
-      { sku: 'MON-002', name: 'Monitor 27" 4K', current: 1, reorder: 3, status: 'critical' },
-      { sku: 'KEY-003', name: 'Wireless Keyboard', current: 0, reorder: 10, status: 'out-of-stock' },
-      { sku: 'MOU-004', name: 'Wireless Mouse', current: 3, reorder: 8, status: 'low' }
-    ]
-  };
+  const [inventoryData, setInventoryData] = useState<{
+    totalItems: number;
+    lowStockItems: number;
+    outOfStock: number;
+    totalValue: number;
+    criticalItems: Array<{ sku: string; name: string; current: number; reorder: number; status: string }>;
+  }>({
+    totalItems: 0,
+    lowStockItems: 0,
+    outOfStock: 0,
+    totalValue: 0,
+    criticalItems: []
+  });
+
+  // Fetch all data on component mount
+  useEffect(() => {
+    const fetchReportsData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch data in parallel
+        const [
+          quotationsResponse,
+          invoicesResponse,
+          productsResponse,
+          customersResponse,
+          vendorsResponse,
+          vendorBillsResponse,
+          purchaseOrdersResponse
+        ] = await Promise.all([
+          apiClient.getQuotations({ limit: 1000 }),
+          apiClient.getInvoices({ limit: 1000 }),
+          apiClient.getProducts({ limit: 1000 }),
+          apiClient.getCustomers({ limit: 1000 }),
+          apiClient.getVendors({ limit: 1000 }),
+          apiClient.getVendorBills({ limit: 1000 }),
+          apiClient.getPurchaseOrders({ limit: 1000 })
+        ]);
+
+        // Process KPI data - handle different response structures
+        const quotations = Array.isArray(quotationsResponse?.data) ? quotationsResponse.data : 
+                          Array.isArray(quotationsResponse?.data?.quotations) ? quotationsResponse.data.quotations :
+                          Array.isArray(quotationsResponse) ? quotationsResponse : [];
+        
+        const invoices = Array.isArray(invoicesResponse?.data) ? invoicesResponse.data : 
+                        Array.isArray(invoicesResponse?.data?.invoices) ? invoicesResponse.data.invoices :
+                        Array.isArray(invoicesResponse) ? invoicesResponse : [];
+        
+        const products = Array.isArray(productsResponse?.data) ? productsResponse.data : 
+                        Array.isArray(productsResponse?.data?.products) ? productsResponse.data.products :
+                        Array.isArray(productsResponse) ? productsResponse : [];
+        
+        const customers = Array.isArray(customersResponse?.data) ? customersResponse.data : 
+                         Array.isArray(customersResponse?.data?.customers) ? customersResponse.data.customers :
+                         Array.isArray(customersResponse) ? customersResponse : [];
+        
+        const vendors = Array.isArray(vendorsResponse?.data) ? vendorsResponse.data : 
+                       Array.isArray(vendorsResponse?.data?.vendors) ? vendorsResponse.data.vendors :
+                       Array.isArray(vendorsResponse) ? vendorsResponse : [];
+        
+        const vendorBills = Array.isArray(vendorBillsResponse?.data) ? vendorBillsResponse.data : 
+                           Array.isArray(vendorBillsResponse?.data?.bills) ? vendorBillsResponse.data.bills :
+                           Array.isArray(vendorBillsResponse) ? vendorBillsResponse : [];
+        
+        const purchaseOrders = Array.isArray(purchaseOrdersResponse?.data) ? purchaseOrdersResponse.data : 
+                              Array.isArray(purchaseOrdersResponse?.data?.orders) ? purchaseOrdersResponse.data.orders :
+                              Array.isArray(purchaseOrdersResponse) ? purchaseOrdersResponse : [];
+
+        console.log('Data arrays:', { 
+          quotations: quotations.length, 
+          invoices: invoices.length, 
+          products: products.length, 
+          customers: customers.length, 
+          vendors: vendors.length, 
+          vendorBills: vendorBills.length, 
+          purchaseOrders: purchaseOrders.length 
+        });
+
+        // Calculate KPIs
+        const pendingQuotations = quotations.filter((q: any) => q.status === 'pending').length;
+        const totalOrders = purchaseOrders.length; // Use purchase orders as "orders"
+        const totalInvoices = invoices.length;
+        const lowStockProducts = products.filter((p: any) => p.stock_quantity <= (p.reorder_level || 5));
+        const outOfStockProducts = products.filter((p: any) => p.stock_quantity === 0);
+        
+        const totalRevenue = invoices.reduce((sum: number, inv: any) => sum + (inv.total_amount || 0), 0);
+        const totalCOGS = vendorBills.reduce((sum: number, bill: any) => sum + (bill.total_amount || 0), 0);
+        const pendingInvoiceAmount = invoices
+          .filter((inv: any) => inv.status === 'pending')
+          .reduce((sum: number, inv: any) => sum + (inv.total_amount || 0), 0);
+
+        setKpiData({
+          pendingQuotations,
+          totalOrders,
+          totalInvoices,
+          stockAlerts: lowStockProducts.length,
+          totalRevenue,
+          profitMargin: totalRevenue > 0 ? ((totalRevenue - totalCOGS) / totalRevenue * 100) : 0,
+          pendingInvoiceAmount,
+          lowStockItems: lowStockProducts.length
+        });
+
+        // Process financial data
+        const grossProfit = totalRevenue - totalCOGS;
+        const netProfit = grossProfit; // Simplified - would need expense data
+
+        const pendingInvoicesData = invoices
+          .filter((inv: any) => inv.status === 'pending')
+          .map((inv: any) => ({
+            id: inv.id,
+            customer: inv.customers?.name || 'Unknown Customer',
+            amount: inv.total_amount || 0,
+            dueDate: inv.due_date || inv.created_at,
+            overdue: new Date(inv.due_date || inv.created_at) < new Date()
+          }));
+
+        setFinancialData({
+          profitLoss: {
+            revenue: totalRevenue,
+            cogs: totalCOGS,
+            grossProfit,
+            expenses: 0, // Would need expense tracking
+            netProfit
+          },
+          pendingInvoices: pendingInvoicesData
+        });
+
+        // Process sales data - group by month
+        const monthlySalesMap = new Map<string, { month: string; amount: number; orders: number }>();
+        invoices.forEach((inv: any) => {
+          const month = new Date(inv.created_at).toLocaleString('default', { month: 'short' });
+          if (!monthlySalesMap.has(month)) {
+            monthlySalesMap.set(month, { month, amount: 0, orders: 0 });
+          }
+          const monthData = monthlySalesMap.get(month)!;
+          monthData.amount += inv.total_amount || 0;
+          monthData.orders += 1;
+        });
+
+        const monthlySales = Array.from(monthlySalesMap.values()).slice(-3);
+
+        // Top customers by total invoice amount
+        const customerTotals = new Map<string, { name: string; amount: number; orders: number }>();
+        invoices.forEach((inv: any) => {
+          const customerName = inv.customers?.name || 'Unknown Customer';
+          if (!customerTotals.has(customerName)) {
+            customerTotals.set(customerName, { name: customerName, amount: 0, orders: 0 });
+          }
+          const customerData = customerTotals.get(customerName)!;
+          customerData.amount += inv.total_amount || 0;
+          customerData.orders += 1;
+        });
+
+        const topCustomers = Array.from(customerTotals.values())
+          .sort((a, b) => b.amount - a.amount)
+          .slice(0, 3);
+
+        setSalesData({
+          monthlySales,
+          topCustomers
+        });
+
+        // Process procurement data
+        const monthlyPurchasesMap = new Map<string, { month: string; amount: number; orders: number }>();
+        vendorBills.forEach((bill: any) => {
+          const month = new Date(bill.created_at).toLocaleString('default', { month: 'short' });
+          if (!monthlyPurchasesMap.has(month)) {
+            monthlyPurchasesMap.set(month, { month, amount: 0, orders: 0 });
+          }
+          const monthData = monthlyPurchasesMap.get(month)!;
+          monthData.amount += bill.total_amount || 0;
+          monthData.orders += 1;
+        });
+
+        const monthlyPurchases = Array.from(monthlyPurchasesMap.values()).slice(-3);
+
+        // Top vendors by total bill amount
+        const vendorTotals = new Map<string, { name: string; amount: number; orders: number }>();
+        vendorBills.forEach((bill: any) => {
+          const vendorName = bill.vendors?.name || 'Unknown Vendor';
+          if (!vendorTotals.has(vendorName)) {
+            vendorTotals.set(vendorName, { name: vendorName, amount: 0, orders: 0 });
+          }
+          const vendorData = vendorTotals.get(vendorName)!;
+          vendorData.amount += bill.total_amount || 0;
+          vendorData.orders += 1;
+        });
+
+        const topVendors = Array.from(vendorTotals.values())
+          .sort((a, b) => b.amount - a.amount)
+          .slice(0, 3);
+
+        setProcurementData({
+          monthlyPurchases,
+          topVendors
+        });
+
+        // Process inventory data
+        const totalValue = products.reduce((sum: number, product: any) => {
+          return sum + ((product.unit_price || 0) * (product.stock_quantity || 0));
+        }, 0);
+
+        const criticalItems = products
+          .filter((p: any) => p.stock_quantity <= (p.reorder_level || 5))
+          .map((p: any) => ({
+            sku: p.sku,
+            name: p.name,
+            current: p.stock_quantity || 0,
+            reorder: p.reorder_level || 5,
+            status: p.stock_quantity === 0 ? 'out-of-stock' : 
+                   p.stock_quantity <= (p.reorder_level || 5) / 2 ? 'critical' : 'low'
+          }))
+          .slice(0, 10);
+
+        setInventoryData({
+          totalItems: products.length,
+          lowStockItems: lowStockProducts.length,
+          outOfStock: outOfStockProducts.length,
+          totalValue,
+          criticalItems
+        });
+
+      } catch (err) {
+        console.error('Error fetching reports data:', err);
+        setError('Failed to load reports data. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReportsData();
+  }, [selectedPeriod]);
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-lg text-gray-600">Loading reports data...</div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-lg text-red-600">{error}</div>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
+            <select
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="px-4 py-2 border border-gray-300 text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="quarter">This Quarter</option>
+              <option value="year">This Year</option>
+            </select>
+          </div>
         </div>
 
         {/* KPI Dashboard */}

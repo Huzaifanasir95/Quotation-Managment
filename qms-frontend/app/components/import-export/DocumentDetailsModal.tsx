@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { apiClient, DocumentAttachment } from '@/app/lib/api';
 
 interface DocumentDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  document: any;
+  document: DocumentAttachment | null;
+  onDocumentUpdate?: () => void;
 }
 
 export default function DocumentDetailsModal({ isOpen, onClose, document }: DocumentDetailsModalProps) {
@@ -15,30 +17,30 @@ export default function DocumentDetailsModal({ isOpen, onClose, document }: Docu
 
   const getDocumentTypeColor = (type: string) => {
     switch (type) {
-      case 'BL': return 'bg-blue-100 text-blue-800';
-      case 'CF': return 'bg-green-100 text-green-800';
-      case 'CI': return 'bg-purple-100 text-purple-800';
-      case 'PL': return 'bg-orange-100 text-orange-800';
-      case 'CO': return 'bg-red-100 text-red-800';
+      case 'bill_of_lading': return 'bg-blue-100 text-blue-800';
+      case 'customs_form': return 'bg-green-100 text-green-800';
+      case 'commercial_invoice': return 'bg-purple-100 text-purple-800';
+      case 'packing_list': return 'bg-orange-100 text-orange-800';
+      case 'certificate_of_origin': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getComplianceStatusColor = (status: string) => {
     switch (status) {
-      case 'Compliant': return 'bg-green-100 text-green-800';
-      case 'Pending Review': return 'bg-yellow-100 text-yellow-800';
-      case 'Under Review': return 'bg-blue-100 text-blue-800';
-      case 'Non-Compliant': return 'bg-red-100 text-red-800';
+      case 'approved': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getOCRStatusColor = (status: string) => {
     switch (status) {
-      case 'Active': return 'bg-green-100 text-green-800';
-      case 'Archived': return 'bg-gray-100 text-gray-800';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800';
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'processing': return 'bg-blue-100 text-blue-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'failed': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -70,7 +72,7 @@ export default function DocumentDetailsModal({ isOpen, onClose, document }: Docu
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Document Details</h2>
@@ -81,12 +83,12 @@ export default function DocumentDetailsModal({ isOpen, onClose, document }: Docu
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">{document.id}</h3>
-              <p className="text-sm text-gray-600">{document.documentType}</p>
+              <h3 className="text-lg font-semibold text-gray-900">{document.file_name}</h3>
+              <p className="text-sm text-gray-600">{document.document_type.replace('_', ' ').toUpperCase()}</p>
             </div>
             <div className="text-right">
               <div className="text-sm text-gray-600">Uploaded</div>
-              <div className="text-lg font-medium text-gray-900">{document.dateUploaded}</div>
+              <div className="text-lg font-medium text-gray-900">{new Date(document.created_at).toLocaleDateString()}</div>
             </div>
           </div>
         </div>
@@ -122,24 +124,28 @@ export default function DocumentDetailsModal({ isOpen, onClose, document }: Docu
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Document ID:</span>
-                      <span className="font-medium">{document.id}</span>
+                      <span className="font-medium">{document.id.slice(0, 8)}...</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Type:</span>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getDocumentTypeColor(document.documentTypeCode)}`}>
-                        {document.documentTypeCode}
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getDocumentTypeColor(document.document_type)}`}>
+                        {document.document_type.replace('_', ' ').toUpperCase()}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Status:</span>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(document.status)}`}>
-                        {document.status}
-                      </span>
+                      <span className="text-gray-600">File Size:</span>
+                      <span className="font-medium">{(document.file_size / 1024 / 1024).toFixed(2)} MB</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Compliance:</span>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getComplianceStatusColor(document.complianceStatus)}`}>
-                        {document.complianceStatus}
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getComplianceStatusColor(document.compliance_status)}`}>
+                        {document.compliance_status.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">OCR Status:</span>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getOCRStatusColor(document.ocr_status)}`}>
+                        {document.ocr_status.toUpperCase()}
                       </span>
                     </div>
                   </div>
@@ -149,20 +155,20 @@ export default function DocumentDetailsModal({ isOpen, onClose, document }: Docu
                   <h4 className="font-medium text-gray-900 mb-3">Business Information</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Entity:</span>
-                      <span className="font-medium">{document.entity}</span>
+                      <span className="text-gray-600">Entity Type:</span>
+                      <span className="font-medium">{document.entity_type}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Linked Reference:</span>
-                      <span className="font-medium text-blue-600">{document.linkedReference}</span>
+                      <span className="font-medium text-blue-600">{document.linked_reference_number || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Linked Type:</span>
-                      <span className="font-medium">{document.linkedType}</span>
+                      <span className="font-medium">{document.linked_reference_type || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Customer/Vendor:</span>
-                      <span className="font-medium">{document.customerVendor}</span>
+                      <span className="font-medium">{document.customers?.name || document.vendors?.name || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -173,11 +179,11 @@ export default function DocumentDetailsModal({ isOpen, onClose, document }: Docu
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-                    <p className="text-sm text-gray-900">{document.notes || 'No notes available'}</p>
+                    <p className="text-sm text-gray-900">No notes available</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Uploaded By</label>
-                    <p className="text-sm text-gray-900">{document.uploadedBy}</p>
+                    <p className="text-sm text-gray-900">{document.uploaded_by}</p>
                   </div>
                 </div>
               </div>
@@ -206,7 +212,7 @@ export default function DocumentDetailsModal({ isOpen, onClose, document }: Docu
                         <span className="text-2xl">{getFileIcon('PDF')}</span>
                         <div>
                           <div className="font-medium text-gray-900">Document_001.pdf</div>
-                          <div className="text-sm text-gray-600">PDF • {document.fileSize}</div>
+                          <div className="text-sm text-gray-600">PDF • {(document.file_size / 1024 / 1024).toFixed(2)} MB</div>
                         </div>
                       </div>
                       <div className="flex space-x-2">
@@ -273,24 +279,24 @@ export default function DocumentDetailsModal({ isOpen, onClose, document }: Docu
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Compliance Status:</span>
-                      <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getComplianceStatusColor(document.complianceStatus)}`}>
-                        {document.complianceStatus}
+                      <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getComplianceStatusColor(document.compliance_status)}`}>
+                        {document.compliance_status.toUpperCase()}
                       </span>
                     </div>
                     
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Last Review:</span>
                       <span className="text-sm text-gray-900">
-                        {document.complianceStatus === 'Compliant' ? '2 days ago' : 
-                         document.complianceStatus === 'Pending Review' ? 'Not reviewed' : '1 week ago'}
+                        {document.compliance_status === 'approved' ? '2 days ago' : 
+                         document.compliance_status === 'pending' ? 'Not reviewed' : '1 week ago'}
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Next Review:</span>
                       <span className="text-sm text-gray-900">
-                        {document.complianceStatus === 'Compliant' ? 'In 30 days' : 
-                         document.complianceStatus === 'Pending Review' ? 'Overdue' : 'In 7 days'}
+                        {document.compliance_status === 'approved' ? 'In 30 days' : 
+                         document.compliance_status === 'pending' ? 'Overdue' : 'In 7 days'}
                       </span>
                     </div>
                   </div>
@@ -319,7 +325,7 @@ export default function DocumentDetailsModal({ isOpen, onClose, document }: Docu
                 </div>
               </div>
 
-              {document.complianceStatus === 'Pending Review' && (
+              {document.compliance_status === 'pending' && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <h4 className="font-medium text-yellow-900 mb-3">Review Required</h4>
                   <div className="space-y-2 text-sm text-yellow-800">
@@ -381,10 +387,10 @@ export default function DocumentDetailsModal({ isOpen, onClose, document }: Docu
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{document.uploadedBy}</div>
+                          <div className="text-sm font-medium text-gray-900">{document.uploaded_by}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{document.dateUploaded}</div>
+                          <div className="text-sm text-gray-900">{new Date(document.created_at).toLocaleDateString()}</div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-900">Initial document upload</div>
@@ -400,7 +406,7 @@ export default function DocumentDetailsModal({ isOpen, onClose, document }: Docu
                           <div className="text-sm font-medium text-gray-900">Trade Team</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{document.lastModified}</div>
+                          <div className="text-sm text-gray-900">{new Date(document.updated_at).toLocaleDateString()}</div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-900">Document details updated</div>
@@ -432,15 +438,15 @@ export default function DocumentDetailsModal({ isOpen, onClose, document }: Docu
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Created By</label>
-                    <p className="text-sm text-gray-900">{document.uploadedBy}</p>
+                    <p className="text-sm text-gray-900">{document.uploaded_by}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Created Date</label>
-                    <p className="text-sm text-gray-900">{document.dateUploaded}</p>
+                    <p className="text-sm text-gray-900">{new Date(document.created_at).toLocaleDateString()}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Last Modified</label>
-                    <p className="text-sm text-gray-900">{document.lastModified}</p>
+                    <p className="text-sm text-gray-900">{new Date(document.updated_at).toLocaleDateString()}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Total Changes</label>

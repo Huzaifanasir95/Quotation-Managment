@@ -1,14 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import { apiClient, type PurchaseOrder } from '../../lib/api';
 
 interface GenerateDeliveryChallanModalProps {
   isOpen: boolean;
   onClose: () => void;
-  selectedPO: any;
+  selectedPO: PurchaseOrder | null;
+  onChallanGenerated?: () => void;
 }
 
-export default function GenerateDeliveryChallanModal({ isOpen, onClose, selectedPO }: GenerateDeliveryChallanModalProps) {
+export default function GenerateDeliveryChallanModal({ isOpen, onClose, selectedPO, onChallanGenerated }: GenerateDeliveryChallanModalProps) {
   const [challanData, setChallanData] = useState({
     challanNumber: '',
     deliveryDate: '',
@@ -36,7 +38,7 @@ export default function GenerateDeliveryChallanModal({ isOpen, onClose, selected
         deliveryAddress: 'Company Address, City, State, ZIP',
         contactPerson: 'Receiving Department',
         phone: '+1 (555) 123-4567',
-        notes: `Delivery challan for ${selectedPO.id}`
+        notes: `Delivery challan for ${selectedPO.po_number}`
       });
     }
   };
@@ -48,26 +50,51 @@ export default function GenerateDeliveryChallanModal({ isOpen, onClose, selected
   const handleGenerateChallan = async () => {
     if (!selectedPO) return;
 
+    if (!challanData.challanNumber || !challanData.deliveryDate) {
+      alert('Please fill in all required fields.');
+      return;
+    }
+
     setIsGenerating(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const challan = {
-        ...challanData,
-        poId: selectedPO.id,
-        vendor: selectedPO.vendor,
-        totalAmount: selectedPO.totalAmount,
-        generatedAt: new Date().toISOString(),
-        status: 'Generated'
+      const deliveryChallanData = {
+        challan_number: challanData.challanNumber,
+        purchase_order_id: selectedPO.id,
+        challan_date: new Date().toISOString().split('T')[0],
+        delivery_date: challanData.deliveryDate,
+        delivery_address: challanData.deliveryAddress || null,
+        contact_person: challanData.contactPerson || null,
+        phone: challanData.phone || null,
+        notes: challanData.notes || null
       };
       
-      setGeneratedChallan(challan);
-      console.log('Generated delivery challan:', challan);
+      const response = await apiClient.createDeliveryChallan(deliveryChallanData);
+      
+      if (response.success) {
+        const challan = {
+          ...challanData,
+          poId: selectedPO.id,
+          poNumber: selectedPO.po_number,
+          vendor: selectedPO.vendors?.name || 'Unknown Vendor',
+          totalAmount: selectedPO.total_amount || 0,
+          generatedAt: new Date().toISOString(),
+          status: 'Generated'
+        };
+        
+        setGeneratedChallan(challan);
+        
+        // Call callback to refresh data if provided
+        if (onChallanGenerated) {
+          onChallanGenerated();
+        }
+      } else {
+        throw new Error(response.message || 'Failed to create delivery challan');
+      }
       
     } catch (error) {
       console.error('Failed to generate challan:', error);
-      alert('Failed to generate delivery challan. Please try again.');
+      alert(`Failed to generate delivery challan: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally {
       setIsGenerating(false);
     }
@@ -89,7 +116,7 @@ export default function GenerateDeliveryChallanModal({ isOpen, onClose, selected
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Generate Delivery Challan</h2>
@@ -101,8 +128,8 @@ export default function GenerateDeliveryChallanModal({ isOpen, onClose, selected
             <div className="p-6">
               {selectedPO && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <h3 className="font-medium text-blue-900 mb-2">Purchase Order: {selectedPO.id}</h3>
-                  <p className="text-sm text-blue-700">Vendor: {selectedPO.vendor} | Amount: ${selectedPO.totalAmount.toLocaleString()}</p>
+                  <h3 className="font-medium text-blue-900 mb-2">Purchase Order: {selectedPO.po_number}</h3>
+                  <p className="text-sm text-blue-700">Vendor: {selectedPO.vendors?.name || 'Unknown Vendor'} | Amount: ${(selectedPO.total_amount || 0).toLocaleString()}</p>
                 </div>
               )}
 
@@ -198,7 +225,7 @@ export default function GenerateDeliveryChallanModal({ isOpen, onClose, selected
                   </div>
                   <div>
                     <span className="text-gray-500">PO Reference:</span>
-                    <span className="ml-2 font-medium">{generatedChallan.poId}</span>
+                    <span className="ml-2 font-medium">{generatedChallan.poNumber}</span>
                   </div>
                   <div>
                     <span className="text-gray-500">Vendor:</span>

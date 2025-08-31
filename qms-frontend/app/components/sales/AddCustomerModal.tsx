@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { apiClient } from '../../lib/api';
 
 interface AddCustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onCustomerAdded?: () => void;
 }
 
-export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalProps) {
+export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: AddCustomerModalProps) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -49,36 +51,52 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
     setIsLoading(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const customerData = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        gst_number: formData.gst,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        postal_code: formData.zipCode,
+        country: formData.country,
+        contact_person: formData.name, // Using name as contact person for now
+        status: 'active'
+      };
+
+      console.log('Sending customer data:', customerData);
+      console.log('Auth token exists:', !!localStorage.getItem('auth_token'));
+      const response = await apiClient.createCustomer(customerData);
       
-      console.log('Creating customer:', formData);
-      
-      // Here you would make the actual API call to POST /api/customers
-      // const response = await fetch('/api/customers', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData)
-      // });
-      
-      alert('Customer created successfully!');
-      onClose();
-      
-      // Reset form
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        gst: '',
-        address: '',
-        city: '',
-        state: '',
-        zipCode: '',
-        country: ''
-      });
-      setErrors({});
+      if (response.success) {
+        alert('Customer created successfully!');
+        onClose();
+        
+        // Call callback to refresh customer list
+        if (onCustomerAdded) {
+          onCustomerAdded();
+        }
+        
+        // Reset form
+        setFormData({
+          name: '',
+          email: '',
+          phone: '',
+          gst: '',
+          address: '',
+          city: '',
+          state: '',
+          zipCode: '',
+          country: ''
+        });
+        setErrors({});
+      } else {
+        throw new Error(response.message || 'Failed to create customer');
+      }
     } catch (error) {
       console.error('Failed to create customer:', error);
-      alert('Failed to create customer. Please try again.');
+      alert(`Failed to create customer: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally {
       setIsLoading(false);
     }
@@ -96,7 +114,7 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Add New Customer</h2>
@@ -118,7 +136,7 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full text-black px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.name ? 'border-red-300' : 'border-gray-300'
                 }`}
                 placeholder="Enter customer name"
@@ -136,7 +154,7 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full text-black px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.email ? 'border-red-300' : 'border-gray-300'
                 }`}
                 placeholder="customer@example.com"
@@ -154,7 +172,7 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full text-black px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.phone ? 'border-red-300' : 'border-gray-300'
                 }`}
                 placeholder="+1 (555) 123-4567"
@@ -172,7 +190,7 @@ export default function AddCustomerModal({ isOpen, onClose }: AddCustomerModalPr
                 type="text"
                 value={formData.gst}
                 onChange={(e) => handleInputChange('gst', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full text-black px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.gst ? 'border-red-300' : 'border-gray-300'
                 }`}
                 placeholder="GST123456789"

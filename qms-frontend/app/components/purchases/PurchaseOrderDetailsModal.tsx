@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { type PurchaseOrder } from '../../lib/api';
 
 interface PurchaseOrderDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  po: any;
+  po: PurchaseOrder | null;
 }
 
 export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: PurchaseOrderDetailsModalProps) {
@@ -23,16 +24,22 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Approved': return 'bg-green-100 text-green-800';
-      case 'Pending Approval': return 'bg-yellow-100 text-yellow-800';
-      case 'Draft': return 'bg-gray-100 text-gray-800';
-      case 'Closed': return 'bg-blue-100 text-blue-800';
+      case 'approved': return 'bg-green-100 text-green-800';
+      case 'pending_approval': return 'bg-yellow-100 text-yellow-800';
+      case 'draft': return 'bg-gray-100 text-gray-800';
+      case 'closed': return 'bg-blue-100 text-blue-800';
+      case 'received': return 'bg-green-100 text-green-800';
+      case 'partially_received': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
+  const formatStatus = (status: string) => {
+    return status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Purchase Order Details</h2>
@@ -43,16 +50,16 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
         <div className="p-6 border-b border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">{po.id}</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{po.po_number}</h3>
               <p className="text-sm text-gray-600">Purchase Order</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Vendor</p>
-              <p className="font-medium text-gray-900">{po.vendor}</p>
+              <p className="font-medium text-gray-900">{po.vendors?.name || 'Unknown Vendor'}</p>
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-500">Total Amount</p>
-              <p className="text-2xl font-bold text-blue-600">${po.totalAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-blue-600">${po.total_amount?.toLocaleString() || '0'}</p>
             </div>
           </div>
         </div>
@@ -87,26 +94,30 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
                   <h4 className="font-medium text-gray-900 mb-3">Purchase Order Information</h4>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-gray-500">PO ID:</span>
-                      <span className="font-medium">{po.id}</span>
+                      <span className="text-gray-500">PO Number:</span>
+                      <span className="font-medium">{po.po_number}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Status:</span>
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(po.status)}`}>
-                        {po.status}
+                        {formatStatus(po.status)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Date Created:</span>
-                      <span className="font-medium">{po.dateCreated}</span>
+                      <span className="font-medium">{new Date(po.po_date).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Expected Delivery:</span>
+                      <span className="font-medium">{po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : 'Not specified'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Linked Quote:</span>
-                      <span className="font-medium">{po.linkedQuotation}</span>
+                      <span className="font-medium">{po.quotation_id || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Linked Order:</span>
-                      <span className="font-medium">{po.linkedOrder}</span>
+                      <span className="font-medium">{po.sales_order_id || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -116,23 +127,23 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-gray-500">Name:</span>
-                      <span className="font-medium">{po.vendorDetails.name}</span>
+                      <span className="font-medium">{po.vendors?.name || 'Unknown'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">GST:</span>
-                      <span className="font-medium">{po.vendorDetails.gst}</span>
+                      <span className="font-medium">{po.vendors?.gst_number || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Contact:</span>
-                      <span className="font-medium">{po.vendorDetails.contact}</span>
+                      <span className="font-medium">{po.vendors?.contact_person || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Phone:</span>
-                      <span className="font-medium">{po.vendorDetails.phone}</span>
+                      <span className="font-medium">{po.vendors?.phone || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Email:</span>
-                      <span className="font-medium">{po.vendorDetails.email}</span>
+                      <span className="font-medium">{po.vendors?.email || 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -155,20 +166,23 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
                     </tr>
                   </thead>
                   <tbody>
-                    {po.items.map((item: any, index: number) => (
-                      <tr key={index} className="border-b border-gray-200 last:border-b-0">
-                        <td className="py-3 text-sm text-gray-900">{item.description}</td>
-                        <td className="py-3 text-sm text-gray-900">{item.quantity}</td>
-                        <td className="py-3 text-sm text-gray-900">${item.unitPrice.toFixed(2)}</td>
-                        <td className="py-3 text-sm text-gray-900">${item.subtotal.toFixed(2)}</td>
-                      </tr>
-                    ))}
+                    {po.purchase_order_items?.map((item: any, index: number) => {
+                      const subtotal = item.quantity * item.unit_price * (1 - (item.discount_percent || 0) / 100) * (1 + (item.tax_percent || 0) / 100);
+                      return (
+                        <tr key={index} className="border-b border-gray-200 last:border-b-0">
+                          <td className="py-3 text-sm text-gray-900">{item.description}</td>
+                          <td className="py-3 text-sm text-gray-900">{item.quantity}</td>
+                          <td className="py-3 text-sm text-gray-900">${item.unit_price?.toFixed(2) || '0.00'}</td>
+                          <td className="py-3 text-sm text-gray-900">${subtotal.toFixed(2)}</td>
+                        </tr>
+                      );
+                    }) || []}
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-gray-300">
                       <td colSpan={3} className="py-3 text-sm font-medium text-gray-900 text-right">Total:</td>
                       <td className="py-3 text-sm font-bold text-gray-900">
-                        ${po.totalAmount.toFixed(2)}
+                        ${po.total_amount?.toFixed(2) || '0.00'}
                       </td>
                     </tr>
                   </tfoot>
@@ -181,15 +195,15 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
           {activeTab === 'bills' && (
             <div>
               <h4 className="font-medium text-gray-900 mb-4">Attached Vendor Bills</h4>
-              {po.attachedBills.length > 0 ? (
+              {po.bills && po.bills.length > 0 ? (
                 <div className="space-y-3">
-                  {po.attachedBills.map((bill: string, index: number) => (
+                  {po.bills.map((bill: any, index: number) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        <span className="text-sm text-gray-900">{bill}</span>
+                        <span className="text-sm text-gray-900">{bill.filename || `Bill ${index + 1}`}</span>
                       </div>
                       <div className="flex space-x-2">
                         <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">View</button>
@@ -214,15 +228,15 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
           {activeTab === 'challans' && (
             <div>
               <h4 className="font-medium text-gray-900 mb-4">Delivery Challans</h4>
-              {po.deliveryChallans.length > 0 ? (
+              {po.challans && po.challans.length > 0 ? (
                 <div className="space-y-3">
-                  {po.deliveryChallans.map((challan: string, index: number) => (
+                  {po.challans.map((challan: any, index: number) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        <span className="text-sm text-gray-900">{challan}</span>
+                        <span className="text-sm text-gray-900">{challan.challan_number || `Challan ${index + 1}`}</span>
                       </div>
                       <div className="flex space-x-2">
                         <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">View</button>
@@ -248,20 +262,26 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
             <div>
               <h4 className="font-medium text-gray-900 mb-4">Status History</h4>
               <div className="space-y-4">
-                {po.statusHistory.map((status: any, index: number) => (
-                  <div key={index} className="flex items-start space-x-4">
-                    <div className={`w-3 h-3 rounded-full mt-2 ${
-                      index === po.statusHistory.length - 1 ? 'bg-blue-500' : 'bg-gray-300'
-                    }`} />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium text-gray-900">{status.status}</p>
-                        <p className="text-sm text-gray-500">{status.date}</p>
-                      </div>
-                      <p className="text-sm text-gray-600">Updated by: {status.user}</p>
+                <div className="flex items-start space-x-4">
+                  <div className="w-3 h-3 rounded-full mt-2 bg-blue-500" />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium text-gray-900">{formatStatus(po.status)}</p>
+                      <p className="text-sm text-gray-500">{new Date(po.updated_at || po.created_at).toLocaleDateString()}</p>
                     </div>
+                    <p className="text-sm text-gray-600">Current status</p>
                   </div>
-                ))}
+                </div>
+                <div className="flex items-start space-x-4">
+                  <div className="w-3 h-3 rounded-full mt-2 bg-gray-300" />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium text-gray-900">Created</p>
+                      <p className="text-sm text-gray-500">{new Date(po.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <p className="text-sm text-gray-600">Purchase order created</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}

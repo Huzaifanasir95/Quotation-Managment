@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { apiClient, type PurchaseOrder } from '../../lib/api';
 
 interface UploadVendorBillModalProps {
   isOpen: boolean;
   onClose: () => void;
-  selectedPO: any;
+  selectedPO: PurchaseOrder | null;
+  onBillAttached?: () => void;
 }
 
 interface BillData {
@@ -18,7 +20,7 @@ interface BillData {
   notes: string;
 }
 
-export default function UploadVendorBillModal({ isOpen, onClose, selectedPO }: UploadVendorBillModalProps) {
+export default function UploadVendorBillModal({ isOpen, onClose, selectedPO, onBillAttached }: UploadVendorBillModalProps) {
   const [billData, setBillData] = useState<BillData>({
     billNumber: '',
     billDate: '',
@@ -56,16 +58,16 @@ export default function UploadVendorBillModal({ isOpen, onClose, selectedPO }: U
         billNumber: 'BILL-2024-001',
         billDate: new Date().toISOString().split('T')[0],
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        amount: selectedPO ? selectedPO.totalAmount * 0.9 : 2250,
-        taxAmount: selectedPO ? selectedPO.totalAmount * 0.1 : 250,
-        totalAmount: selectedPO ? selectedPO.totalAmount : 2500,
-        vendorName: selectedPO ? selectedPO.vendor : 'Vendor Name',
-        items: selectedPO ? selectedPO.items.map((item: any) => ({
+        amount: selectedPO ? (selectedPO.total_amount || 0) * 0.9 : 2250,
+        taxAmount: selectedPO ? (selectedPO.total_amount || 0) * 0.1 : 250,
+        totalAmount: selectedPO ? (selectedPO.total_amount || 0) : 2500,
+        vendorName: selectedPO ? (selectedPO.vendors?.name || 'Vendor Name') : 'Vendor Name',
+        items: selectedPO ? (selectedPO.purchase_order_items?.map((item: any) => ({
           description: item.description,
           quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          total: item.subtotal
-        })) : []
+          unitPrice: item.unit_price,
+          total: item.quantity * item.unit_price
+        })) || []) : []
       };
       
       setOcrResults(mockOcrResults);
@@ -100,38 +102,62 @@ export default function UploadVendorBillModal({ isOpen, onClose, selectedPO }: U
       return;
     }
 
+    if (!selectedPO) {
+      alert('No purchase order selected.');
+      return;
+    }
+
     setIsProcessing(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const billSubmission = {
-        poId: selectedPO?.id || 'N/A',
-        billData,
-        files: uploadedFiles.map(f => f.name),
-        timestamp: new Date().toISOString()
+      const vendorBillData = {
+        bill_number: billData.billNumber,
+        purchase_order_id: selectedPO.id,
+        vendor_id: selectedPO.vendor_id,
+        bill_date: billData.billDate,
+        due_date: billData.dueDate || null,
+        subtotal: billData.amount,
+        tax_amount: billData.taxAmount,
+        total_amount: billData.totalAmount,
+        notes: billData.notes || null,
+        files: uploadedFiles.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          path: `/uploads/vendor_bills/${selectedPO.id}/${file.name}`
+        }))
       };
       
-      console.log('Submitting vendor bill:', billSubmission);
+      const response = await apiClient.createVendorBill(vendorBillData);
       
-      alert('Vendor bill attached successfully!');
-      onClose();
-      
-      // Reset form
-      setBillData({
-        billNumber: '',
-        billDate: '',
-        dueDate: '',
-        amount: 0,
-        taxAmount: 0,
-        totalAmount: 0,
-        notes: ''
-      });
-      setUploadedFiles([]);
-      setOcrResults(null);
+      if (response.success) {
+        alert('Vendor bill attached successfully!');
+        
+        // Call callback to refresh data if provided
+        if (onBillAttached) {
+          onBillAttached();
+        }
+        
+        onClose();
+        
+        // Reset form
+        setBillData({
+          billNumber: '',
+          billDate: '',
+          dueDate: '',
+          amount: 0,
+          taxAmount: 0,
+          totalAmount: 0,
+          notes: ''
+        });
+        setUploadedFiles([]);
+        setOcrResults(null);
+      } else {
+        throw new Error(response.message || 'Failed to create vendor bill');
+      }
     } catch (error) {
       console.error('Failed to submit vendor bill:', error);
-      alert('Failed to submit vendor bill. Please try again.');
+      alert(`Failed to submit vendor bill: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally {
       setIsProcessing(false);
     }
@@ -144,7 +170,7 @@ export default function UploadVendorBillModal({ isOpen, onClose, selectedPO }: U
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Upload Vendor Bill</h2>
@@ -158,20 +184,20 @@ export default function UploadVendorBillModal({ isOpen, onClose, selectedPO }: U
               <h3 className="font-medium text-blue-900 mb-2">Purchase Order Details</h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-blue-700">PO ID:</span>
-                  <span className="ml-2 font-medium">{selectedPO.id}</span>
+                  <span className="text-blue-700">PO Number:</span>
+                  <span className="ml-2 font-medium">{selectedPO.po_number}</span>
                 </div>
                 <div>
                   <span className="text-blue-700">Vendor:</span>
-                  <span className="ml-2 font-medium">{selectedPO.vendor}</span>
+                  <span className="ml-2 font-medium">{selectedPO.vendors?.name || 'Unknown Vendor'}</span>
                 </div>
                 <div>
                   <span className="text-blue-700">Total Amount:</span>
-                  <span className="ml-2 font-medium">${selectedPO.totalAmount.toLocaleString()}</span>
+                  <span className="ml-2 font-medium">${(selectedPO.total_amount || 0).toLocaleString()}</span>
                 </div>
                 <div>
                   <span className="text-blue-700">Status:</span>
-                  <span className="ml-2 font-medium">{selectedPO.status}</span>
+                  <span className="ml-2 font-medium">{selectedPO.status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}</span>
                 </div>
               </div>
             </div>

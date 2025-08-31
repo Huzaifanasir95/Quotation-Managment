@@ -17,6 +17,12 @@ const invoiceRoutes = require('./routes/invoices');
 const stockMovementRoutes = require('./routes/stockMovements');
 const documentRoutes = require('./routes/documents');
 const indexRoutes = require('./routes/index');
+const salesRoutes = require('./routes/sales');
+const orderRoutes = require('./routes/orders');
+const vendorBillRoutes = require('./routes/vendorBills');
+const deliveryChallanRoutes = require('./routes/deliveryChallans');
+const productCategoryRoutes = require('./routes/productCategories');
+const ledgerRoutes = require('./routes/ledger');
 
 const app = express();
 
@@ -103,6 +109,12 @@ app.use('/api/v1/purchase-orders', purchaseOrderRoutes);
 app.use('/api/v1/invoices', invoiceRoutes);
 app.use('/api/v1/stock-movements', stockMovementRoutes);
 app.use('/api/v1/documents', documentRoutes);
+app.use('/api/v1/sales', salesRoutes);
+app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/vendor-bills', vendorBillRoutes);
+app.use('/api/v1/delivery-challans', deliveryChallanRoutes);
+app.use('/api/v1/product-categories', productCategoryRoutes);
+app.use('/api/v1/ledger', ledgerRoutes);
 app.use('/api/v1', indexRoutes);
 
 // 404 handler
