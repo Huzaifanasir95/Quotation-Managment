@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
-import { signIn } from '@/lib/auth';
+import { useAuth } from '@/lib/useAuth';
 
 interface AuthFormData {
   email: string;
@@ -11,27 +11,24 @@ interface AuthFormData {
 }
 
 export default function HomePage() {
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const { login, loading } = useAuth();
   const { register, handleSubmit, formState: { errors } } = useForm<AuthFormData>();
 
   const onSubmit = async (data: AuthFormData) => {
-    setIsLoading(true);
     setError('');
     
     try {
-      // Login logic using the backend API
-      const result = await signIn(data.email, data.password);
-      console.log('Login successful:', result);
+      // Login using the auth context
+      await login(data.email, data.password);
+      console.log('Login successful');
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (err: any) {
       console.error('Auth error:', err);
       setError(err.message || 'An error occurred. Please try again.');
     }
-    
-    setIsLoading(false);
   };
 
   return (
@@ -105,10 +102,10 @@ export default function HomePage() {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={loading}
             className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
-            {isLoading ? (
+            {loading ? (
               <span className="flex items-center justify-center">
                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

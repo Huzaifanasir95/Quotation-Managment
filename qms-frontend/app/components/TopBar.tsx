@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { getCurrentUser, signOut } from '../../lib/auth';
+import { useAuth } from '../../lib/useAuth';
 
 const pageTitles: { [key: string]: string } = {
   '/dashboard': 'Dashboard',
@@ -15,35 +15,19 @@ const pageTitles: { [key: string]: string } = {
   '/settings': 'Settings',
 };
 
-interface User {
-  id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  role: string;
-}
-
 export default function TopBar() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const { user, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const notificationsRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
-  // Get current user on component mount
-  useEffect(() => {
-    const currentUser = getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser.user);
-    }
-  }, []);
-
   // Handle logout
   const handleSignOut = async () => {
     try {
-      await signOut();
+      logout();
       router.push('/');
     } catch (error) {
       console.error('Sign out error:', error);
@@ -67,7 +51,7 @@ export default function TopBar() {
   }, []);
 
   const currentPageTitle = pageTitles[pathname] || 'Dashboard';
-  const userName = user ? `${user.first_name} ${user.last_name}` : 'User';
+  const userName = user ? `${user?.first_name || 'User'} ${user?.last_name || 'Name'}` : 'User';
   const userEmail = user?.email || 'user@qms.com';
 
   return (
