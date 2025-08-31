@@ -29,38 +29,46 @@ export default function SalesPage() {
 
   // Fetch data from backend
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchInitialData = async () => {
       try {
-        setLoading(true);
+        setLoading(false); // Set loading to false immediately to show skeleton UI
         setError(null);
         
-        // Fetch all data in parallel
-        const [dashboardResponse, trendsResponse, customersResponse] = await Promise.all([
-          apiClient.getSalesDashboard(),
-          apiClient.getQuotationTrends(),
-          apiClient.getSalesCustomers({ limit: 50 })
-        ]);
-        
-        if (dashboardResponse.success) {
-          setSalesData(dashboardResponse.data);
-        }
-        
-        if (trendsResponse.success) {
-          setQuotationTrends(trendsResponse.data.trends);
-        }
+        // Only fetch essential data first (customers for immediate interaction)
+        const customersResponse = await apiClient.getSalesCustomers({ limit: 20 });
         
         if (customersResponse.success) {
           setCustomers(customersResponse.data.customers);
         }
+        
+        // Load dashboard data and trends in background after a short delay
+        setTimeout(async () => {
+          try {
+            const [dashboardResponse, trendsResponse] = await Promise.all([
+              apiClient.getSalesDashboard(),
+              apiClient.getQuotationTrends()
+            ]);
+            
+            if (dashboardResponse.success) {
+              setSalesData(dashboardResponse.data);
+            }
+            
+            if (trendsResponse.success) {
+              setQuotationTrends(trendsResponse.data.trends);
+            }
+          } catch (err) {
+            console.error('Failed to fetch dashboard data:', err);
+          }
+        }, 100);
+        
       } catch (err) {
         console.error('Failed to fetch sales data:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
-      } finally {
         setLoading(false);
       }
     };
     
-    fetchData();
+    fetchInitialData();
   }, []);
   
   // Filter customers based on search term
@@ -104,7 +112,7 @@ export default function SalesPage() {
 
   const refreshCustomers = async () => {
     try {
-      const customersResponse = await apiClient.getSalesCustomers({ limit: 50 });
+      const customersResponse = await apiClient.getSalesCustomers({ limit: 20 });
       if (customersResponse.success) {
         setCustomers(customersResponse.data.customers);
       }
@@ -179,7 +187,11 @@ export default function SalesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-md font-medium text-gray-600">Pending Quotations</p>
-                <p className="text-4xl font-bold text-gray-900">{salesData?.pendingQuotations || 0}</p>
+                <p className="text-4xl font-bold text-gray-900">
+                  {salesData?.pendingQuotations ?? (
+                    <span className="inline-block w-8 h-8 bg-gray-200 rounded animate-pulse"></span>
+                  )}
+                </p>
               </div> 
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,7 +206,11 @@ export default function SalesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-md font-medium text-gray-600">Sales This Month</p>
-                <p className="text-4xl font-bold text-gray-900">${salesData?.salesThisMonth?.toLocaleString() || '0'}</p>
+                <p className="text-4xl font-bold text-gray-900">
+                  {salesData?.salesThisMonth ? `$${salesData.salesThisMonth.toLocaleString()}` : (
+                    <span className="inline-block w-16 h-8 bg-gray-200 rounded animate-pulse"></span>
+                  )}
+                </p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -209,7 +225,11 @@ export default function SalesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-md font-medium text-gray-600">Top Customers</p>
-                <p className="text-4xl font-bold text-gray-900">{salesData?.topCustomers?.length || 0}</p>
+                <p className="text-4xl font-bold text-gray-900">
+                  {salesData?.topCustomers?.length ?? (
+                    <span className="inline-block w-8 h-8 bg-gray-200 rounded animate-pulse"></span>
+                  )}
+                </p>
               </div>
               <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -224,7 +244,11 @@ export default function SalesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-md font-medium text-gray-600">Recent Inquiries</p>
-                <p className="text-4xl font-bold text-gray-900">{salesData?.recentInquiries || 0}</p>
+                <p className="text-4xl font-bold text-gray-900">
+                  {salesData?.recentInquiries ?? (
+                    <span className="inline-block w-8 h-8 bg-gray-200 rounded animate-pulse"></span>
+                  )}
+                </p>
               </div>
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -242,7 +266,7 @@ export default function SalesPage() {
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Quotation Trends (Last 6 Months)</h3>
             <div className="space-y-4">
-              {quotationTrends.map((trend, index) => (
+              {quotationTrends.length > 0 ? quotationTrends.map((trend, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
@@ -257,7 +281,23 @@ export default function SalesPage() {
                     <p className="text-sm font-semibold text-green-600">${trend.revenue.toLocaleString()}</p>
                   </div>
                 </div>
-              ))}
+              )) : (
+                // Skeleton loading for quotation trends
+                <div className="space-y-4">
+                  {[1, 2, 3, 4].map((item) => (
+                    <div key={item} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+                        <div>
+                          <div className="w-24 h-4 bg-gray-200 rounded animate-pulse mb-1"></div>
+                          <div className="w-16 h-3 bg-gray-200 rounded animate-pulse"></div>
+                        </div>
+                      </div>
+                      <div className="w-16 h-4 bg-gray-200 rounded animate-pulse"></div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -265,7 +305,7 @@ export default function SalesPage() {
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Customers by Value</h3>
             <div className="space-y-4">
-              {salesData?.topCustomers?.map((customer, index) => (
+              {salesData?.topCustomers && salesData.topCustomers.length > 0 ? salesData.topCustomers.map((customer, index) => (
                 <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium ${
@@ -284,7 +324,23 @@ export default function SalesPage() {
                     <p className="text-sm font-semibold text-gray-900">${customer.totalQuotes.toLocaleString()}</p>
                   </div>
                 </div>
-              ))}
+              )) : (
+                // Skeleton loading for top customers
+                <div className="space-y-4">
+                  {[1, 2, 3, 4].map((item) => (
+                    <div key={item} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
+                        <div>
+                          <div className="w-20 h-4 bg-gray-200 rounded animate-pulse mb-1"></div>
+                          <div className="w-14 h-3 bg-gray-200 rounded animate-pulse"></div>
+                        </div>
+                      </div>
+                      <div className="w-16 h-4 bg-gray-200 rounded animate-pulse"></div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

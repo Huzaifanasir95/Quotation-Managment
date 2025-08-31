@@ -35,9 +35,15 @@ const rateLimiter = new RateLimiterMemory({
 
 const rateLimiterMiddleware = async (req, res, next) => {
   try {
+    // Skip rate limiting in development for auth routes
+    if (config.nodeEnv === 'development' && req.path.includes('/auth/')) {
+      return next();
+    }
+    
     await rateLimiter.consume(req.ip);
     next();
   } catch (rejRes) {
+    console.warn(`Rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
       error: 'Too many requests',
       code: 'RATE_LIMIT_EXCEEDED',
