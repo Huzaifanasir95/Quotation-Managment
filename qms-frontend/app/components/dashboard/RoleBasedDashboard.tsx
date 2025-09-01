@@ -35,7 +35,12 @@ export default function RoleBasedDashboard() {
       {/* Welcome Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Welcome back, {user.first_name}!
+          Welcome back, {user.role === 'admin' ? 'Admin' : 
+                        user.role === 'sales' ? 'Sales Manager' :
+                        user.role === 'procurement' ? 'Procurement Manager' :
+                        user.role === 'finance' ? 'Finance Manager' :
+                        user.role === 'auditor' ? 'Auditor' :
+                        user.first_name}!
         </h1>
         <p className="text-gray-600">
           {user.role === 'admin' && 'You have full system access as an administrator.'}

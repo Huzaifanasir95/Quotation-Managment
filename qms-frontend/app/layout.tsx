@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "QMS",
-  description: "Quality Management System",
+  title: "QMS - Quotation Management System",
+  description: "Comprehensive Quotation Management System for Business Operations",
 };
 
 export default function RootLayout({

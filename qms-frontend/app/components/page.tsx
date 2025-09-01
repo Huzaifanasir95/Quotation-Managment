@@ -185,7 +185,7 @@ export default function SalesPage() {
       <div className="max-w-7xl mx-auto">
       <div className="mb-8"></div>
         {/* KPI Widgets */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Pending Quotations */}
           <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
             <div className="flex items-center justify-between">
@@ -205,8 +205,27 @@ export default function SalesPage() {
             </div>
           </div>
 
+          {/* Sales This Month */}
+          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-md font-medium text-gray-600">Sales This Month</p>
+                <p className="text-4xl font-bold text-gray-900">
+                  {salesData?.salesThisMonth ? `$${salesData.salesThisMonth.toLocaleString()}` : (
+                    <span className="inline-block w-16 h-8 bg-gray-200 rounded animate-pulse"></span>
+                  )}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
           {/* Top Customers */}
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
+          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500 cursor-pointer hover:shadow-lg transition-shadow duration-200">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-md font-medium text-gray-600">Top Customers</p>
@@ -221,6 +240,14 @@ export default function SalesPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
+            </div>
+            <div className="mt-4">
+              <button
+                onClick={() => setShowTopCustomers(true)}
+                className="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200 text-sm font-medium"
+              >
+                View Details
+              </button>
             </div>
           </div>
 
@@ -242,6 +269,38 @@ export default function SalesPage() {
               </div>
             </div>
             <p className="mt-2 text-sm text-orange-600">Unprocessed</p>
+          </div>
+        </div>
+
+        {/* Analytics Action Buttons */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Analytics & Reports</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              onClick={() => setShowQuotationTrends(true)}
+              className="flex items-center justify-center p-6 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
+            >
+              <svg className="w-8 h-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <div className="text-left">
+                <h4 className="text-lg font-semibold">Quotation Trends</h4>
+                <p className="text-blue-100 text-sm">View 6-month performance</p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setShowTopCustomers(true)}
+              className="flex items-center justify-center p-6 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg"
+            >
+              <svg className="w-8 h-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <div className="text-left">
+                <h4 className="text-lg font-semibold">Top Customers</h4>
+                <p className="text-purple-100 text-sm">View customer rankings</p>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -292,7 +351,7 @@ export default function SalesPage() {
         </div>
 
         {/* Customers List */}
-        <div className="bg-white rounded-lg shadow-md mb-8">
+        <div className="bg-white rounded-lg shadow-md">
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Customers</h3>
@@ -388,38 +447,6 @@ export default function SalesPage() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        {/* Analytics Action Buttons */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Analytics & Reports</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button
-              onClick={() => setShowQuotationTrends(true)}
-              className="flex items-center justify-center p-6 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
-            >
-              <svg className="w-8 h-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              <div className="text-left">
-                <h4 className="text-lg font-semibold">Quotation Trends</h4>
-                <p className="text-blue-100 text-sm">View 6-month performance</p>
-              </div>
-            </button>
-
-            <button
-              onClick={() => setShowTopCustomers(true)}
-              className="flex items-center justify-center p-6 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg"
-            >
-              <svg className="w-8 h-8 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              <div className="text-left">
-                <h4 className="text-lg font-semibold">Top Customers</h4>
-                <p className="text-purple-100 text-sm">View customer rankings</p>
-              </div>
-            </button>
           </div>
         </div>
       </div>
