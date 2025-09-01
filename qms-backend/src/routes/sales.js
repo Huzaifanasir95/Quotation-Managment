@@ -6,7 +6,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const router = express.Router();
 
 // Get sales dashboard data
-router.get('/dashboard', authenticateToken, authorize(['admin', 'sales', 'finance']), asyncHandler(async (req, res) => {
+router.get('/dashboard', authenticateToken, authorize(['admin', 'sales', 'finance', 'auditor']), asyncHandler(async (req, res) => {
   try {
     const currentMonth = new Date();
     const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
@@ -85,7 +85,7 @@ router.get('/dashboard', authenticateToken, authorize(['admin', 'sales', 'financ
 }));
 
 // Get quotation trends (last 6 months)
-router.get('/quotation-trends', authenticateToken, authorize(['admin', 'sales', 'finance']), asyncHandler(async (req, res) => {
+router.get('/quotation-trends', authenticateToken, authorize(['admin', 'sales', 'finance', 'auditor']), asyncHandler(async (req, res) => {
   try {
     const trends = [];
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -134,7 +134,7 @@ router.get('/quotation-trends', authenticateToken, authorize(['admin', 'sales', 
 }));
 
 // Get customers with quotation statistics
-router.get('/customers', authenticateToken, authorize(['admin', 'sales', 'finance']), asyncHandler(async (req, res) => {
+router.get('/customers', authenticateToken, authorize(['admin', 'sales', 'finance', 'auditor']), asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search } = req.query;
   const offset = (page - 1) * limit;
 

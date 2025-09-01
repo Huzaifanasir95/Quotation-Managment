@@ -6,7 +6,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const router = express.Router();
 
 // Get all ledger entries with pagination and filters
-router.get('/', authenticateToken, authorize(['admin', 'finance', 'sales', 'procurement']), asyncHandler(async (req, res) => {
+router.get('/', authenticateToken, authorize(['admin', 'finance', 'sales', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
   const { 
     page = 1, 
     limit = 50, 
@@ -128,7 +128,7 @@ router.get('/', authenticateToken, authorize(['admin', 'finance', 'sales', 'proc
 }));
 
 // Get ledger entry by ID
-router.get('/:id', authenticateToken, authorize(['admin', 'finance', 'sales', 'procurement']), asyncHandler(async (req, res) => {
+router.get('/:id', authenticateToken, authorize(['admin', 'finance', 'sales', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const { data: entry, error } = await supabaseAdmin
@@ -271,7 +271,7 @@ router.post('/', authenticateToken, authorize(['admin', 'finance']), asyncHandle
 }));
 
 // Get chart of accounts
-router.get('/accounts/chart', authenticateToken, authorize(['admin', 'finance', 'sales', 'procurement']), asyncHandler(async (req, res) => {
+router.get('/accounts/chart', authenticateToken, authorize(['admin', 'finance', 'sales', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
   const { data: accounts, error } = await supabaseAdmin
     .from('chart_of_accounts')
     .select('*')
@@ -293,7 +293,7 @@ router.get('/accounts/chart', authenticateToken, authorize(['admin', 'finance', 
 }));
 
 // Get financial summary/metrics
-router.get('/metrics/summary', authenticateToken, authorize(['admin', 'finance']), asyncHandler(async (req, res) => {
+router.get('/metrics/summary', authenticateToken, authorize(['admin', 'finance', 'auditor']), asyncHandler(async (req, res) => {
   const { date_from, date_to } = req.query;
   
   let query = supabaseAdmin

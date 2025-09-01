@@ -6,7 +6,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const router = express.Router();
 
 // Get all vendor bills
-router.get('/', authenticateToken, authorize(['admin', 'procurement', 'finance', 'sales']), asyncHandler(async (req, res) => {
+router.get('/', authenticateToken, authorize(['admin', 'procurement', 'finance', 'sales', 'auditor']), asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search, status, vendor_id, purchase_order_id } = req.query;
   const offset = (page - 1) * limit;
 

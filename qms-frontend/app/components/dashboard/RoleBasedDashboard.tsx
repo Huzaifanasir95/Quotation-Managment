@@ -178,7 +178,105 @@ export default function RoleBasedDashboard() {
           </div>
         </RoleGuard>
 
+        {/* Audit Reports - Available to Auditor */}
+        <RoleGuard roles={['auditor']}>
+          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-teal-500 hover:shadow-lg transition-shadow duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <span className="text-sm text-teal-600 font-medium">Audit</span>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Generate Audit Reports</h3>
+            <p className="text-gray-600 text-sm mb-4">Comprehensive system audit and compliance reports</p>
+            <button
+              onClick={() => window.location.href = '/reports'}
+              className="w-full bg-teal-600 text-white py-2 px-4 rounded-lg hover:bg-teal-700 transition-colors duration-200"
+            >
+              Generate Reports
+            </button>
+          </div>
+        </RoleGuard>
+
+        {/* System Review - Available to Auditor */}
+        <RoleGuard roles={['auditor']}>
+          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-cyan-500 hover:shadow-lg transition-shadow duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-cyan-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+              </div>
+              <span className="text-sm text-cyan-600 font-medium">Review</span>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">System Review</h3>
+            <p className="text-gray-600 text-sm mb-4">Review transactions, sales, and operations</p>
+            <div className="grid grid-cols-2 gap-2 text-center">
+              <button
+                onClick={() => window.location.href = '/sales'}
+                className="bg-cyan-600 text-white py-1 px-2 rounded text-xs hover:bg-cyan-700 transition-colors duration-200"
+              >
+                Sales Review
+              </button>
+              <button
+                onClick={() => window.location.href = '/inventory'}
+                className="bg-cyan-600 text-white py-1 px-2 rounded text-xs hover:bg-cyan-700 transition-colors duration-200"
+              >
+                Inventory Review
+              </button>
+            </div>
+          </div>
+        </RoleGuard>
+
+        {/* Compliance Check - Available to Auditor */}
+        <RoleGuard roles={['auditor']}>
+          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-emerald-500 hover:shadow-lg transition-shadow duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+              </div>
+              <span className="text-sm text-emerald-600 font-medium">Compliance</span>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Compliance Check</h3>
+            <p className="text-gray-600 text-sm mb-4">Monitor system compliance and regulatory adherence</p>
+            <div className="text-center">
+              <div className="text-lg font-bold text-emerald-600">98%</div>
+              <div className="text-xs text-gray-500">Compliance Score</div>
+            </div>
+          </div>
+        </RoleGuard>
+
       </div>
+
+      {/* Auditor Information Panel */}
+      <RoleGuard roles={['auditor']}>
+        <div className="mb-6">
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">System Overview</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">156</div>
+                <div className="text-sm text-gray-600">Total Transactions</div>
+                <div className="text-xs text-blue-500">This Month</div>
+              </div>
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">24</div>
+                <div className="text-sm text-gray-600">Active Users</div>
+                <div className="text-xs text-green-500">System Wide</div>
+              </div>
+              <div className="text-center p-4 bg-purple-50 rounded-lg">
+                <div className="text-2xl font-bold text-purple-600">12</div>
+                <div className="text-sm text-gray-600">Audit Items</div>
+                <div className="text-xs text-purple-500">Pending Review</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </RoleGuard>
 
       {/* Modals */}
       <NewQuotationModal 

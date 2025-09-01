@@ -7,7 +7,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const router = express.Router();
 
 // Get all products
-router.get('/', authenticateToken, authorize(['admin', 'sales', 'procurement']), asyncHandler(async (req, res) => {
+router.get('/', authenticateToken, authorize(['admin', 'sales', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search, category, type, status } = req.query;
   const offset = (page - 1) * limit;
 
@@ -61,7 +61,7 @@ router.get('/', authenticateToken, authorize(['admin', 'sales', 'procurement']),
 }));
 
 // Get product by ID
-router.get('/:id', authenticateToken, authorize(['admin', 'sales', 'procurement']), asyncHandler(async (req, res) => {
+router.get('/:id', authenticateToken, authorize(['admin', 'sales', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const { data: product, error } = await supabaseAdmin
@@ -171,7 +171,7 @@ router.delete('/:id', authenticateToken, authorize(['admin']), asyncHandler(asyn
 }));
 
 // Get low stock products
-router.get('/alerts/low-stock', authenticateToken, authorize(['admin', 'procurement']), asyncHandler(async (req, res) => {
+router.get('/alerts/low-stock', authenticateToken, authorize(['admin', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
   const { data: products, error } = await supabaseAdmin
     .from('products')
     .select('*')
