@@ -103,10 +103,12 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
         }));
         
         // Filter out quotes that are not ready for conversion
-        const convertibleQuotes = quotes.filter((q: any) => 
-          ['Accepted', 'Pending'].includes(q.status) && 
-          (!q.validUntil || new Date(q.validUntil) >= new Date())
-        );
+        const convertibleQuotes = quotes.filter((q: any) => {
+          const status = q.status.toLowerCase();
+          // Include approved quotes and pending quotes, exclude converted/rejected/draft
+          return ['approved', 'accepted', 'pending'].includes(status) && 
+                 (!q.validUntil || new Date(q.validUntil) >= new Date());
+        });
         setAvailableQuotes(convertibleQuotes);
       }
     } catch (error) {
@@ -123,7 +125,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
       quote.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
       quote.customerEmail?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === 'All' || quote.status === statusFilter;
+    const matchesStatus = statusFilter === 'All' || quote.status.toLowerCase() === statusFilter.toLowerCase();
     
     return matchesSearch && matchesStatus;
   });
@@ -201,6 +203,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
+      case 'approved': return 'bg-green-100 text-green-800 border-green-200';
       case 'accepted': return 'bg-green-100 text-green-800 border-green-200';
       case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -316,8 +319,9 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                         className="w-full text-black px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="All">All Statuses</option>
-                        <option value="Accepted">Accepted</option>
-                        <option value="Pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="accepted">Accepted</option>
+                        <option value="pending">Pending</option>
                       </select>
                     </div>
                   </div>
@@ -333,7 +337,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                       <h3 className="text-lg font-medium text-gray-900 mb-2">No convertible quotes found</h3>
-                      <p className="text-gray-500">Only accepted or pending quotes that haven't expired can be converted to orders.</p>
+                      <p className="text-gray-500">Only approved, accepted, or pending quotes that haven't expired can be converted to orders.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
