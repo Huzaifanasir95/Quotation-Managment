@@ -38,6 +38,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
+  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(false);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -56,6 +57,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
     setSortBy('date');
     setSortOrder('desc');
     setSelectedQuotation(null);
+    setIsFiltersCollapsed(false);
   };
 
   const loadQuotations = async () => {
@@ -247,8 +249,78 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
         </div>
 
         {/* Advanced Search Filters */}
-        <div className="p-6 border-b border-gray-200 bg-gray-50 flex-shrink-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div className="border-b border-gray-200 bg-gray-50 flex-shrink-0">
+          {/* Filter Header with Toggle */}
+          <div className="px-6 py-4 border-b border-gray-200 bg-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <h3 className="text-lg font-semibold text-gray-900">Search Filters</h3>
+                <span className="text-sm text-gray-500">
+                  {filteredQuotations.length} quotation(s) found
+                  {quotations.length > 0 && (
+                    <span className="ml-2">
+                      • Total: <span className="font-medium text-green-600">
+                        ${filteredQuotations.reduce((sum, q) => sum + q.amount, 0).toLocaleString()}
+                      </span>
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center space-x-3">
+                {/* View Mode Toggles */}
+                <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 rounded-md transition-colors duration-200 ${
+                      viewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                    title="List View"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2 rounded-md transition-colors duration-200 ${
+                      viewMode === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                    }`}
+                    title="Grid View"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* Collapse/Expand Toggle */}
+                <button
+                  onClick={() => setIsFiltersCollapsed(!isFiltersCollapsed)}
+                  className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                  title={isFiltersCollapsed ? "Expand Filters" : "Collapse Filters"}
+                >
+                  <span className="text-sm font-medium">
+                    {isFiltersCollapsed ? 'Show Filters' : 'Hide Filters'}
+                  </span>
+                  <svg 
+                    className={`w-4 h-4 transition-transform duration-200 ${isFiltersCollapsed ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Collapsible Filter Content */}
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
+            isFiltersCollapsed ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100'
+          }`}>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             {/* Search Input */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
@@ -388,42 +460,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                 </button>
               </div>
             </div>
-          </div>
-
-          {/* Results Summary */}
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              <span className="font-medium">{filteredQuotations.length}</span> quotation(s) found
-              {quotations.length > 0 && (
-                <span className="ml-2">
-                  • Total Value: <span className="font-medium text-green-600">
-                    ${filteredQuotations.reduce((sum, q) => sum + q.amount, 0).toLocaleString()}
-                  </span>
-                </span>
-              )}
-            </p>
-            
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-colors duration-200 ${
-                  viewMode === 'list' ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg transition-colors duration-200 ${
-                  viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-              </button>
+              </div>
             </div>
           </div>
         </div>
