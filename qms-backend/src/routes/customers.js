@@ -7,7 +7,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const router = express.Router();
 
 // Get all customers
-router.get('/', authenticateToken, authorize(['admin', 'sales', 'finance', 'auditor']), asyncHandler(async (req, res) => {
+router.get('/', authenticateToken, authorize(['admin', 'sales', 'finance', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search, status } = req.query;
   const offset = (page - 1) * limit;
 
@@ -50,7 +50,7 @@ router.get('/', authenticateToken, authorize(['admin', 'sales', 'finance', 'audi
 }));
 
 // Get customer by ID
-router.get('/:id', authenticateToken, authorize(['admin', 'sales', 'finance', 'auditor']), asyncHandler(async (req, res) => {
+router.get('/:id', authenticateToken, authorize(['admin', 'sales', 'finance', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const { data: customer, error } = await supabaseAdmin

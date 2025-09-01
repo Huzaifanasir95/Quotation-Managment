@@ -44,7 +44,7 @@ const upload = multer({
 });
 
 // Upload document
-router.post('/upload', authenticateToken, upload.single('document'), asyncHandler(async (req, res) => {
+router.post('/upload', authenticateToken, authorize(['admin', 'sales', 'procurement', 'finance']), upload.single('document'), asyncHandler(async (req, res) => {
   if (!req.file) {
     return res.status(400).json({
       error: 'No file uploaded',
@@ -94,7 +94,7 @@ router.post('/upload', authenticateToken, upload.single('document'), asyncHandle
 }));
 
 // Get documents for an entity
-router.get('/:entityType/:entityId', authenticateToken, asyncHandler(async (req, res) => {
+router.get('/:entityType/:entityId', authenticateToken, authorize(['admin', 'sales', 'procurement', 'finance', 'auditor']), asyncHandler(async (req, res) => {
   const { entityType, entityId } = req.params;
 
   const { data: documents, error } = await supabaseAdmin
@@ -119,7 +119,7 @@ router.get('/:entityType/:entityId', authenticateToken, asyncHandler(async (req,
 }));
 
 // Download document
-router.get('/download/:id', authenticateToken, asyncHandler(async (req, res) => {
+router.get('/download/:id', authenticateToken, authorize(['admin', 'sales', 'procurement', 'finance', 'auditor']), asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const { data: document, error } = await supabaseAdmin
@@ -198,7 +198,7 @@ router.delete('/:id', authenticateToken, authorize(['admin']), asyncHandler(asyn
 }));
 
 // OCR processing endpoint
-router.post('/:id/ocr', authenticateToken, asyncHandler(async (req, res) => {
+router.post('/:id/ocr', authenticateToken, authorize(['admin', 'sales', 'procurement', 'finance']), asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const { data: document, error } = await supabaseAdmin

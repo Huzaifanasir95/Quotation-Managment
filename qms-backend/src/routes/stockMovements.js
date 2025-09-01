@@ -7,7 +7,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const router = express.Router();
 
 // Get all stock movements
-router.get('/', authenticateToken, authorize(['admin', 'procurement', 'finance', 'auditor']), asyncHandler(async (req, res) => {
+router.get('/', authenticateToken, authorize(['admin', 'procurement', 'finance', 'sales', 'auditor']), asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, product_id, movement_type, date_from, date_to } = req.query;
   const offset = (page - 1) * limit;
 
@@ -157,7 +157,7 @@ router.post('/', authenticateToken, authorize(['admin', 'procurement']), validat
 }));
 
 // Get stock history for a product
-router.get('/product/:productId/history', authenticateToken, authorize(['admin', 'procurement', 'finance', 'auditor']), asyncHandler(async (req, res) => {
+router.get('/product/:productId/history', authenticateToken, authorize(['admin', 'procurement', 'finance', 'sales', 'auditor']), asyncHandler(async (req, res) => {
   const { productId } = req.params;
   const { page = 1, limit = 20 } = req.query;
   const offset = (page - 1) * limit;

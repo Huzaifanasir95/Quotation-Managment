@@ -16,12 +16,10 @@ const pageTitles: { [key: string]: string } = {
 };
 
 export default function TopBar() {
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const notificationsRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Handle logout
@@ -38,9 +36,6 @@ export default function TopBar() {
   // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
-        setShowNotifications(false);
-      }
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setShowProfile(false);
       }
@@ -64,52 +59,6 @@ export default function TopBar() {
 
         {/* Right side - Actions */}
         <div className="flex items-center space-x-4">
-          {/* Notifications */}
-          <div className="relative" ref={notificationsRef}>
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 text-white hover:text-white hover:bg-[#6b5b7a] rounded-lg transition-colors duration-200"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9V7a3 3 0 013-3h4a3 3 0 013 3v6l-2 2H9V9z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v1a3 3 0 003 3h4a3 3 0 003-3v-1" />
-              </svg>
-              {/* Notification badge */}
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                3
-              </span>
-            </button>
-
-            {/* Notifications dropdown */}
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                <div className="px-4 py-2 border-b border-gray-200">
-                  <h3 className="text-sm font-semibold text-gray-800">Notifications</h3>
-                </div>
-                <div className="max-h-64 overflow-y-auto">
-                  <div className="px-4 py-3 hover:bg-gray-50 border-b border-gray-100">
-                    <p className="text-sm text-gray-800">New order received</p>
-                    <p className="text-xs text-gray-500 mt-1">2 minutes ago</p>
-                  </div>
-                  <div className="px-4 py-3 hover:bg-gray-50 border-b border-gray-100">
-                    <p className="text-sm text-gray-800">Inventory low alert</p>
-                    <p className="text-xs text-gray-500 mt-1">1 hour ago</p>
-                  </div>
-                  <div className="px-4 py-3 hover:bg-gray-50">
-                    <p className="text-sm text-gray-800">Monthly report ready</p>
-                    <p className="text-xs text-gray-500 mt-1">3 hours ago</p>
-                  </div>
-                </div>
-                <div className="px-4 py-2 border-t border-gray-200">
-                  <button className="text-sm text-purple-600 hover:text-purple-700 font-medium">
-                    View all notifications
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Profile */}
           <div className="relative" ref={profileRef}>
             <button

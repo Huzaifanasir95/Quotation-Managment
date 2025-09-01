@@ -7,7 +7,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const router = express.Router();
 
 // Get all product categories
-router.get('/', authenticateToken, authorize(['admin', 'sales', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
+router.get('/', authenticateToken, authorize(['admin', 'sales', 'procurement', 'finance', 'auditor']), asyncHandler(async (req, res) => {
   const { page = 1, limit = 50, search, parent_id } = req.query;
   const offset = (page - 1) * limit;
 
@@ -55,7 +55,7 @@ router.get('/', authenticateToken, authorize(['admin', 'sales', 'procurement', '
 }));
 
 // Get category by ID
-router.get('/:id', authenticateToken, authorize(['admin', 'sales', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
+router.get('/:id', authenticateToken, authorize(['admin', 'sales', 'procurement', 'finance', 'auditor']), asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const { data: category, error } = await supabaseAdmin
@@ -224,7 +224,7 @@ router.delete('/:id', authenticateToken, authorize(['admin']), asyncHandler(asyn
 }));
 
 // Get category tree (hierarchical structure)
-router.get('/tree/all', authenticateToken, authorize(['admin', 'sales', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
+router.get('/tree/all', authenticateToken, authorize(['admin', 'sales', 'procurement', 'finance', 'auditor']), asyncHandler(async (req, res) => {
   const { data: categories, error } = await supabaseAdmin
     .from('product_categories')
     .select('*')

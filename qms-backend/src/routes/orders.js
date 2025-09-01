@@ -149,7 +149,7 @@ router.post('/convert-quote', authenticateToken, authorize(['admin', 'sales']), 
 }));
 
 // Get all sales orders
-router.get('/', authenticateToken, authorize(['admin', 'sales', 'finance', 'auditor']), asyncHandler(async (req, res) => {
+router.get('/', authenticateToken, authorize(['admin', 'sales', 'finance', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
   const { page = 1, limit = 10, search, status, customer_id } = req.query;
   const offset = (page - 1) * limit;
 
@@ -201,7 +201,7 @@ router.get('/', authenticateToken, authorize(['admin', 'sales', 'finance', 'audi
 }));
 
 // Get order by ID
-router.get('/:id', authenticateToken, authorize(['admin', 'sales', 'finance', 'auditor']), asyncHandler(async (req, res) => {
+router.get('/:id', authenticateToken, authorize(['admin', 'sales', 'finance', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const { data: order, error } = await supabaseAdmin
