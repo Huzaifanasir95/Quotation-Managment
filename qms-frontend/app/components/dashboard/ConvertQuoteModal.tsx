@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { apiClient } from '../../lib/api';
 
 interface ConvertQuoteModalProps {
@@ -31,6 +32,7 @@ interface QuoteData {
 }
 
 export default function ConvertQuoteModal({ isOpen, onClose }: ConvertQuoteModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<QuoteData | null>(null);
   const [isConverting, setIsConverting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +41,12 @@ export default function ConvertQuoteModal({ isOpen, onClose }: ConvertQuoteModal
   const [expectedDelivery, setExpectedDelivery] = useState<string>('');
   const [priority, setPriority] = useState<'normal' | 'high' | 'urgent'>('normal');
   const [notes, setNotes] = useState<string>('');
+
+  // Handle mounting for portal
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   // Set default delivery date to 14 days from now
   useEffect(() => {
@@ -159,29 +167,106 @@ export default function ConvertQuoteModal({ isOpen, onClose }: ConvertQuoteModal
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+  const modalContent = (
+    <>
+      {/* Custom CSS for animations */}
+      <style jsx>{`
+        @keyframes modalSlideIn {
+          from {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.9) translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1) translateY(0);
+          }
+        }
+        
+        @keyframes backdropFadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        
+        .modal-enter {
+          animation: modalSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        
+        .modal-backdrop {
+          animation: backdropFadeIn 0.3s ease-out forwards;
+          backdrop-filter: blur(8px);
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 9999;
+        }
+        
+        .modal-widget {
+          background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+          border: 1px solid rgba(148, 163, 184, 0.2);
+          box-shadow: 
+            0 25px 50px -12px rgba(0, 0, 0, 0.25),
+            0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+          z-index: 10000;
+        }
+      `}</style>
+      
+      {/* Full screen backdrop that covers everything including sidebar */}
       <div 
-        className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto transform transition-all duration-300 ease-out animate-in zoom-in-95 fade-in-0"
+        className="modal-backdrop" 
+        style={{ 
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999
+        }}
+        onClick={onClose} 
+      />
+      
+      {/* Centered modal widget - positioned relative to entire viewport */}
+      <div 
+        className="modal-enter"
         style={{
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)',
-          backdropFilter: 'blur(8px)'
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          maxWidth: '95vw',
+          maxHeight: '95vh',
+          width: '1200px',
+          zIndex: 10000
         }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Convert Quote to Order</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 modal-widget"
+             style={{
+               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 10px 25px -5px rgba(59, 130, 246, 0.15)',
+               minHeight: '600px'
+             }}>
+          <div className="max-h-[90vh] overflow-y-auto" style={{ minHeight: '600px' }}>
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-pink-600">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-white">Convert Quote to Order</h2>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-white/80 hover:text-white transition-colors duration-200 p-2 rounded-full hover:bg-white/20"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
         {/* Content */}
         <div className="p-6">
@@ -437,7 +522,12 @@ export default function ConvertQuoteModal({ isOpen, onClose }: ConvertQuoteModal
             </>
           )}
         </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
+
+  // Render modal using portal to document.body for full screen overlay
+  return createPortal(modalContent, document.body);
 }

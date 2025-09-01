@@ -16,19 +16,6 @@ export default function RoleBasedDashboard() {
   const [showCreateInvoice, setShowCreateInvoice] = useState(false);
   const [showQuickReorder, setShowQuickReorder] = useState(false);
 
-  // Mock data for dashboard
-  const pendingApprovals = [
-    { id: 1, type: 'Quotation', title: 'Q-2024-001', customer: 'ABC Corp', amount: '$2,500', days: 2 },
-    { id: 2, type: 'Invoice', title: 'INV-2024-015', customer: 'XYZ Ltd', amount: '$1,800', days: 1 },
-    { id: 3, type: 'Purchase Order', title: 'PO-2024-008', supplier: 'Tech Supplies', amount: '$3,200', days: 3 },
-  ];
-
-  const lowStockItems = [
-    { id: 1, sku: 'LAP-001', name: 'Laptop Dell XPS 13', current: 2, reorder: 5, suggested: 8 },
-    { id: 2, sku: 'MON-002', name: 'Monitor 27" 4K', current: 1, reorder: 3, suggested: 5 },
-    { id: 3, sku: 'KEY-003', name: 'Wireless Keyboard', current: 0, reorder: 10, suggested: 15 },
-  ];
-
   if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -186,100 +173,11 @@ export default function RoleBasedDashboard() {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Pending Approvals</h3>
             <p className="text-gray-600 text-sm mb-4">Keep workflow moving with quick approvals</p>
-            <div className="text-2xl font-bold text-yellow-600 mb-2">{pendingApprovals.length}</div>
+            <div className="text-2xl font-bold text-yellow-600 mb-2">3</div>
             <p className="text-gray-500 text-xs">Items awaiting approval</p>
           </div>
         </RoleGuard>
 
-        {/* System Analytics - Available to All Roles */}
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-indigo-500 hover:shadow-lg transition-shadow duration-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-            </div>
-            <span className="text-sm text-indigo-600 font-medium">Analytics</span>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">System Overview</h3>
-          <p className="text-gray-600 text-sm mb-4">View system metrics and performance</p>
-          <div className="grid grid-cols-2 gap-4 text-center">
-            <div>
-              <div className="text-lg font-bold text-indigo-600">24</div>
-              <div className="text-xs text-gray-500">Active Users</div>
-            </div>
-            <div>
-              <div className="text-lg font-bold text-indigo-600">156</div>
-              <div className="text-xs text-gray-500">Total Orders</div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Role-specific Information Panels */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Low Stock Alert - For Procurement and Admin */}
-        <RoleGuard roles={['admin', 'procurement']}>
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Low Stock Alerts</h3>
-            <div className="space-y-3">
-              {lowStockItems.slice(0, 3).map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{item.name}</p>
-                    <p className="text-sm text-gray-600">SKU: {item.sku}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-red-600">Stock: {item.current}</p>
-                    <p className="text-xs text-gray-500">Reorder: {item.reorder}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </RoleGuard>
-
-        {/* Recent Activity - For All Roles */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">New quotation created</p>
-                <p className="text-xs text-gray-500">2 minutes ago</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Order approved</p>
-                <p className="text-xs text-gray-500">15 minutes ago</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900">Invoice pending</p>
-                <p className="text-xs text-gray-500">1 hour ago</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Modals */}

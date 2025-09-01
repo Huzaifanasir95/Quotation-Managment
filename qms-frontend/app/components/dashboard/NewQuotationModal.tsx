@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { apiClient } from '../../lib/api';
 
 interface NewQuotationModalProps {
@@ -29,6 +30,7 @@ interface Customer {
 }
 
 export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated }: NewQuotationModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     customer_id: '',
     quotation_date: new Date().toISOString().split('T')[0],
@@ -41,6 +43,12 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Handle mounting for portal
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   // Fetch customers when modal opens
   useEffect(() => {
@@ -249,16 +257,16 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
 
   const totals = calculateTotals();
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
+  const modalContent = (
     <>
       {/* Custom CSS for animations */}
       <style jsx>{`
-        @keyframes slideInScale {
+        @keyframes modalSlideIn {
           from {
             opacity: 0;
-            transform: translate(-50%, -50%) scale(0.95) translateY(20px);
+            transform: translate(-50%, -50%) scale(0.9) translateY(30px);
           }
           to {
             opacity: 1;
@@ -266,61 +274,87 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
           }
         }
         
-        @keyframes slideOutScale {
+        @keyframes backdropFadeIn {
           from {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1) translateY(0);
+            opacity: 0;
           }
           to {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.95) translateY(20px);
+            opacity: 1;
           }
         }
         
         .modal-enter {
-          animation: slideInScale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          animation: modalSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         
         .modal-backdrop {
-          backdrop-filter: blur(3px);
-          background: rgba(59, 130, 246, 0.05);
-          transition: all 0.3s ease;
+          animation: backdropFadeIn 0.3s ease-out forwards;
+          backdrop-filter: blur(8px);
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 9999;
         }
         
         .modal-widget {
           background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-          border: 1px solid rgba(148, 163, 184, 0.1);
+          border: 1px solid rgba(148, 163, 184, 0.2);
+          box-shadow: 
+            0 25px 50px -12px rgba(0, 0, 0, 0.25),
+            0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+          z-index: 10000;
         }
       `}</style>
       
-      {/* Subtle backdrop with blur effect */}
-      <div className="fixed inset-0 z-40 modal-backdrop" onClick={onClose} />
-      
-      {/* Floating modal widget */}
+      {/* Full screen backdrop that covers everything including sidebar */}
       <div 
-        className="fixed top-1/2 left-1/2 z-50 modal-enter"
+        className="fixed inset-0 modal-backdrop" 
+        style={{ 
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999
+        }}
+        onClick={onClose} 
+      />
+      
+      {/* Centered modal widget - positioned relative to entire viewport */}
+      <div 
+        className="modal-enter"
         style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
           transform: 'translate(-50%, -50%)',
-          maxWidth: '90vw',
-          maxHeight: '90vh',
-          width: '1000px'
+          maxWidth: '95vw',
+          maxHeight: '95vh',
+          width: '1100px',
+          zIndex: 10000
         }}
       >
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 modal-widget"
              style={{
-               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.12), 0 10px 25px -5px rgba(59, 130, 246, 0.1)',
+               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 10px 25px -5px rgba(59, 130, 246, 0.15)',
+               minHeight: '600px'
              }}>
-          <div className="max-h-[90vh] overflow-y-auto">
+          <div className="max-h-[90vh] overflow-y-auto" style={{ minHeight: '600px' }}>
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-              <h2 className="text-2xl font-bold text-gray-900">Create New Quotation</h2>
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-white">Create New Quotation</h2>
+              </div>
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-1 rounded-full hover:bg-white/50"
+                className="text-white/80 hover:text-white transition-colors duration-200 p-2 rounded-full hover:bg-white/20"
               >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
@@ -589,4 +623,7 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
       </div>
     </>
   );
+
+  // Render modal using portal to document.body for full screen overlay
+  return createPortal(modalContent, document.body);
 }
