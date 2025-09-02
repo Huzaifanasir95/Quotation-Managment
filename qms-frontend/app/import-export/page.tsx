@@ -13,6 +13,7 @@ export default function ImportExportPage() {
   const [documents, setDocuments] = useState<DocumentAttachment[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
+  const [businessEntities, setBusinessEntities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -32,46 +33,25 @@ export default function ImportExportPage() {
         setLoading(true);
         setError(null);
 
-        // Fetch customers, vendors, and documents in parallel
-        const [customersResponse, vendorsResponse] = await Promise.all([
+        // Fetch customers, vendors, business entities, and documents in parallel
+        const [customersResponse, vendorsResponse, businessEntitiesResponse] = await Promise.all([
           apiClient.getCustomers({ limit: 1000 }),
-          apiClient.getVendors({ limit: 1000 })
+          apiClient.getVendors({ limit: 1000 }),
+          apiClient.getBusinessEntities({ limit: 1000 })
         ]);
 
         const customersData = Array.isArray(customersResponse?.data) ? customersResponse.data : [];
         const vendorsData = Array.isArray(vendorsResponse?.data) ? vendorsResponse.data : [];
+        const businessEntitiesData = Array.isArray(businessEntitiesResponse?.data) ? businessEntitiesResponse.data : [];
         
         setCustomers(customersData);
         setVendors(vendorsData);
+        setBusinessEntities(businessEntitiesData);
 
-        // Fetch documents for customers and vendors
-        const allDocuments: DocumentAttachment[] = [];
-        
-        // Fetch customer documents
-        for (const customer of customersData) {
-          try {
-            const documentsResponse = await apiClient.getDocuments('customer', customer.id);
-            if (documentsResponse?.data && Array.isArray(documentsResponse.data)) {
-              allDocuments.push(...documentsResponse.data);
-            }
-          } catch (err) {
-            console.warn(`Failed to fetch documents for customer ${customer.id}:`, err);
-          }
-        }
-        
-        // Fetch vendor documents
-        for (const vendor of vendorsData) {
-          try {
-            const documentsResponse = await apiClient.getDocuments('vendor', vendor.id);
-            if (documentsResponse?.data && Array.isArray(documentsResponse.data)) {
-              allDocuments.push(...documentsResponse.data);
-            }
-          } catch (err) {
-            console.warn(`Failed to fetch documents for vendor ${vendor.id}:`, err);
-          }
-        }
-        
-        setDocuments(allDocuments);
+        // Fetch all trade documents
+        const documentsResponse = await apiClient.getTradeDocuments({ limit: 1000 });
+        const documentsData = Array.isArray(documentsResponse?.data) ? documentsResponse.data : [];
+        setDocuments(documentsData);
       } catch (err) {
         console.error('Error fetching data:', err);
         setError('Failed to load data. Please try again.');
@@ -85,33 +65,10 @@ export default function ImportExportPage() {
 
   const refreshDocuments = async () => {
     try {
-      const allDocuments: DocumentAttachment[] = [];
-      
-      // Fetch customer documents
-      for (const customer of customers) {
-        try {
-          const documentsResponse = await apiClient.getDocuments('customer', customer.id);
-          if (documentsResponse.data) {
-            allDocuments.push(...documentsResponse.data);
-          }
-        } catch (err) {
-          console.warn(`Failed to fetch documents for customer ${customer.id}:`, err);
-        }
-      }
-      
-      // Fetch vendor documents
-      for (const vendor of vendors) {
-        try {
-          const documentsResponse = await apiClient.getDocuments('vendor', vendor.id);
-          if (documentsResponse.data) {
-            allDocuments.push(...documentsResponse.data);
-          }
-        } catch (err) {
-          console.warn(`Failed to fetch documents for vendor ${vendor.id}:`, err);
-        }
-      }
-      
-      setDocuments(allDocuments);
+      // Fetch all trade documents
+      const documentsResponse = await apiClient.getTradeDocuments({ limit: 1000 });
+      const documentsData = Array.isArray(documentsResponse?.data) ? documentsResponse.data : [];
+      setDocuments(documentsData);
     } catch (err) {
       console.error('Error refreshing documents:', err);
     }
@@ -141,8 +98,8 @@ export default function ImportExportPage() {
     
     const matchesDocumentType = filters.documentType === 'All' || doc.document_type === filters.documentType;
     const matchesCustomerVendor = filters.customerVendor === 'All' || customerVendorName === filters.customerVendor;
-    const matchesDateFrom = !filters.dateFrom || doc.created_at.split('T')[0] >= filters.dateFrom;
-    const matchesDateTo = !filters.dateTo || doc.created_at.split('T')[0] <= filters.dateTo;
+    const matchesDateFrom = !filters.dateFrom || (doc.uploaded_at && doc.uploaded_at.split('T')[0] >= filters.dateFrom);
+    const matchesDateTo = !filters.dateTo || (doc.uploaded_at && doc.uploaded_at.split('T')[0] <= filters.dateTo);
     const matchesLinkedReference = !filters.linkedReference || 
       (doc.linked_reference_number && doc.linked_reference_number.toLowerCase().includes(filters.linkedReference.toLowerCase()));
     
@@ -150,7 +107,7 @@ export default function ImportExportPage() {
            matchesDateFrom && matchesDateTo && matchesLinkedReference;
   });
 
-  const getDocumentTypeColor = (type: string) => {
+  const getDocumentTypeColor = (type: string | null | undefined) => {
     switch (type) {
       case 'bill_of_lading': return 'bg-blue-100 text-blue-800';
       case 'customs_form': return 'bg-green-100 text-green-800';
@@ -161,7 +118,7 @@ export default function ImportExportPage() {
     }
   };
 
-  const getComplianceStatusColor = (status: string) => {
+  const getComplianceStatusColor = (status: string | null | undefined) => {
     switch (status) {
       case 'approved': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
@@ -170,7 +127,7 @@ export default function ImportExportPage() {
     }
   };
 
-  const getOCRStatusColor = (status: string) => {
+  const getOCRStatusColor = (status: string | null | undefined) => {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-800';
       case 'processing': return 'bg-blue-100 text-blue-800';
@@ -190,7 +147,7 @@ export default function ImportExportPage() {
           doc.document_type,
           doc.linked_reference_number || '',
           customerVendorName,
-          doc.created_at.split('T')[0],
+          doc.uploaded_at ? doc.uploaded_at.split('T')[0] : '',
           doc.compliance_status,
           doc.ocr_status
         ];
@@ -239,7 +196,7 @@ export default function ImportExportPage() {
   };
 
   const totalDocuments = filteredDocuments.length;
-  const totalEntities = customers.length + vendors.length;
+  const totalEntities = businessEntities.length;
   const totalCompliant = filteredDocuments.filter((doc: DocumentAttachment) => doc.compliance_status === 'approved').length;
   const totalPendingReview = filteredDocuments.filter((doc: DocumentAttachment) => doc.compliance_status === 'pending').length;
 
@@ -489,7 +446,7 @@ export default function ImportExportPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getDocumentTypeColor(document.document_type)}`}>
-                            {document.document_type.replace('_', ' ').toUpperCase()}
+                            {(document.document_type || 'Unknown').replace('_', ' ').toUpperCase()}
                           </span>
                           <div className="text-xs text-gray-500 mt-1">{document.file_name}</div>
                         </td>
@@ -506,16 +463,16 @@ export default function ImportExportPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{document.created_at.split('T')[0]}</div>
+                          <div className="text-sm text-gray-900">{document.uploaded_at ? document.uploaded_at.split('T')[0] : 'N/A'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="space-y-1">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getComplianceStatusColor(document.compliance_status)}`}>
-                              {document.compliance_status}
+                              {document.compliance_status || 'Pending'}
                             </span>
                             <div>
                               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getOCRStatusColor(document.ocr_status)}`}>
-                                OCR: {document.ocr_status}
+                                OCR: {document.ocr_status || 'Pending'}
                               </span>
                             </div>
                           </div>
@@ -549,6 +506,7 @@ export default function ImportExportPage() {
         isOpen={showUploadModal} 
         onClose={() => setShowUploadModal(false)}
         onUploadSuccess={refreshDocuments}
+        businessEntities={businessEntities}
         customers={customers}
         vendors={vendors}
       />

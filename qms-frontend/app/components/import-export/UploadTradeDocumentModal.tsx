@@ -21,12 +21,16 @@ export default function UploadTradeDocumentModal({
   vendors = [] 
 }: UploadTradeDocumentModalProps) {
   const [uploadData, setUploadData] = useState({
-    entity: '',
+    businessEntity: '',
     documentType: '',
     linkedReference: '',
     linkedType: '',
     customerVendor: '',
     customerVendorType: 'Customer',
+    documentDate: '',
+    expiryDate: '',
+    issuingAuthority: '',
+    countryOfOrigin: '',
     notes: '',
     complianceNotes: '',
     files: [] as File[]
@@ -61,7 +65,7 @@ export default function UploadTradeDocumentModal({
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
 
-    if (!uploadData.entity) newErrors.entity = 'Business entity is required';
+    if (!uploadData.businessEntity) newErrors.businessEntity = 'Business entity is required';
     if (!uploadData.documentType) newErrors.documentType = 'Document type is required';
     if (!uploadData.linkedReference.trim()) newErrors.linkedReference = 'Linked reference is required';
     if (!uploadData.linkedType) newErrors.linkedType = 'Linked type is required';
@@ -96,14 +100,20 @@ export default function UploadTradeDocumentModal({
       for (const file of uploadData.files) {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('entity_type', 'business_entity');
-        formData.append('entity_id', uploadData.entity);
+        formData.append('entity_type', 'trade_document');
+        formData.append('entity_id', uploadData.businessEntity);
+        formData.append('business_entity_id', uploadData.businessEntity);
         formData.append('document_type', uploadData.documentType);
         formData.append('linked_reference_type', uploadData.linkedType);
         formData.append('linked_reference_number', uploadData.linkedReference);
         if (customerId) formData.append('customer_id', customerId);
         if (vendorId) formData.append('vendor_id', vendorId);
+        if (uploadData.documentDate) formData.append('document_date', uploadData.documentDate);
+        if (uploadData.expiryDate) formData.append('expiry_date', uploadData.expiryDate);
+        if (uploadData.issuingAuthority) formData.append('issuing_authority', uploadData.issuingAuthority);
+        if (uploadData.countryOfOrigin) formData.append('country_of_origin', uploadData.countryOfOrigin);
         if (uploadData.notes) formData.append('notes', uploadData.notes);
+        if (uploadData.complianceNotes) formData.append('compliance_notes', uploadData.complianceNotes);
 
         await apiClient.uploadDocument(formData);
       }
@@ -118,12 +128,16 @@ export default function UploadTradeDocumentModal({
       
       // Reset form
       setUploadData({
-        entity: '',
+        businessEntity: '',
         documentType: '',
         linkedReference: '',
         linkedType: '',
         customerVendor: '',
         customerVendorType: 'Customer',
+        documentDate: '',
+        expiryDate: '',
+        issuingAuthority: '',
+        countryOfOrigin: '',
         notes: '',
         complianceNotes: '',
         files: []
@@ -189,9 +203,9 @@ export default function UploadTradeDocumentModal({
                 <button
                   key={entity.id}
                   type="button"
-                  onClick={() => handleInputChange('entity', entity.id)}
+                  onClick={() => handleInputChange('businessEntity', entity.id)}
                   className={`p-4 border rounded-lg text-left text-black transition-colors duration-200 ${
-                    uploadData.entity === entity.id
+                    uploadData.businessEntity === entity.id
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
                       : 'border-gray-300 hover:border-gray-400'
                   }`}
@@ -202,7 +216,7 @@ export default function UploadTradeDocumentModal({
                 </button>
               ))}
             </div>
-            {errors.entity && <p className="text-red-500 text-xs mt-1">{errors.entity}</p>}
+            {errors.businessEntity && <p className="text-red-500 text-xs mt-1">{errors.businessEntity}</p>}
           </div>
 
           {/* Document Type Selection */}
@@ -312,6 +326,51 @@ export default function UploadTradeDocumentModal({
             </div>
           </div>
 
+          {/* Additional Trade Document Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Document Date</label>
+              <input
+                type="date"
+                value={uploadData.documentDate}
+                onChange={(e) => handleInputChange('documentDate', e.target.value)}
+                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date</label>
+              <input
+                type="date"
+                value={uploadData.expiryDate}
+                onChange={(e) => handleInputChange('expiryDate', e.target.value)}
+                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Issuing Authority</label>
+              <input
+                type="text"
+                value={uploadData.issuingAuthority}
+                onChange={(e) => handleInputChange('issuingAuthority', e.target.value)}
+                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="e.g., Customs Department, Port Authority"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Country of Origin</label>
+              <input
+                type="text"
+                value={uploadData.countryOfOrigin}
+                onChange={(e) => handleInputChange('countryOfOrigin', e.target.value)}
+                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="e.g., Pakistan, China, USA"
+              />
+            </div>
+          </div>
+
           {/* File Upload */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">Upload Files *</label>
@@ -373,14 +432,14 @@ export default function UploadTradeDocumentModal({
           </div>
 
           {/* Preview */}
-          {uploadData.entity && uploadData.documentType && (
+          {uploadData.businessEntity && uploadData.documentType && (
             <div className="bg-gray-50 rounded-lg p-4 mb-6">
               <h4 className="font-medium text-gray-900 mb-3">Upload Preview</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-gray-600">Entity:</span>
                   <span className="ml-2 font-medium">
-                    {getEntityInfo(uploadData.entity)?.name}
+                    {getEntityInfo(uploadData.businessEntity)?.name}
                   </span>
                 </div>
                 <div>

@@ -573,8 +573,36 @@ class ApiClient {
   }
 
   // Document methods
-  async getDocuments(entityType: string, entityId: string) {
-    return this.request(`/documents/${entityType}/${entityId}`);
+  async getDocuments(entityType?: string, entityId?: string) {
+    if (entityType && entityId) {
+      return this.request(`/documents/${entityType}/${entityId}`);
+    } else {
+      return this.request('/documents');
+    }
+  }
+
+  async getTradeDocuments(filters?: {
+    document_type?: string;
+    compliance_status?: string;
+    ocr_status?: string;
+    customer_id?: string;
+    vendor_id?: string;
+    business_entity_id?: string;
+    linked_reference_type?: string;
+    date_from?: string;
+    date_to?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    const searchParams = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          searchParams.append(key, value.toString());
+        }
+      });
+    }
+    return this.request(`/documents?${searchParams.toString()}`);
   }
 
   async uploadDocument(formData: FormData) {
@@ -585,18 +613,14 @@ class ApiClient {
     });
   }
 
-  async downloadDocument(id: string) {
-    const response = await fetch(`${this.baseURL}/documents/download/${id}`, {
-      headers: {
-        Authorization: `Bearer ${this.token}`
-      }
+  async updateDocumentCompliance(id: string, compliance_status: string, compliance_notes?: string) {
+    return this.request(`/documents/${id}/compliance`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        compliance_status,
+        compliance_notes
+      })
     });
-    
-    if (!response.ok) {
-      throw new Error('Failed to download document');
-    }
-    
-    return response.blob();
   }
 
   async deleteDocument(id: string) {
@@ -609,6 +633,12 @@ class ApiClient {
     return this.request(`/documents/${id}/ocr`, {
       method: 'POST',
     });
+  }
+
+  // Business entities methods
+  async getBusinessEntities(options?: { limit?: number; offset?: number }) {
+    const { limit = 100, offset = 0 } = options || {};
+    return this.request(`/business-entities?limit=${limit}&offset=${offset}`);
   }
 
   // Business entities are handled through customers and vendors
@@ -857,32 +887,55 @@ export interface FinancialMetrics {
 
 export interface DocumentAttachment {
   id: string;
-  entity_type: string;
-  entity_id: string;
-  document_type: string;
+  reference_type: string;
+  reference_id: string;
   file_name: string;
   file_path: string;
   file_size: number;
   mime_type: string;
+  document_type?: string;
   linked_reference_type?: string;
   linked_reference_id?: string;
   linked_reference_number?: string;
   customer_id?: string;
   vendor_id?: string;
-  compliance_status: 'pending' | 'approved' | 'rejected';
-  ocr_status: 'pending' | 'processing' | 'completed' | 'failed';
-  ocr_data?: any;
+  business_entity_id?: string;
+  compliance_status?: 'pending' | 'approved' | 'rejected' | 'under_review';
+  compliance_notes?: string;
+  ocr_status?: 'pending' | 'processing' | 'completed' | 'failed';
+  document_date?: string;
+  expiry_date?: string;
+  issuing_authority?: string;
+  country_of_origin?: string;
+  notes?: string;
   uploaded_by: string;
-  created_at: string;
-  updated_at: string;
+  uploaded_at: string;
   customers?: {
+    id: string;
     name: string;
     email?: string;
+    gst_number?: string;
   };
   vendors?: {
+    id: string;
     name: string;
     email?: string;
+    gst_number?: string;
   };
+  business_entities?: {
+    id: string;
+    name: string;
+    legal_name?: string;
+    country?: string;
+  };
+  ocr_results?: {
+    id: string;
+    extracted_text?: string;
+    confidence_score?: number;
+    processing_status?: string;
+    processed_at?: string;
+    language?: string;
+  }[];
 }
 
 export default apiClient;
