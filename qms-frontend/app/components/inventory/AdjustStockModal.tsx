@@ -22,11 +22,11 @@ export default function AdjustStockModal({ isOpen, onClose, item, onStockAdjuste
   const [isProcessing, setIsProcessing] = useState(false);
 
   const adjustmentTypes = [
-    { value: 'increase', label: 'Increase Stock', icon: '➕' },
-    { value: 'decrease', label: 'Decrease Stock', icon: '➖' },
-    { value: 'correction', label: 'Stock Correction', icon: '🔄' },
-    { value: 'damage', label: 'Damaged/Lost', icon: '💥' },
-    { value: 'return', label: 'Return/Refund', icon: '↩️' }
+    { value: 'increase', label: 'Increase Stock', icon: '+', color: 'bg-green-700 hover:bg-green-800 text-white' },
+    { value: 'decrease', label: 'Decrease Stock', icon: '-', color: 'bg-red-700 hover:bg-red-800 text-white' },
+    { value: 'correction', label: 'Stock Correction', icon: '↻', color: 'bg-blue-700 hover:bg-blue-800 text-white' },
+    { value: 'damage', label: 'Damaged/Lost', icon: '⚠', color: 'bg-orange-700 hover:bg-orange-800 text-white' },
+    { value: 'return', label: 'Return/Refund', icon: '↩', color: 'bg-purple-700 hover:bg-purple-800 text-white' }
   ];
 
   const commonReasons = [
@@ -43,7 +43,14 @@ export default function AdjustStockModal({ isOpen, onClose, item, onStockAdjuste
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
 
-    if (adjustmentData.quantity <= 0) newErrors.quantity = 'Quantity must be greater than 0';
+    if (adjustmentData.quantity < 0) {
+      newErrors.quantity = 'Quantity cannot be negative';
+    } else if (adjustmentData.type === 'correction' && adjustmentData.quantity === 0) {
+      newErrors.quantity = 'Correction quantity must be greater than 0';
+    } else if (adjustmentData.type !== 'correction' && adjustmentData.quantity <= 0) {
+      newErrors.quantity = 'Quantity must be greater than 0';
+    }
+    
     if (!adjustmentData.reason.trim()) newErrors.reason = 'Reason is required';
     if (!adjustmentData.reference.trim()) newErrors.reference = 'Reference is required';
 
@@ -70,20 +77,46 @@ export default function AdjustStockModal({ isOpen, onClose, item, onStockAdjuste
       }
 
       // Create stock movement record
+      let movementType = 'adjustment_in';
+      let adjustmentQuantity = adjustmentData.quantity;
+      
+      // Determine movement type based on adjustment type
+      if (adjustmentData.type === 'correction') {
+        // For correction, we need to calculate the difference
+        const currentStock = item?.current_stock || 0;
+        if (adjustmentData.quantity > currentStock) {
+          movementType = 'adjustment_in';
+          adjustmentQuantity = adjustmentData.quantity - currentStock;
+        } else if (adjustmentData.quantity < currentStock) {
+          movementType = 'adjustment_out';
+          adjustmentQuantity = currentStock - adjustmentData.quantity;
+        } else {
+          // No change needed
+          alert('No adjustment needed - new stock level is same as current.');
+          setIsProcessing(false);
+          return;
+        }
+      } else if (['decrease', 'damage', 'return'].includes(adjustmentData.type)) {
+        movementType = 'adjustment_out';
+      } else {
+        movementType = 'adjustment_in';
+      }
+
       const stockMovementData = {
         product_id: item.id,
-        movement_type: adjustmentData.type === 'increase' ? 'in' : 'out',
-        quantity: adjustmentData.quantity,
+        movement_type: movementType,
+        quantity: adjustmentQuantity,
         reference_type: 'adjustment',
         reference_id: adjustmentData.reference,
         notes: `${adjustmentData.reason}${adjustmentData.notes ? ` - ${adjustmentData.notes}` : ''}`,
-        unit_cost: item.last_purchase_price || 0
+        unit_cost: item.last_purchase_price || 0,
+        movement_date: new Date().toISOString()
       };
       
       const response = await apiClient.createStockMovement(stockMovementData);
       
       if (response.success) {
-        alert('Stock adjustment processed successfully!');
+        alert(`Stock adjustment processed successfully! New stock level: ${response.data.new_stock_level} ${item?.unit_of_measure || 'units'}`);
         
         // Call callback to refresh data if provided
         if (onStockAdjusted) {
@@ -124,12 +157,12 @@ export default function AdjustStockModal({ isOpen, onClose, item, onStockAdjuste
   const getNewStockLevel = () => {
     if (!item || typeof item.current_stock !== 'number') return 0;
     
-    if (adjustmentData.type === 'increase') {
-      return item.current_stock + adjustmentData.quantity;
-    } else if (adjustmentData.type === 'decrease') {
-      return Math.max(0, item.current_stock - adjustmentData.quantity);
-    } else if (adjustmentData.type === 'correction') {
+    if (adjustmentData.type === 'correction') {
       return adjustmentData.quantity;
+    } else if (adjustmentData.type === 'increase') {
+      return item.current_stock + adjustmentData.quantity;
+    } else if (['decrease', 'damage', 'return'].includes(adjustmentData.type)) {
+      return Math.max(0, item.current_stock - adjustmentData.quantity);
     }
     return item.current_stock;
   };
@@ -157,25 +190,25 @@ export default function AdjustStockModal({ isOpen, onClose, item, onStockAdjuste
 
         <div className="p-6">
           {/* Current Stock Info */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h3 className="font-medium text-blue-900 mb-3">Current Stock Information</h3>
+          <div className="bg-gray-800 text-white rounded-lg p-4 mb-6">
+            <h3 className="font-semibold text-white mb-3">Current Stock Information</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                             <div>
-                 <span className="text-blue-700">Current Stock:</span>
-                 <span className="ml-2 font-medium">{item?.current_stock || 0} {item?.unit_of_measure || 'units'}</span>
-               </div>
-               <div>
-                 <span className="text-blue-700">Reorder Point:</span>
-                 <span className="ml-2 font-medium">{item?.reorder_point || 0} {item?.unit_of_measure || 'units'}</span>
-               </div>
-               <div>
-                 <span className="text-blue-700">Unit Cost:</span>
-                 <span className="ml-2 font-medium">${(item?.last_purchase_price || 0).toFixed(2)}</span>
-               </div>
-               <div>
-                 <span className="text-blue-700">Total Value:</span>
-                 <span className="ml-2 font-medium">${((item?.current_stock || 0) * (item?.last_purchase_price || 0)).toLocaleString()}</span>
-               </div>
+              <div>
+                <span className="text-gray-300">Current Stock:</span>
+                <span className="ml-2 font-medium text-white">{item?.current_stock || 0} {item?.unit_of_measure || 'units'}</span>
+              </div>
+              <div>
+                <span className="text-gray-300">Reorder Point:</span>
+                <span className="ml-2 font-medium text-white">{item?.reorder_point || 0} {item?.unit_of_measure || 'units'}</span>
+              </div>
+              <div>
+                <span className="text-gray-300">Unit Cost:</span>
+                <span className="ml-2 font-medium text-white">${(item?.last_purchase_price || 0).toFixed(2)}</span>
+              </div>
+              <div>
+                <span className="text-gray-300">Total Value:</span>
+                <span className="ml-2 font-medium text-white">${((item?.current_stock || 0) * (item?.last_purchase_price || 0)).toLocaleString()}</span>
+              </div>
             </div>
           </div>
 
@@ -189,14 +222,14 @@ export default function AdjustStockModal({ isOpen, onClose, item, onStockAdjuste
                     key={type.value}
                     type="button"
                     onClick={() => handleInputChange('type', type.value)}
-                    className={`p-3 border rounded-lg text-center transition-colors duration-200 ${
+                    className={`p-4 rounded-lg text-center transition-all duration-200 font-medium border-2 ${
                       adjustmentData.type === type.value
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-300 hover:border-gray-400'
+                        ? `${type.color} border-gray-800 shadow-lg`
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-700 border-gray-300'
                     }`}
                   >
-                    <div className="text-lg mb-1">{type.icon}</div>
-                    <div className="text-xs font-medium">{type.label}</div>
+                    <div className="text-xl mb-2">{type.icon}</div>
+                    <div className="text-xs font-semibold">{type.label}</div>
                   </button>
                 ))}
               </div>
@@ -204,18 +237,25 @@ export default function AdjustStockModal({ isOpen, onClose, item, onStockAdjuste
 
             {/* Quantity */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Quantity *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {adjustmentData.type === 'correction' ? 'New Stock Level *' : 'Quantity *'}
+              </label>
               <input
                 type="number"
                 value={adjustmentData.quantity}
                 onChange={(e) => handleInputChange('quantity', Number(e.target.value))}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-all duration-200 bg-white ${
                   errors.quantity ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Enter quantity"
-                min="0"
+                placeholder={adjustmentData.type === 'correction' ? 'Enter new stock level' : 'Enter quantity to adjust'}
+                min={adjustmentData.type === 'correction' ? '0' : '0'}
                 step="0.01"
               />
+              {adjustmentData.type === 'correction' && (
+                <p className="text-xs text-gray-600 mt-1">
+                  Current stock: {item?.current_stock || 0} {item?.unit_of_measure || 'units'}
+                </p>
+              )}
               {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity}</p>}
             </div>
 
@@ -225,7 +265,7 @@ export default function AdjustStockModal({ isOpen, onClose, item, onStockAdjuste
               <select
                 value={adjustmentData.reason}
                 onChange={(e) => handleInputChange('reason', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-all duration-200 bg-white ${
                   errors.reason ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -244,7 +284,7 @@ export default function AdjustStockModal({ isOpen, onClose, item, onStockAdjuste
                 type="text"
                 value={adjustmentData.reference}
                 onChange={(e) => handleInputChange('reference', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-all duration-200 bg-white ${
                   errors.reference ? 'border-red-500' : 'border-gray-300'
                 }`}
                 placeholder="e.g., PO-2024-001, SO-2024-001, or manual adjustment ID"
@@ -259,47 +299,55 @@ export default function AdjustStockModal({ isOpen, onClose, item, onStockAdjuste
                 value={adjustmentData.notes}
                 onChange={(e) => handleInputChange('notes', e.target.value)}
                 rows={3}
-                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full text-black px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-all duration-200 bg-white"
                 placeholder="Additional details about this adjustment..."
               />
             </div>
 
             {/* Preview */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="font-medium text-gray-900 mb-3">Adjustment Preview</h4>
+            <div className="bg-gray-100 border-2 border-gray-300 rounded-lg p-4">
+              <h4 className="font-semibold text-gray-900 mb-3">Adjustment Preview</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                               <div>
-                 <span className="text-gray-600">Current Stock:</span>
-                 <span className="ml-2 font-medium">{item?.current_stock || 0} {item?.unit_of_measure || 'units'}</span>
-               </div>
-               <div>
-                 <span className="text-gray-600">Adjustment:</span>
-                 <span className={`ml-2 font-medium ${
-                   adjustmentData.type === 'increase' ? 'text-green-600' : 'text-red-600'
-                 }`}>
-                   {adjustmentData.type === 'increase' ? '+' : '-'}{adjustmentData.quantity} {item?.unit_of_measure || 'units'}
-                 </span>
-               </div>
-               <div>
-                 <span className="text-gray-600">New Stock:</span>
-                 <span className="ml-2 font-medium">{newStockLevel} {item?.unit_of_measure || 'units'}</span>
-               </div>
                 <div>
-                  <span className="text-gray-600">New Status:</span>
-                  <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${newStockStatus.bg} ${newStockStatus.color}`}>
+                  <span className="text-gray-700 font-medium">Current Stock:</span>
+                  <span className="ml-2 font-semibold text-gray-900">{item?.current_stock || 0} {item?.unit_of_measure || 'units'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-700 font-medium">Adjustment:</span>
+                  <span className={`ml-2 font-semibold ${
+                    adjustmentData.type === 'correction' ? 'text-blue-700' :
+                    adjustmentData.type === 'increase' ? 'text-green-700' : 'text-red-700'
+                  }`}>
+                    {adjustmentData.type === 'correction' 
+                      ? `Set to ${adjustmentData.quantity}` 
+                      : `${adjustmentData.type === 'increase' ? '+' : '-'}${adjustmentData.quantity}`
+                    } {item?.unit_of_measure || 'units'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-700 font-medium">New Stock:</span>
+                  <span className="ml-2 font-semibold text-gray-900">{newStockLevel} {item?.unit_of_measure || 'units'}</span>
+                </div>
+                <div>
+                  <span className="text-gray-700 font-medium">New Status:</span>
+                  <span className={`ml-2 inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                    newStockStatus.status === 'In Stock' ? 'bg-green-700 text-white' :
+                    newStockStatus.status === 'Low Stock' ? 'bg-yellow-600 text-white' :
+                    'bg-red-700 text-white'
+                  }`}>
                     {newStockStatus.status}
                   </span>
                 </div>
               </div>
 
-                             {/* Stock Level Warning */}
+               {/* Stock Level Warning */}
                {newStockLevel <= (item?.reorder_point || 0) && (
-                 <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                 <div className="mt-3 p-3 bg-yellow-600 text-white rounded-lg">
                    <div className="flex items-center space-x-2">
-                     <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                      </svg>
-                     <span className="text-sm text-yellow-800">
+                     <span className="text-sm font-medium">
                        Warning: New stock level ({newStockLevel}) is at or below reorder point ({item?.reorder_point || 0})
                      </span>
                    </div>
@@ -308,12 +356,12 @@ export default function AdjustStockModal({ isOpen, onClose, item, onStockAdjuste
 
               {/* Out of Stock Warning */}
               {newStockLevel === 0 && (
-                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="mt-3 p-3 bg-red-700 text-white rounded-lg">
                   <div className="flex items-center space-x-2">
-                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="text-sm text-red-800">
+                    <span className="text-sm font-medium">
                       Critical: This adjustment will result in zero stock
                     </span>
                   </div>
@@ -327,14 +375,14 @@ export default function AdjustStockModal({ isOpen, onClose, item, onStockAdjuste
         <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+            className="px-6 py-3 text-white bg-gray-700 border border-gray-700 rounded-lg hover:bg-gray-800 transition-all duration-200 font-medium"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={isProcessing}
-            className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-8 py-3 text-white bg-slate-700 rounded-lg hover:bg-slate-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             {isProcessing ? 'Processing...' : 'Process Adjustment'}
           </button>

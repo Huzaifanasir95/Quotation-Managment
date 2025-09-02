@@ -10,38 +10,7 @@ interface StockDetailModalProps {
 }
 
 export default function StockDetailModal({ isOpen, onClose, item }: StockDetailModalProps) {
-  const [activeTab, setActiveTab] = useState<'details' | 'stock' | 'history' | 'alerts'>('details');
-  const [stockHistory, setStockHistory] = useState<any[]>([]);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [historyError, setHistoryError] = useState<string | null>(null);
-
-  // Fetch stock history when modal opens and history tab is active
-  useEffect(() => {
-    if (isOpen && item && activeTab === 'history') {
-      fetchStockHistory();
-    }
-  }, [isOpen, item, activeTab]);
-
-  const fetchStockHistory = async () => {
-    if (!item?.id) return;
-    
-    setIsLoadingHistory(true);
-    setHistoryError(null);
-    
-    try {
-      const response = await apiClient.getProductStockHistory(item.id);
-      if (response.success) {
-        setStockHistory(response.data || []);
-      } else {
-        setHistoryError(response.message || 'Failed to fetch stock history');
-      }
-    } catch (error) {
-      console.error('Error fetching stock history:', error);
-      setHistoryError('Failed to fetch stock history');
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  };
+  const [activeTab, setActiveTab] = useState<'details' | 'stock' | 'alerts'>('details');
 
   if (!isOpen || !item) return null;
 
@@ -317,20 +286,20 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
                 <h5 className="font-medium text-gray-900 mb-3">Additional Information</h5>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Last Stock Update:</span>
-                    <span className="text-gray-900">{item.lastUpdated}</span>
+                    <span className="text-gray-700 font-medium">Last Stock Update:</span>
+                    <span className="text-gray-900 font-semibold">{item.lastUpdated}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Stock Value:</span>
-                    <span className="text-gray-900">${((item.currentStock || 0) * (item.lastPurchasePrice || 0)).toLocaleString()}</span>
+                    <span className="text-gray-700 font-medium">Stock Value:</span>
+                    <span className="text-gray-900 font-semibold">${((item.currentStock || 0) * (item.lastPurchasePrice || 0)).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Average Cost:</span>
-                    <span className="text-gray-900">${(item.averageCost || item.lastPurchasePrice || 0).toFixed(2)}</span>
+                    <span className="text-gray-700 font-medium">Average Cost:</span>
+                    <span className="text-gray-900 font-semibold">${(item.averageCost || item.lastPurchasePrice || 0).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Selling Price:</span>
-                    <span className="text-gray-900">${(item.sellingPrice || 0).toFixed(2)}</span>
+                    <span className="text-gray-700 font-medium">Selling Price:</span>
+                    <span className="text-gray-900 font-semibold">${(item.sellingPrice || 0).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
