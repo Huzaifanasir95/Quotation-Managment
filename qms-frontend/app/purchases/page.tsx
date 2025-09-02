@@ -3,11 +3,15 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
 import CreatePurchaseOrderModal from '../components/purchases/CreatePurchaseOrderModal';
+import UploadVendorBillModal from '../components/purchases/UploadVendorBillModal';
+import GenerateDeliveryChallanModal from '../components/purchases/GenerateDeliveryChallanModal';
 import PurchaseOrderDetailsModal from '../components/purchases/PurchaseOrderDetailsModal';
 import { apiClient, type PurchaseOrder, type Vendor } from '../lib/api';
 
 export default function PurchasesPage() {
   const [showCreatePO, setShowCreatePO] = useState(false);
+  const [showUploadBill, setShowUploadBill] = useState(false);
+  const [showGenerateChallan, setShowGenerateChallan] = useState(false);
   const [showPODetails, setShowPODetails] = useState(false);
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   
@@ -122,6 +126,16 @@ export default function PurchasesPage() {
       console.error('Failed to approve PO:', error);
       alert(`Failed to approve ${po.po_number}: ${error instanceof Error ? error.message : 'Please try again.'}`);
     }
+  };
+
+  const handleAttachBill = (po: PurchaseOrder) => {
+    setSelectedPO(po);
+    setShowUploadBill(true);
+  };
+
+  const handleGenerateChallan = (po: PurchaseOrder) => {
+    setSelectedPO(po);
+    setShowGenerateChallan(true);
   };
 
   const clearFilters = () => {
@@ -378,6 +392,18 @@ export default function PurchasesPage() {
           onClose={() => setShowCreatePO(false)}
           onPOCreated={loadPurchaseOrders}
         />
+      <UploadVendorBillModal 
+        isOpen={showUploadBill} 
+        onClose={() => setShowUploadBill(false)} 
+        selectedPO={selectedPO}
+        onBillAttached={loadPurchaseOrders}
+      />
+      <GenerateDeliveryChallanModal 
+        isOpen={showGenerateChallan} 
+        onClose={() => setShowGenerateChallan(false)} 
+        selectedPO={selectedPO}
+        onChallanGenerated={loadPurchaseOrders}
+      />
       <PurchaseOrderDetailsModal 
         isOpen={showPODetails} 
         onClose={() => setShowPODetails(false)} 
