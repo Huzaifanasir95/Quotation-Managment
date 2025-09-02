@@ -214,6 +214,33 @@ class ApiClient {
     return this.request(endpoint);
   }
 
+  async createVendor(vendorData: any) {
+    return this.request('/vendors', {
+      method: 'POST',
+      body: JSON.stringify(vendorData),
+    });
+  }
+
+  async updateVendor(id: string, vendorData: any) {
+    return this.request(`/vendors/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(vendorData),
+    });
+  }
+
+  async deleteVendor(id: string) {
+    return this.request(`/vendors/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async updateVendorStatus(id: string, status: string) {
+    return this.request(`/vendors/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  }
+
   // Vendor Bills methods
   async getVendorBills(params?: { page?: number; limit?: number; search?: string; status?: string; vendor_id?: string; purchase_order_id?: string }) {
     const queryParams = new URLSearchParams();

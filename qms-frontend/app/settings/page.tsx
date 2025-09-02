@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import AppLayout from '../components/AppLayout';
+import { apiClient } from '../lib/api';
 
 interface CompanySettings {
   name: string;
@@ -16,6 +17,17 @@ interface UserData {
   name: string;
   email: string;
   role: string;
+  status: 'active' | 'inactive';
+}
+
+interface VendorData {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  gst_number: string;
+  address: string;
+  contact_person: string;
   status: 'active' | 'inactive';
 }
 
@@ -42,6 +54,10 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('company');
   const [showAddUser, setShowAddUser] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
+  const [showAddVendor, setShowAddVendor] = useState(false);
+  const [editingVendor, setEditingVendor] = useState<VendorData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [vendorsLoading, setVendorsLoading] = useState(false);
 
   // Mock data
   const [companySettings, setCompanySettings] = useState<CompanySettings>({
@@ -57,6 +73,8 @@ export default function SettingsPage() {
     { id: 3, name: 'Finance Officer', email: 'finance@qms.com', role: 'Finance', status: 'active' },
     { id: 4, name: 'Procurement Lead', email: 'procurement@qms.com', role: 'Procurement', status: 'inactive' }
   ]);
+
+  const [vendors, setVendors] = useState<VendorData[]>([]);
 
   const [integrations, setIntegrations] = useState<IntegrationSettings>({
     fbrApiKey: '',
@@ -83,6 +101,8 @@ export default function SettingsPage() {
 
   const { register: registerUser, handleSubmit: handleUserSubmit, reset: resetUser } = useForm<Omit<UserData, 'id' | 'status'>>();
 
+  const { register: registerVendor, handleSubmit: handleVendorSubmit, reset: resetVendor } = useForm<Omit<VendorData, 'id' | 'status'>>();
+
   const { register: registerIntegrations, handleSubmit: handleIntegrationsSubmit } = useForm<IntegrationSettings>({
     defaultValues: integrations
   });
@@ -91,9 +111,42 @@ export default function SettingsPage() {
     defaultValues: systemPrefs
   });
 
+  // Load vendors from database
+  useEffect(() => {
+    const loadVendors = async () => {
+      setVendorsLoading(true);
+      try {
+        const response = await apiClient.getVendors();
+        if (response && response.success) {
+          // Handle backend response structure: { success: true, data: { vendors: [...] } }
+          if (response.data && Array.isArray(response.data.vendors)) {
+            setVendors(response.data.vendors);
+          } else if (Array.isArray(response.data)) {
+            setVendors(response.data);
+          } else {
+            console.log('No vendors found, initializing empty array');
+            setVendors([]);
+          }
+        } else {
+          console.error('Failed to load vendors:', response?.message || 'Unknown error');
+          setVendors([]);
+        }
+      } catch (error) {
+        console.error('Error loading vendors:', error);
+        // If API call fails (e.g., backend not running), just use empty array
+        setVendors([]);
+      } finally {
+        setVendorsLoading(false);
+      }
+    };
+
+    loadVendors();
+  }, []);
+
   const tabs = [
     { id: 'company', name: 'Company Settings', icon: '🏢' },
     { id: 'users', name: 'User Management', icon: '👥' },
+    { id: 'vendors', name: 'Vendor Management', icon: '🏪' },
     { id: 'integrations', name: 'Integrations', icon: '🔗' },
     { id: 'preferences', name: 'System Preferences', icon: '⚙️' }
   ];
@@ -125,6 +178,58 @@ export default function SettingsPage() {
     resetUser();
   };
 
+  const onVendorSubmit = async (data: Omit<VendorData, 'id' | 'status'>) => {
+    setLoading(true);
+    try {
+      if (editingVendor) {
+        // Update existing vendor
+        const response = await apiClient.updateVendor(editingVendor.id, data);
+        if (response && response.success) {
+          // Backend returns: { success: true, data: { vendor: {...} } }
+          const updatedVendor = response.data?.vendor || { ...editingVendor, ...data };
+          setVendors(vendors.map(vendor => 
+            vendor.id === editingVendor.id 
+              ? updatedVendor
+              : vendor
+          ));
+          setEditingVendor(null);
+          alert('Vendor updated successfully!');
+        } else {
+          alert('Failed to update vendor: ' + (response?.message || 'Unknown error'));
+        }
+      } else {
+        // Create new vendor
+        const response = await apiClient.createVendor(data);
+        if (response && response.success) {
+          // Backend returns: { success: true, data: { vendor: {...} } }
+          const newVendor = response.data?.vendor;
+          if (newVendor) {
+            setVendors([...vendors, newVendor]);
+            alert('Vendor created successfully! You can now select this vendor when creating purchase orders.');
+          } else {
+            // Fallback if response structure is unexpected
+            const fallbackVendor: VendorData = {
+              ...data,
+              id: Date.now().toString(),
+              status: 'active'
+            };
+            setVendors([...vendors, fallbackVendor]);
+            alert('Vendor created successfully!');
+          }
+        } else {
+          alert('Failed to create vendor: ' + (response?.message || 'Unknown error'));
+        }
+      }
+      setShowAddVendor(false);
+      resetVendor();
+    } catch (error) {
+      console.error('Error saving vendor:', error);
+      alert('An error occurred while saving the vendor. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onIntegrationsSubmit = (data: IntegrationSettings) => {
     setIntegrations(data);
     alert('Integration settings saved successfully!');
@@ -146,6 +251,45 @@ export default function SettingsPage() {
   const deleteUser = (userId: number) => {
     if (confirm('Are you sure you want to delete this user?')) {
       setUsers(users.filter(user => user.id !== userId));
+    }
+  };
+
+  const toggleVendorStatus = async (vendorId: string) => {
+    try {
+      const vendor = vendors.find(v => v.id === vendorId);
+      if (!vendor) return;
+      
+      const newStatus = vendor.status === 'active' ? 'inactive' : 'active';
+      
+      // For now, just update locally since there's no specific status endpoint
+      // TODO: Use updateVendor with just status field when backend supports partial updates
+      setVendors(vendors.map(vendor => 
+        vendor.id === vendorId 
+          ? { ...vendor, status: newStatus }
+          : vendor
+      ));
+    } catch (error) {
+      console.error('Error updating vendor status:', error);
+      alert('An error occurred while updating vendor status.');
+    }
+  };
+
+  const deleteVendor = async (vendorId: string) => {
+    if (confirm('Are you sure you want to delete this vendor?')) {
+      try {
+        const response = await apiClient.deleteVendor(vendorId);
+        if (response && response.success) {
+          setVendors(vendors.filter(vendor => vendor.id !== vendorId));
+          alert('Vendor deleted successfully!');
+        } else {
+          alert('Failed to delete vendor: ' + (response?.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error deleting vendor:', error);
+        // Even if API fails, remove from local state as fallback
+        setVendors(vendors.filter(vendor => vendor.id !== vendorId));
+        alert('Vendor removed from list. If this was an error, please refresh the page.');
+      }
     }
   };
 
@@ -404,6 +548,203 @@ export default function SettingsPage() {
                             className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200"
                           >
                             {editingUser ? 'Update' : 'Add'} User
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Vendor Management Tab */}
+            {activeTab === 'vendors' && (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold text-gray-900">Vendor Management</h2>
+                  <button
+                    onClick={() => setShowAddVendor(true)}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
+                    Add Vendor
+                  </button>
+                </div>
+
+                {/* Vendors Table */}
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GST Number</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {vendorsLoading ? (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-8 text-center">
+                            <div className="flex justify-center items-center">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                              <span className="ml-2 text-gray-600">Loading vendors...</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : !Array.isArray(vendors) || vendors.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                            No vendors found. Click "Add Vendor" to create your first vendor.
+                          </td>
+                        </tr>
+                      ) : (
+                        vendors.map((vendor) => (
+                        <tr key={vendor.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{vendor.name}</div>
+                              <div className="text-sm text-gray-500">{vendor.address}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">{vendor.contact_person}</div>
+                              <div className="text-sm text-gray-500">{vendor.email}</div>
+                              <div className="text-sm text-gray-500">{vendor.phone}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm text-gray-900">{vendor.gst_number}</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              vendor.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {vendor.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <button
+                              onClick={() => {
+                                setEditingVendor(vendor);
+                                setShowAddVendor(true);
+                              }}
+                              className="text-blue-600 hover:text-blue-700 mr-3"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => toggleVendorStatus(vendor.id)}
+                              className="text-yellow-600 hover:text-yellow-700 mr-3"
+                            >
+                              {vendor.status === 'active' ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button
+                              onClick={() => deleteVendor(vendor.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Add/Edit Vendor Modal */}
+                {showAddVendor && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        {editingVendor ? 'Edit Vendor' : 'Add New Vendor'}
+                      </h3>
+                      <form onSubmit={handleVendorSubmit(onVendorSubmit)} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Name *</label>
+                            <input
+                              {...registerVendor('name', { required: 'Vendor name is required' })}
+                              type="text"
+                              defaultValue={editingVendor?.name || ''}
+                              className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="ABC Electronics Ltd"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person *</label>
+                            <input
+                              {...registerVendor('contact_person', { required: 'Contact person is required' })}
+                              type="text"
+                              defaultValue={editingVendor?.contact_person || ''}
+                              className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="Ahmed Ali"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                            <input
+                              {...registerVendor('email', { required: 'Email is required' })}
+                              type="email"
+                              defaultValue={editingVendor?.email || ''}
+                              className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="contact@vendor.com"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                            <input
+                              {...registerVendor('phone', { required: 'Phone is required' })}
+                              type="tel"
+                              defaultValue={editingVendor?.phone || ''}
+                              className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="+92-300-1234567"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">GST Number</label>
+                            <input
+                              {...registerVendor('gst_number')}
+                              type="text"
+                              defaultValue={editingVendor?.gst_number || ''}
+                              className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="17-123456789"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                          <textarea
+                            {...registerVendor('address')}
+                            rows={3}
+                            defaultValue={editingVendor?.address || ''}
+                            className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            placeholder="Complete business address"
+                          />
+                        </div>
+                        <div className="flex justify-end space-x-3 pt-4">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAddVendor(false);
+                              setEditingVendor(null);
+                              resetVendor();
+                            }}
+                            className="px-4 text-black py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={loading}
+                            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                          >
+                            {loading && (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            )}
+                            {editingVendor ? 'Update' : 'Add'} Vendor
                           </button>
                         </div>
                       </form>

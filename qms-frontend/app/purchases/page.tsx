@@ -196,7 +196,7 @@ export default function PurchasesPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               onClick={() => setShowCreatePO(true)}
-              className="flex items-center justify-center p-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+              className="flex items-center justify-center p-4 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 text-white rounded-lg hover:from-blue-700 hover:via-purple-700 hover:to-blue-900 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -206,7 +206,7 @@ export default function PurchasesPage() {
 
             <button
               onClick={() => setShowUploadBill(true)}
-              className="flex items-center justify-center p-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
+              className="flex items-center justify-center p-4 bg-gradient-to-r from-green-500 via-emerald-600 to-green-700 text-white rounded-lg hover:from-green-600 hover:via-emerald-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -216,7 +216,7 @@ export default function PurchasesPage() {
 
             <button
               onClick={() => setShowGenerateChallan(true)}
-              className="flex items-center justify-center p-4 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200"
+              className="flex items-center justify-center p-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-800 text-white rounded-lg hover:from-purple-700 hover:via-indigo-700 hover:to-purple-900 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

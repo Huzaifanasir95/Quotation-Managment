@@ -46,17 +46,36 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
   useEffect(() => {
     if (isOpen) {
       loadVendors();
+      // Reset form when modal opens
+      setFormData({
+        vendorId: '',
+        expectedDelivery: '',
+        notes: '',
+        terms: ''
+      });
+      setItems([]);
     }
   }, [isOpen]);
 
   const loadVendors = async () => {
+    setIsLoading(true);
     try {
+      console.log('Loading vendors...');
       const response = await apiClient.getVendors({ limit: 100 });
+      console.log('Vendors response:', response);
       if (response.success) {
-        setVendors(response.data.vendors || []);
+        const vendorsList = response.data.vendors || [];
+        console.log('Loaded vendors:', vendorsList);
+        setVendors(vendorsList);
+      } else {
+        console.error('Failed to load vendors:', response.message);
+        alert('Failed to load vendors. Please try again.');
       }
     } catch (error) {
       console.error('Failed to load vendors:', error);
+      alert('Failed to load vendors. Please check your connection and try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -193,14 +212,28 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
               <label className="block text-sm font-medium text-gray-700 mb-2">Select Vendor *</label>
               <select
                 value={formData.vendorId}
-                onChange={(e) => setFormData({ ...formData, vendorId: e.target.value })}
+                onChange={(e) => {
+                  console.log('Selected vendor ID:', e.target.value);
+                  setFormData({ ...formData, vendorId: e.target.value });
+                }}
                 className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">Choose a vendor</option>
-                {vendors.map((vendor) => (
-                  <option key={vendor.id} value={vendor.id}>{vendor.name} - {vendor.gst_number || 'N/A'}</option>
-                ))}
+                {vendors.length > 0 ? (
+                  vendors.map((vendor) => (
+                    <option key={vendor.id} value={vendor.id}>
+                      {vendor.name}{vendor.gst_number ? ` - ${vendor.gst_number}` : ''}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>Loading vendors...</option>
+                )}
               </select>
+              {vendors.length === 0 && (
+                <p className="mt-1 text-sm text-gray-500">
+                  {isLoading ? 'Loading vendors...' : 'No vendors available. Please add vendors first.'}
+                </p>
+              )}
             </div>
 
             <div>
@@ -242,7 +275,7 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
               <h3 className="text-lg font-semibold text-gray-900">Items</h3>
               <button
                 onClick={addItem}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 Add Item
               </button>
@@ -358,16 +391,16 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
         <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+            className="px-6 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
           >
             Cancel
           </button>
 
-          <div className="flex space-x-3">
+          <div className="flex items-center space-x-3">
             <select
               value={action}
               onChange={(e) => setAction(e.target.value as 'save' | 'approve')}
-              className="px-3 text-black py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-4 text-black py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-medium"
             >
               <option value="save">Save as Draft</option>
               <option value="approve">Save & Approve</option>
@@ -376,11 +409,23 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
             <button
               onClick={handleSubmit}
               disabled={isLoading || items.length === 0}
-              className={`px-6 py-2 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-                action === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'
+              className={`px-8 py-2.5 text-white rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-xl ${
+                action === 'approve' 
+                  ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700' 
+                  : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
               }`}
             >
-              {isLoading ? 'Creating...' : action === 'approve' ? 'Create & Approve' : 'Save as Draft'}
+              {isLoading ? (
+                <div className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Creating...
+                </div>
+              ) : (
+                action === 'approve' ? 'Create & Approve' : 'Save as Draft'
+              )}
             </button>
           </div>
         </div>
