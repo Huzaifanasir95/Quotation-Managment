@@ -1,6 +1,7 @@
 const express = require('express');
 const { supabaseAdmin } = require('../config/supabase');
 const { authenticateToken, authorize } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validation');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 const router = express.Router();
@@ -61,7 +62,7 @@ router.get('/', authenticateToken, authorize(['admin', 'procurement', 'finance',
 }));
 
 // Create new vendor bill
-router.post('/', authenticateToken, authorize(['admin', 'procurement', 'finance', 'sales']), asyncHandler(async (req, res) => {
+router.post('/', authenticateToken, authorize(['admin', 'procurement', 'finance', 'sales']), validate(schemas.vendorBill), asyncHandler(async (req, res) => {
   const {
     bill_number,
     purchase_order_id,

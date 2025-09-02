@@ -187,6 +187,28 @@ const schemas = {
         tax_percent: Joi.number().min(0).max(100).default(0)
       })
     ).min(1).required()
+  }),
+
+  // Vendor Bill validation schema
+  vendorBill: Joi.object({
+    bill_number: Joi.string().max(255).required(),
+    purchase_order_id: Joi.string().uuid().optional(),
+    vendor_id: Joi.string().uuid().required(),
+    business_entity_id: Joi.string().uuid().optional(),
+    bill_date: Joi.date().required(),
+    due_date: Joi.date().optional(),
+    subtotal: Joi.number().min(0).optional(),
+    tax_amount: Joi.number().min(0).optional(),
+    total_amount: Joi.number().min(0).required(),
+    notes: Joi.string().max(1000).optional(),
+    files: Joi.array().items(
+      Joi.object({
+        name: Joi.string().required(),
+        size: Joi.number().optional(),
+        type: Joi.string().optional(),
+        path: Joi.string().required()
+      })
+    ).optional()
   })
 };
 

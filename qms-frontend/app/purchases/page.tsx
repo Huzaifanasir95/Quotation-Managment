@@ -3,15 +3,11 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
 import CreatePurchaseOrderModal from '../components/purchases/CreatePurchaseOrderModal';
-import UploadVendorBillModal from '../components/purchases/UploadVendorBillModal';
-import GenerateDeliveryChallanModal from '../components/purchases/GenerateDeliveryChallanModal';
 import PurchaseOrderDetailsModal from '../components/purchases/PurchaseOrderDetailsModal';
 import { apiClient, type PurchaseOrder, type Vendor } from '../lib/api';
 
 export default function PurchasesPage() {
   const [showCreatePO, setShowCreatePO] = useState(false);
-  const [showUploadBill, setShowUploadBill] = useState(false);
-  const [showGenerateChallan, setShowGenerateChallan] = useState(false);
   const [showPODetails, setShowPODetails] = useState(false);
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   
@@ -128,16 +124,6 @@ export default function PurchasesPage() {
     }
   };
 
-  const handleAttachBill = (po: PurchaseOrder) => {
-    setSelectedPO(po);
-    setShowUploadBill(true);
-  };
-
-  const handleGenerateChallan = (po: PurchaseOrder) => {
-    setSelectedPO(po);
-    setShowGenerateChallan(true);
-  };
-
   const clearFilters = () => {
     setFilters({
       vendor: 'All',
@@ -193,35 +179,15 @@ export default function PurchasesPage() {
         {/* Quick Actions */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex justify-center">
             <button
               onClick={() => setShowCreatePO(true)}
-              className="flex items-center justify-center p-4 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 text-white rounded-lg hover:from-blue-700 hover:via-purple-700 hover:to-blue-900 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 text-white rounded-lg hover:from-blue-700 hover:via-purple-700 hover:to-blue-900 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 text-lg font-medium"
             >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              New Purchase Order
-            </button>
-
-            <button
-              onClick={() => setShowUploadBill(true)}
-              className="flex items-center justify-center p-4 bg-gradient-to-r from-green-500 via-emerald-600 to-green-700 text-white rounded-lg hover:from-green-600 hover:via-emerald-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              Upload Vendor Bill
-            </button>
-
-            <button
-              onClick={() => setShowGenerateChallan(true)}
-              className="flex items-center justify-center p-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-800 text-white rounded-lg hover:from-purple-700 hover:via-indigo-700 hover:to-purple-900 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Generate Delivery Challan
+              Create New Purchase Order
             </button>
           </div>
         </div>
@@ -412,18 +378,6 @@ export default function PurchasesPage() {
           onClose={() => setShowCreatePO(false)}
           onPOCreated={loadPurchaseOrders}
         />
-      <UploadVendorBillModal 
-        isOpen={showUploadBill} 
-        onClose={() => setShowUploadBill(false)} 
-        selectedPO={selectedPO}
-        onBillAttached={loadPurchaseOrders}
-      />
-      <GenerateDeliveryChallanModal 
-        isOpen={showGenerateChallan} 
-        onClose={() => setShowGenerateChallan(false)} 
-        selectedPO={selectedPO}
-        onChallanGenerated={loadPurchaseOrders}
-      />
       <PurchaseOrderDetailsModal 
         isOpen={showPODetails} 
         onClose={() => setShowPODetails(false)} 
