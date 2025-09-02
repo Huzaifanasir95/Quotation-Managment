@@ -48,7 +48,6 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
   const tabs = [
     { id: 'details', name: 'Item Details', icon: '📋' },
     { id: 'stock', name: 'Stock Info', icon: '📦' },
-    { id: 'history', name: 'Stock History', icon: '📈' },
     { id: 'alerts', name: 'Alerts', icon: '⚠️' }
   ];
 
@@ -63,11 +62,11 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
   };
 
   const getStockAlert = () => {
-    if (item.current_stock === 0) {
+    if (item.currentStock === 0) {
       return { type: 'error', message: 'Item is out of stock', color: 'text-red-600' };
-    } else if (item.current_stock <= item.reorder_point) {
+    } else if (item.currentStock <= item.reorderPoint) {
       return { type: 'warning', message: 'Reorder point reached', color: 'text-yellow-600' };
-    } else if (item.current_stock <= item.reorder_point * 1.5) {
+    } else if (item.currentStock <= item.reorderPoint * 1.5) {
       return { type: 'info', message: 'Stock level is getting low', color: 'text-blue-600' };
     }
     return null;
@@ -96,7 +95,7 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-500">Current Stock</p>
-              <p className="text-2xl font-bold text-blue-600">{item.current_stock} {item.unit_of_measure}</p>
+              <p className="text-2xl font-bold text-blue-600">{item.currentStock} {item.unitOfMeasure}</p>
             </div>
           </div>
         </div>
@@ -108,9 +107,9 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-gray-800 text-gray-800'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -131,52 +130,60 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
                   <h4 className="font-medium text-gray-900 mb-3">Item Information</h4>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Name:</span>
-                      <span className="font-medium">{item.name}</span>
+                      <span className="text-gray-700 font-medium">Name:</span>
+                      <span className="font-medium text-gray-900">{item.name}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">SKU:</span>
-                      <span className="font-medium">{item.sku}</span>
+                      <span className="text-gray-700 font-medium">SKU:</span>
+                      <span className="font-medium text-gray-900">{item.sku}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Category:</span>
-                      <span className="font-medium">{item.category}</span>
+                      <span className="text-gray-700 font-medium">Category:</span>
+                      <span className="font-medium text-gray-900">{item.category}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Unit of Measure:</span>
-                      <span className="font-medium">{item.unit_of_measure}</span>
+                      <span className="text-gray-700 font-medium">Unit of Measure:</span>
+                      <span className="font-medium text-gray-900">{item.unitOfMeasure}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Status:</span>
+                      <span className="text-gray-700 font-medium">Type:</span>
+                      <span className="font-medium text-gray-900 capitalize">{item.type?.replace('_', ' ')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700 font-medium">Status:</span>
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(item.status)}`}>
                         {item.status}
                       </span>
                     </div>
                   </div>
                   <div className="mt-4">
-                    <span className="text-gray-500">Description:</span>
-                    <p className="text-gray-900 mt-1">{item.description}</p>
+                    <span className="text-gray-700 font-medium">Description:</span>
+                    <p className="text-gray-900 mt-1 font-medium">{item.description || 'No description available'}</p>
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-3">Vendor Information</h4>
+                  <h4 className="font-medium text-gray-900 mb-3">Pricing Information</h4>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Vendor:</span>
-                      <span className="font-medium">{item.vendor}</span>
+                      <span className="text-gray-700 font-medium">Last Purchase Price:</span>
+                      <span className="font-medium text-gray-900">${(item.lastPurchasePrice || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Last Purchase Price:</span>
-                      <span className="font-medium">${(item.last_purchase_price || 0).toFixed(2)}</span>
+                      <span className="text-gray-700 font-medium">Average Cost:</span>
+                      <span className="font-medium text-gray-900">${(item.averageCost || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Selling Price:</span>
-                      <span className="font-medium">${(item.selling_price || 0).toFixed(2)}</span>
+                      <span className="text-gray-700 font-medium">Selling Price:</span>
+                      <span className="font-medium text-gray-900">${(item.sellingPrice || 0).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Last Updated:</span>
-                      <span className="font-medium">{new Date(item.updated_at).toLocaleDateString()}</span>
+                      <span className="text-gray-700 font-medium">Total Value:</span>
+                      <span className="font-medium text-green-700">${(item.totalValue || 0).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-700 font-medium">Last Updated:</span>
+                      <span className="font-medium text-gray-900">{item.lastUpdated}</span>
                     </div>
                   </div>
                 </div>
@@ -210,17 +217,17 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-blue-50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-600">{item.current_stock}</div>
+                  <div className="text-2xl font-bold text-blue-600">{item.currentStock}</div>
                   <div className="text-sm text-blue-800">Current Stock</div>
-                  <div className="text-xs text-blue-600 mt-1">{item.unit_of_measure}</div>
+                  <div className="text-xs text-blue-600 mt-1">{item.unitOfMeasure}</div>
                 </div>
                 <div className="bg-yellow-50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-yellow-600">{item.reorder_point}</div>
+                  <div className="text-2xl font-bold text-yellow-600">{item.reorderPoint}</div>
                   <div className="text-sm text-yellow-800">Reorder Point</div>
                   <div className="text-xs text-yellow-600 mt-1">Trigger Level</div>
                 </div>
                 <div className="bg-green-50 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-green-600">${((item.current_stock || 0) * (item.last_purchase_price || 0)).toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-green-600">${((item.currentStock || 0) * (item.lastPurchasePrice || 0)).toLocaleString()}</div>
                   <div className="text-sm text-green-800">Total Value</div>
                   <div className="text-xs text-green-600 mt-1">Stock × Price</div>
                 </div>
@@ -230,88 +237,36 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
                 <h4 className="font-medium text-gray-900 mb-3">Stock Level Analysis</h4>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Stock Level:</span>
+                    <span className="text-gray-700 font-medium">Stock Level:</span>
                     <div className="flex items-center space-x-2">
                       <div className="w-32 bg-gray-200 rounded-full h-2">
                         <div 
                           className={`h-2 rounded-full ${
-                            item.current_stock === 0 ? 'bg-red-500' :
-                            item.current_stock <= item.reorder_point ? 'bg-yellow-500' : 'bg-green-500'
+                            item.currentStock === 0 ? 'bg-red-500' :
+                            item.currentStock <= item.reorderPoint ? 'bg-yellow-500' : 'bg-green-500'
                           }`}
                           style={{ 
-                            width: `${Math.min(100, (item.current_stock / Math.max(item.reorder_point * 2, 1)) * 100)}%` 
+                            width: `${Math.min(100, (item.currentStock / Math.max(item.reorderPoint * 2, 1)) * 100)}%` 
                           }}
                         ></div>
                       </div>
-                      <span className="text-sm text-gray-600">
-                        {item.current_stock}/{Math.max(item.reorder_point * 2, item.current_stock)}
+                      <span className="text-sm text-gray-800 font-medium">
+                        {item.currentStock}/{Math.max(item.reorderPoint * 2, item.currentStock)}
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600">Days Until Stockout:</span>
-                    <span className="font-medium">
-                      {item.current_stock === 0 ? 'Out of Stock' : 
-                       item.current_stock <= item.reorder_point ? 'Critical' : 'Safe'}
+                    <span className="text-gray-700 font-medium">Stock Status:</span>
+                    <span className="font-semibold text-gray-900">
+                      {item.currentStock === 0 ? 'Out of Stock' : 
+                       item.currentStock <= item.reorderPoint ? 'Critical - Reorder Needed' : 'Healthy Stock Level'}
                     </span>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700 font-medium">Max Stock Level:</span>
+                    <span className="font-semibold text-gray-900">{item.maxStockLevel || 'Not Set'} {item.unitOfMeasure}</span>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* History Tab */}
-          {activeTab === 'history' && (
-            <div>
-              <h4 className="font-medium text-gray-900 mb-4">Stock Movement History</h4>
-              <div className="bg-gray-50 rounded-lg p-4">
-                {isLoadingHistory ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <span className="ml-3 text-gray-600">Loading stock history...</span>
-                  </div>
-                ) : historyError ? (
-                  <div className="text-center py-8">
-                    <p className="text-red-500">{historyError}</p>
-                    <button 
-                      onClick={fetchStockHistory}
-                      className="mt-2 text-blue-600 hover:text-blue-700 font-medium"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                ) : stockHistory.length > 0 ? (
-                  <div className="space-y-4">
-                    {stockHistory.map((entry: any, index: number) => (
-                      <div key={index} className="flex items-start space-x-4">
-                        <div className={`w-3 h-3 rounded-full mt-2 ${
-                          entry.movement_type === 'in' ? 'bg-green-500' : 'bg-red-500'
-                        }`} />
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className="font-medium text-gray-900">
-                              {entry.movement_type === 'in' ? 'Stock In' : 'Stock Out'}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {new Date(entry.movement_date).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <p className="text-sm text-gray-600">
-                            Quantity: {entry.movement_type === 'in' ? '+' : '-'}{entry.quantity} {item.unit_of_measure}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Reference: {entry.reference_type} - {entry.reference_id}
-                          </p>
-                          {entry.notes && (
-                            <p className="text-sm text-gray-500">{entry.notes}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500 text-center py-4">No stock movement history available</p>
-                )}
               </div>
             </div>
           )}
@@ -335,8 +290,8 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
                     </svg>
                     <div>
                       <p className={`font-medium ${stockAlert.color}`}>{stockAlert.message}</p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Current stock: {item.current_stock} {item.unit_of_measure} | Reorder point: {item.reorder_point} {item.unit_of_measure}
+                      <p className="text-sm text-gray-800 font-medium mt-1">
+                        Current stock: {item.currentStock} {item.unitOfMeasure} | Reorder point: {item.reorderPoint} {item.unitOfMeasure}
                       </p>
                     </div>
                   </div>
@@ -367,11 +322,15 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Stock Value:</span>
-                    <span className="text-gray-900">${((item.current_stock || 0) * (item.last_purchase_price || 0)).toLocaleString()}</span>
+                    <span className="text-gray-900">${((item.currentStock || 0) * (item.lastPurchasePrice || 0)).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Average Cost:</span>
-                    <span className="text-gray-900">${(item.average_cost || item.last_purchase_price || 0).toFixed(2)}</span>
+                    <span className="text-gray-900">${(item.averageCost || item.lastPurchasePrice || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Selling Price:</span>
+                    <span className="text-gray-900">${(item.sellingPrice || 0).toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -383,7 +342,7 @@ export default function StockDetailModal({ isOpen, onClose, item }: StockDetailM
         <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+            className="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors duration-200 font-medium"
           >
             Close
           </button>

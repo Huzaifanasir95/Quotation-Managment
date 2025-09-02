@@ -540,25 +540,25 @@ export default function InventoryPage() {
                         <div className="flex flex-wrap gap-2">
                           <button
                             onClick={() => handleViewStockDetail(item)}
-                            className="text-blue-600 hover:text-blue-700 font-medium"
+                            className="px-3 py-1 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition-colors duration-200 font-medium text-sm"
                           >
                             View
                           </button>
                           <button
                             onClick={() => handleEditItem(item)}
-                            className="text-green-600 hover:text-green-700 font-medium"
+                            className="px-3 py-1 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors duration-200 font-medium text-sm"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => handleAdjustStock(item)}
-                            className="text-orange-600 hover:text-orange-700 font-medium"
+                            className="px-3 py-1 bg-zinc-600 text-white rounded-md hover:bg-zinc-700 transition-colors duration-200 font-medium text-sm"
                           >
                             Adjust
                           </button>
                           <button
                             onClick={() => handleDeleteItem(item)}
-                            className="text-red-600 hover:text-red-700 font-medium"
+                            className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 font-medium text-sm"
                           >
                             Delete
                           </button>
