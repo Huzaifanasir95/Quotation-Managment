@@ -229,4 +229,122 @@ router.patch('/:id/status', authenticateToken, authorize(['admin', 'procurement'
   });
 }));
 
+// Update purchase order
+router.patch('/:id', authenticateToken, authorize(['admin', 'procurement']), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { items, ...poData } = req.body;
+
+  // First check if PO exists
+  const { data: existingPO, error: fetchError } = await supabaseAdmin
+    .from('purchase_orders')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !existingPO) {
+    return res.status(404).json({
+      error: 'Purchase order not found',
+      code: 'PO_NOT_FOUND'
+    });
+  }
+
+  // Calculate totals if items are provided
+  let subtotal = existingPO.subtotal;
+  let tax_amount = existingPO.tax_amount;
+  let discount_amount = existingPO.discount_amount;
+  let total_amount = existingPO.total_amount;
+
+  if (items && items.length > 0) {
+    subtotal = 0;
+    tax_amount = 0;
+    discount_amount = 0;
+
+    const processedItems = items.map(item => {
+      const line_total = item.quantity * item.unit_price;
+      const discount = line_total * (item.discount_percent || 0) / 100;
+      const taxable_amount = line_total - discount;
+      const tax = taxable_amount * (item.tax_percent || 0) / 100;
+
+      subtotal += line_total;
+      discount_amount += discount;
+      tax_amount += tax;
+
+      return {
+        ...item,
+        line_total: taxable_amount + tax
+      };
+    });
+
+    total_amount = subtotal - discount_amount + tax_amount;
+
+    // Delete existing items
+    const { error: deleteError } = await supabaseAdmin
+      .from('purchase_order_items')
+      .delete()
+      .eq('purchase_order_id', id);
+
+    if (deleteError) {
+      return res.status(400).json({
+        error: 'Failed to update purchase order items',
+        code: 'ITEMS_UPDATE_FAILED',
+        details: deleteError.message
+      });
+    }
+
+    // Insert new items
+    const poItems = processedItems.map(item => ({
+      ...item,
+      purchase_order_id: id
+    }));
+
+    const { error: itemsError } = await supabaseAdmin
+      .from('purchase_order_items')
+      .insert(poItems);
+
+    if (itemsError) {
+      return res.status(400).json({
+        error: 'Failed to create updated purchase order items',
+        code: 'ITEMS_CREATION_FAILED',
+        details: itemsError.message
+      });
+    }
+  }
+
+  // Update purchase order
+  const finalPOData = {
+    ...poData,
+    subtotal,
+    tax_amount,
+    discount_amount,
+    total_amount,
+    updated_at: new Date().toISOString()
+  };
+
+  const { data: purchaseOrder, error: updateError } = await supabaseAdmin
+    .from('purchase_orders')
+    .update(finalPOData)
+    .eq('id', id)
+    .select(`
+      *,
+      vendors(*),
+      business_entities(*),
+      purchase_order_items(*)
+    `)
+    .single();
+
+  if (updateError) {
+    return res.status(400).json({
+      error: 'Failed to update purchase order',
+      code: 'UPDATE_FAILED',
+      details: updateError.message
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Purchase order updated successfully',
+    data: { purchaseOrder }
+  });
+}));
+
 module.exports = router;

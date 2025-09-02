@@ -203,6 +203,13 @@ class ApiClient {
     });
   }
 
+  async updatePurchaseOrder(id: string, poData: any) {
+    return this.request(`/purchase-orders/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(poData),
+    });
+  }
+
   // Vendor methods
   async getVendors(params?: { page?: number; limit?: number; search?: string }) {
     const queryParams = new URLSearchParams();

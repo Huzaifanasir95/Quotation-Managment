@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
 import CreatePurchaseOrderModal from '../components/purchases/CreatePurchaseOrderModal';
+import EditPurchaseOrderModal from '../components/purchases/EditPurchaseOrderModal';
 import UploadVendorBillModal from '../components/purchases/UploadVendorBillModal';
 import GenerateDeliveryChallanModal from '../components/purchases/GenerateDeliveryChallanModal';
 import PurchaseOrderDetailsModal from '../components/purchases/PurchaseOrderDetailsModal';
@@ -10,6 +11,7 @@ import { apiClient, type PurchaseOrder, type Vendor } from '../lib/api';
 
 export default function PurchasesPage() {
   const [showCreatePO, setShowCreatePO] = useState(false);
+  const [showEditPO, setShowEditPO] = useState(false);
   const [showUploadBill, setShowUploadBill] = useState(false);
   const [showGenerateChallan, setShowGenerateChallan] = useState(false);
   const [showPODetails, setShowPODetails] = useState(false);
@@ -109,8 +111,8 @@ export default function PurchasesPage() {
   };
 
   const handleEditPO = (po: PurchaseOrder) => {
-    console.log('Editing PO:', po);
-    alert(`Editing ${po.po_number}`);
+    setSelectedPO(po);
+    setShowEditPO(true);
   };
 
   const handleApprovePO = async (po: PurchaseOrder) => {
@@ -398,6 +400,12 @@ export default function PurchasesPage() {
           onClose={() => setShowCreatePO(false)}
           onPOCreated={loadPurchaseOrders}
         />
+      <EditPurchaseOrderModal
+        isOpen={showEditPO}
+        onClose={() => setShowEditPO(false)}
+        purchaseOrder={selectedPO}
+        onPOUpdated={loadPurchaseOrders}
+      />
       <UploadVendorBillModal 
         isOpen={showUploadBill} 
         onClose={() => setShowUploadBill(false)} 
