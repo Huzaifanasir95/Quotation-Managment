@@ -53,7 +53,13 @@ export default function InventoryPage() {
       }
       
       if (categoriesResponse.success) {
-        setCategories(categoriesResponse.data.categories || []);
+        const loadedCategories = categoriesResponse.data.categories || [];
+        setCategories(loadedCategories);
+        
+        // If no categories exist, create default ones
+        if (loadedCategories.length === 0) {
+          await createDefaultCategories();
+        }
       }
       
       if (vendorsResponse.success) {
@@ -64,6 +70,39 @@ export default function InventoryPage() {
       setError('Failed to load inventory data. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Create default categories if none exist
+  const createDefaultCategories = async () => {
+    const defaultCategories = [
+      { name: 'Raw Materials', description: 'Raw materials for production' },
+      { name: 'Finished Goods', description: 'Completed products ready for sale' },
+      { name: 'Services', description: 'Service-based items' },
+      { name: 'Spare Parts', description: 'Replacement parts and components' },
+      { name: 'Office Supplies', description: 'General office supplies and stationery' },
+      { name: 'Electronics', description: 'Electronic equipment and components' }
+    ];
+
+    try {
+      const createdCategories = [];
+      for (const category of defaultCategories) {
+        try {
+          const response = await apiClient.createProductCategory(category);
+          if (response.success) {
+            createdCategories.push(response.data.category);
+          }
+        } catch (error) {
+          console.error('Failed to create category:', category.name, error);
+        }
+      }
+      
+      if (createdCategories.length > 0) {
+        setCategories(createdCategories);
+        console.log('Created default categories:', createdCategories);
+      }
+    } catch (error) {
+      console.error('Failed to create default categories:', error);
     }
   };
   

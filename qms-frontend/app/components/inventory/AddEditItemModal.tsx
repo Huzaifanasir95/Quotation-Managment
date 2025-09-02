@@ -36,15 +36,8 @@ export default function AddEditItemModal({ isOpen, onClose, editingItem, onItemS
     { value: 'spare_parts', label: 'Spare Parts' }
   ];
   
-  // Get category options from props or create default ones
-  const categoryOptions = categories && categories.length > 0 ? categories : [
-    { id: '1', name: 'Raw Materials' },
-    { id: '2', name: 'Finished Goods' },
-    { id: '3', name: 'Services' },
-    { id: '4', name: 'Spare Parts' },
-    { id: '5', name: 'Office Supplies' },
-    { id: '6', name: 'Electronics' }
-  ];
+  // Get category options from props - don't use hardcoded fallback with invalid IDs
+  const categoryOptions = categories && categories.length > 0 ? categories : [];
 
   useEffect(() => {
     if (editingItem) {
@@ -121,9 +114,9 @@ export default function AddEditItemModal({ isOpen, onClose, editingItem, onItemS
       // Add optional fields only if they have values
       if (formData.description) productData.description = formData.description;
       if (formData.category_id) productData.category_id = formData.category_id;
-      if (formData.max_stock_level) productData.max_stock_level = formData.max_stock_level;
-      if (formData.last_purchase_price) productData.last_purchase_price = formData.last_purchase_price;
-      if (formData.selling_price) productData.selling_price = formData.selling_price;
+      if (formData.max_stock_level > 0) productData.max_stock_level = formData.max_stock_level;
+      if (formData.last_purchase_price > 0) productData.last_purchase_price = formData.last_purchase_price;
+      if (formData.selling_price > 0) productData.selling_price = formData.selling_price;
       
       let response;
       if (editingItem) {
@@ -160,11 +153,28 @@ export default function AddEditItemModal({ isOpen, onClose, editingItem, onItemS
         }
         setErrors({});
       } else {
-        throw new Error(response.message || 'Failed to save item');
+        console.error('Failed to save item:', response);
+        
+        // Try to extract validation errors from response
+        if (response.details && Array.isArray(response.details)) {
+          const errorMessages = response.details.map((err: any) => 
+            `${err.field}: ${err.message}`
+          ).join('\n');
+          alert(`Failed to save item:\n${errorMessages}`);
+        } else {
+          alert(`Failed to save item: ${response.message || 'Unknown error'}`);
+        }
       }
     } catch (error) {
       console.error('Failed to save item:', error);
-      alert(`Failed to save item: ${error instanceof Error ? error.message : 'Please try again.'}`);
+      
+      // Try to parse error message if it's from API response
+      let errorMessage = 'Please try again.';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      alert(`Failed to save item: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -247,10 +257,19 @@ export default function AddEditItemModal({ isOpen, onClose, editingItem, onItemS
                 }`}
               >
                 <option value="">Select category (optional)</option>
-                {categoryOptions.map(category => (
-                  <option key={category.id} value={category.id}>{category.name}</option>
-                ))}
+                {categoryOptions.length > 0 ? (
+                  categoryOptions.map(category => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
+                  ))
+                ) : (
+                  <option value="" disabled>No categories available</option>
+                )}
               </select>
+              {categoryOptions.length === 0 && (
+                <p className="mt-1 text-sm text-orange-600">
+                  No categories found. Categories can be managed from the admin panel.
+                </p>
+              )}
               {errors.category_id && <p className="text-red-500 text-xs mt-1">{errors.category_id}</p>}
             </div>
 

@@ -1,4 +1,4 @@
-'use client';
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              'use client';
 
 import { useState, useEffect } from 'react';
 import { apiClient, type Vendor } from '../../lib/api';
@@ -9,14 +9,15 @@ interface CreatePurchaseOrderModalProps {
   onPOCreated?: () => void;
 }
 
-
 interface Product {
   id: string;
   name: string;
   sku: string;
-  price: number;
+  selling_price: number;
+  last_purchase_price: number;
   category: string;
-  currentStock: number;
+  current_stock: number;
+  status: string;
 }
 
 interface POItem {
@@ -39,13 +40,16 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
   });
   const [items, setItems] = useState<POItem[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [productsLoading, setProductsLoading] = useState(false);
   const [action, setAction] = useState<'save' | 'approve'>('save');
 
-  // Load vendors when modal opens
+  // Load vendors and products when modal opens
   useEffect(() => {
     if (isOpen) {
       loadVendors();
+      loadProducts();
       // Reset form when modal opens
       setFormData({
         vendorId: '',
@@ -79,12 +83,32 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
     }
   };
 
-  const products: Product[] = [
-    { id: '1', name: 'Laptop Dell XPS 13', sku: 'LAP-001', price: 1200, category: 'Electronics', currentStock: 5 },
-    { id: '2', name: 'Monitor 27" 4K', sku: 'MON-002', price: 800, category: 'Electronics', currentStock: 3 },
-    { id: '3', name: 'Wireless Keyboard', sku: 'KEY-003', price: 50, category: 'Accessories', currentStock: 15 },
-    { id: '4', name: 'USB-C Hub', sku: 'HUB-004', price: 45, category: 'Accessories', currentStock: 8 }
-  ];
+  const loadProducts = async () => {
+    setProductsLoading(true);
+    try {
+      console.log('Loading products...');
+      const response = await apiClient.getProducts({ limit: 1000, status: 'active' });
+      console.log('Products response:', response);
+      if (response.success && response.data) {
+        // Handle different response structures
+        const productsList = response.data.products || response.data || [];
+        console.log('Loaded products:', productsList);
+        // Log first product to see structure
+        if (productsList.length > 0) {
+          console.log('Sample product:', productsList[0]);
+        }
+        setProducts(productsList);
+      } else {
+        console.error('Failed to load products:', response?.message);
+        setProducts([]);
+      }
+    } catch (error) {
+      console.error('Failed to load products:', error);
+      setProducts([]);
+    } finally {
+      setProductsLoading(false);
+    }
+  };
 
   const addItem = () => {
     const newItem: POItem = {
@@ -101,19 +125,25 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
   };
 
   const updateItem = (id: string, field: keyof POItem, value: string | number) => {
-    setItems(items.map(item => {
-      if (item.id === id) {
-        const updatedItem = { ...item, [field]: value };
-        if (field === 'quantity' || field === 'unitPrice' || field === 'discount' || field === 'tax') {
-          const subtotal = Number(updatedItem.quantity) * Number(updatedItem.unitPrice);
-          const discountAmount = subtotal * (Number(updatedItem.discount) / 100);
-          const taxAmount = (subtotal - discountAmount) * (Number(updatedItem.tax) / 100);
-          updatedItem.subtotal = subtotal - discountAmount + taxAmount;
+    console.log(`Updating item ${id}, field ${field}, value:`, value);
+    setItems(prevItems => {
+      const newItems = prevItems.map(item => {
+        if (item.id === id) {
+          const updatedItem = { ...item, [field]: value };
+          if (field === 'quantity' || field === 'unitPrice' || field === 'discount' || field === 'tax') {
+            const subtotal = Number(updatedItem.quantity) * Number(updatedItem.unitPrice);
+            const discountAmount = subtotal * (Number(updatedItem.discount) / 100);
+            const taxAmount = (subtotal - discountAmount) * (Number(updatedItem.tax) / 100);
+            updatedItem.subtotal = subtotal - discountAmount + taxAmount;
+          }
+          console.log('Updated item:', updatedItem);
+          return updatedItem;
         }
-        return updatedItem;
-      }
-      return item;
-    }));
+        return item;
+      });
+      console.log('All items after update:', newItems);
+      return newItems;
+    });
   };
 
   const removeItem = (id: string) => {
@@ -140,6 +170,13 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
       return;
     }
 
+    // Validate that all items have descriptions
+    const invalidItems = items.filter(item => !item.description.trim());
+    if (invalidItems.length > 0) {
+      alert('Please ensure all items have descriptions.');
+      return;
+    }
+
     setIsLoading(true);
     
     try {
@@ -151,6 +188,7 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
         notes: formData.notes || null,
         terms_conditions: formData.terms || null,
         items: items.map(item => ({
+          product_id: item.productId || null,
           description: item.description,
           quantity: item.quantity,
           unit_price: item.unitPrice,
@@ -158,6 +196,8 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
           tax_percent: item.tax
         }))
       };
+      
+      console.log('Submitting PO data:', poData);
       
       const response = await apiClient.createPurchaseOrder(poData);
       
@@ -273,12 +313,28 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Items</h3>
-              <button
-                onClick={addItem}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                Add Item
-              </button>
+              <div className="flex items-center space-x-3">
+                {products.length === 0 && !productsLoading && (
+                  <span className="text-sm text-orange-600">
+                    Add products in{' '}
+                    <button
+                      type="button"
+                      onClick={() => window.open('/inventory', '_blank')}
+                      className="text-blue-600 hover:text-blue-800 underline font-medium"
+                    >
+                      Inventory
+                    </button>{' '}
+                    first
+                  </span>
+                )}
+                <button
+                  onClick={addItem}
+                  disabled={products.length === 0 || productsLoading}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add Item
+                </button>
+              </div>
             </div>
 
             {items.length === 0 ? (
@@ -286,7 +342,29 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
                 <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
-                <p>No items added yet. Click "Add Item" to get started.</p>
+                <p className="mb-4">No items added yet. Click "Add Item" to get started.</p>
+                {products.length === 0 && !productsLoading && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 max-w-md mx-auto">
+                    <div className="flex items-center">
+                      <svg className="w-5 h-5 text-orange-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                      <div className="text-sm">
+                        <p className="text-orange-800 font-medium">No products available!</p>
+                        <p className="text-orange-700 mt-1">
+                          You need to add products first.{' '}
+                          <button
+                            type="button"
+                            onClick={() => window.open('/inventory', '_blank')}
+                            className="text-blue-600 hover:text-blue-800 underline font-medium"
+                          >
+                            Go to Inventory →
+                          </button>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-4">
@@ -297,22 +375,71 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
                         <select
                           value={item.productId}
                           onChange={(e) => {
+                            console.log('Product selected:', e.target.value);
+                            console.log('Current item before update:', item);
                             const product = products.find(p => p.id === e.target.value);
-                            updateItem(item.id, 'productId', e.target.value);
+                            console.log('Found product:', product);
+                            
                             if (product) {
-                              updateItem(item.id, 'description', product.name);
-                              updateItem(item.id, 'unitPrice', product.price);
+                              // Batch all updates in a single setState call
+                              setItems(prevItems => prevItems.map(prevItem => {
+                                if (prevItem.id === item.id) {
+                                  const price = product.last_purchase_price || product.selling_price || 0;
+                                  const updatedItem = {
+                                    ...prevItem,
+                                    productId: e.target.value,
+                                    description: product.name,
+                                    unitPrice: price
+                                  };
+                                  // Recalculate subtotal
+                                  const subtotal = Number(updatedItem.quantity) * Number(updatedItem.unitPrice);
+                                  const discountAmount = subtotal * (Number(updatedItem.discount) / 100);
+                                  const taxAmount = (subtotal - discountAmount) * (Number(updatedItem.tax) / 100);
+                                  updatedItem.subtotal = subtotal - discountAmount + taxAmount;
+                                  
+                                  console.log('Updated item:', updatedItem);
+                                  return updatedItem;
+                                }
+                                return prevItem;
+                              }));
+                            } else {
+                              // Just update productId if no product found
+                              updateItem(item.id, 'productId', e.target.value);
                             }
                           }}
                           className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          disabled={productsLoading}
                         >
-                          <option value="">Select product</option>
-                          {products.map((product) => (
-                            <option key={product.id} value={product.id}>
-                              {product.name} - ${product.price} (Stock: {product.currentStock})
-                            </option>
-                          ))}
+                          <option value="">
+                            {productsLoading ? 'Loading products...' : 'Select product'}
+                          </option>
+                          {products.length > 0 ? (
+                            products.map((product) => {
+                              const price = product.last_purchase_price || product.selling_price || 0;
+                              return (
+                                <option key={product.id} value={product.id}>
+                                  {product.name} - ${price.toFixed(2)} (Stock: {product.current_stock})
+                                </option>
+                              );
+                            })
+                          ) : (
+                            !productsLoading && (
+                              <option value="" disabled>No products available</option>
+                            )
+                          )}
                         </select>
+                        {products.length === 0 && !productsLoading && (
+                          <p className="mt-1 text-sm text-orange-600">
+                            No products found.{' '}
+                            <button
+                              type="button"
+                              onClick={() => window.open('/inventory', '_blank')}
+                              className="text-blue-600 hover:text-blue-800 underline"
+                            >
+                              Add products in Inventory →
+                            </button>
+                          </p>
+                        )}
                       </div>
 
                       <div className="col-span-2">
@@ -363,24 +490,24 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
 
           {/* Summary */}
           {items.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <h4 className="font-medium text-blue-900 mb-2">Order Summary</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-blue-700">Subtotal:</span>
-                  <span className="float-right font-medium">${calculateTotals().subtotal.toFixed(2)}</span>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+              <h4 className="font-semibold text-blue-900 mb-4 text-lg">Order Summary</h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center py-2 border-b border-blue-200">
+                  <span className="text-blue-700 font-medium">Subtotal:</span>
+                  <span className="font-semibold text-blue-900">${calculateTotals().subtotal.toFixed(2)}</span>
                 </div>
-                <div>
-                  <span className="text-blue-700">Total Discount:</span>
-                  <span className="float-right font-medium">-${calculateTotals().totalDiscount.toFixed(2)}</span>
+                <div className="flex justify-between items-center py-2 border-b border-blue-200">
+                  <span className="text-blue-700 font-medium">Total Discount:</span>
+                  <span className="font-semibold text-red-600">-${calculateTotals().totalDiscount.toFixed(2)}</span>
                 </div>
-                <div>
-                  <span className="text-blue-700">Total Tax:</span>
-                  <span className="float-right font-medium">+${calculateTotals().totalTax.toFixed(2)}</span>
+                <div className="flex justify-between items-center py-2 border-b border-blue-200">
+                  <span className="text-blue-700 font-medium">Total Tax:</span>
+                  <span className="font-semibold text-green-600">+${calculateTotals().totalTax.toFixed(2)}</span>
                 </div>
-                <div className="border-t border-blue-200 pt-2">
-                  <span className="text-blue-900 font-semibold">Grand Total:</span>
-                  <span className="float-right font-bold text-lg">${calculateTotals().total.toFixed(2)}</span>
+                <div className="flex justify-between items-center py-3 border-t-2 border-blue-300 bg-blue-100 px-4 rounded-lg">
+                  <span className="text-blue-900 font-bold text-lg">Grand Total:</span>
+                  <span className="font-bold text-xl text-blue-900">${calculateTotals().total.toFixed(2)}</span>
                 </div>
               </div>
             </div>

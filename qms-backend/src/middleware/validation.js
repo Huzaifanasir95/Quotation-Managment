@@ -119,6 +119,7 @@ const schemas = {
     sales_order_id: Joi.string().uuid().optional(),
     po_date: Joi.date().required(),
     expected_delivery_date: Joi.date().optional(),
+    status: Joi.string().valid('draft', 'pending_approval', 'approved', 'sent', 'received', 'closed', 'cancelled').optional(),
     terms_conditions: Joi.string().optional(),
     notes: Joi.string().optional(),
     items: Joi.array().items(
