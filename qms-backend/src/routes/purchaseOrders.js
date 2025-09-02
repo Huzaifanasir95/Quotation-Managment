@@ -18,7 +18,8 @@ router.get('/', authenticateToken, authorize(['admin', 'procurement', 'finance',
       vendors(name, email),
       business_entities(name),
       purchase_order_items(*),
-      vendor_bills(id, bill_number, status, total_amount)
+      vendor_bills(id, bill_number, status, total_amount),
+      delivery_challans(id, challan_number, status)
     `, { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
@@ -70,7 +71,8 @@ router.get('/:id', authenticateToken, authorize(['admin', 'procurement', 'financ
       vendors(*),
       business_entities(*),
       purchase_order_items(*),
-      vendor_bills(id, bill_number, status, total_amount, bill_date, due_date)
+      vendor_bills(id, bill_number, status, total_amount, bill_date, due_date),
+      delivery_challans(id, challan_number, status, challan_date, delivery_date, delivery_address, notes)
     `)
     .eq('id', id)
     .single();

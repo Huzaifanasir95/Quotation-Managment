@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { apiClient, type PurchaseOrder } from '../../lib/api';
 import VendorBillDetailsModal from './VendorBillDetailsModal';
+import DeliveryChallanDetailsModal from './DeliveryChallanDetailsModal';
 
 interface PurchaseOrderDetailsModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
   const [detailedPO, setDetailedPO] = useState<PurchaseOrder | null>(null);
   const [loading, setLoading] = useState(false);
   const [billDetailsModal, setBillDetailsModal] = useState<{ isOpen: boolean; billId: string | null }>({ isOpen: false, billId: null });
+  const [challanDetailsModal, setChallanDetailsModal] = useState<{ isOpen: boolean; challanId: string | null }>({ isOpen: false, challanId: null });
   const [downloading, setDownloading] = useState<string | null>(null);
 
   // Fetch detailed PO data when modal opens
@@ -48,7 +50,7 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
     { id: 'details', name: 'Details', icon: '📋', count: null },
     { id: 'items', name: 'Items', icon: '📦', count: currentPO.purchase_order_items?.length || 0 },
     { id: 'bills', name: 'Vendor Bills', icon: '🧾', count: currentPO.vendor_bills?.length || 0 },
-    { id: 'challans', name: 'Challans', icon: '🚚', count: (currentPO.delivery_challans?.length || 0) + (currentPO.challans?.length || 0) },
+    { id: 'challans', name: 'Challans', icon: '🚚', count: currentPO.delivery_challans?.length || 0 },
     { id: 'history', name: 'History', icon: '📈', count: null }
   ];
 
@@ -108,6 +110,40 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
     } catch (error) {
       console.error('Failed to download bill:', error);
       alert('Failed to download bill. Please try again.');
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const handleViewChallanDetails = (challanId: string) => {
+    setChallanDetailsModal({ isOpen: true, challanId });
+  };
+
+  const handleDownloadChallan = async (challanId: string, challanNumber: string) => {
+    setDownloading(challanId);
+    try {
+      // Get the challan documents
+      const response = await apiClient.getDocuments('delivery_challan', challanId);
+      if (response.success && response.data.documents.length > 0) {
+        const document = response.data.documents[0]; // Download the first document
+        const blob = await apiClient.downloadDocument(document.id);
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = document.file_name || `${challanNumber}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('No documents found for this challan');
+      }
+    } catch (error) {
+      console.error('Failed to download challan:', error);
+      alert('Failed to download challan. Please try again.');
     } finally {
       setDownloading(null);
     }
@@ -498,14 +534,13 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM21 17a2 2 0 11-4 0 2 2 0 014 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1 13h16.586a1 1 0 00.707-.293l2.414-2.414a1 1 0 000-1.414l-2.414-2.414A1 1 0 0017.586 6H1a1 1 0 00-1 1v5a1 1 0 001 1z" />
                   </svg>
-                  Delivery Challans ({(currentPO.delivery_challans?.length || 0) + (currentPO.challans?.length || 0)})
+                  Delivery Challans ({currentPO.delivery_challans?.length || 0})
                 </h4>
               </div>
 
-              {(currentPO.delivery_challans && currentPO.delivery_challans.length > 0) || (currentPO.challans && currentPO.challans.length > 0) ? (
+              {currentPO.delivery_challans && currentPO.delivery_challans.length > 0 ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* New delivery_challans */}
-                  {currentPO.delivery_challans && currentPO.delivery_challans.map((challan: any, index: number) => (
+                  {currentPO.delivery_challans.map((challan: any, index: number) => (
                     <div key={`dc-${index}`} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow duration-200">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center space-x-3">
@@ -536,6 +571,12 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
                             <p className="text-sm font-medium text-gray-900">{challan.delivery_date ? new Date(challan.delivery_date).toLocaleDateString() : 'N/A'}</p>
                           </div>
                         </div>
+                        {challan.delivery_address && (
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <span className="text-sm text-gray-500">Delivery Address</span>
+                            <p className="text-sm text-gray-900 mt-1">{challan.delivery_address}</p>
+                          </div>
+                        )}
                         {challan.notes && (
                           <div className="bg-gray-50 rounded-lg p-3">
                             <span className="text-sm text-gray-500">Notes</span>
@@ -545,59 +586,18 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
                       </div>
                       
                       <div className="flex justify-end space-x-2 mt-4 pt-4 border-t border-gray-100">
-                        <button className="text-blue-600 hover:text-blue-700 text-sm font-medium px-3 py-1 rounded-md hover:bg-blue-50 transition-colors duration-200">
+                        <button 
+                          onClick={() => handleViewChallanDetails(challan.id)}
+                          className="text-blue-600 hover:text-blue-700 text-sm font-medium px-3 py-1 rounded-md hover:bg-blue-50 transition-colors duration-200"
+                        >
                           View Details
                         </button>
-                        <button className="text-green-600 hover:text-green-700 text-sm font-medium px-3 py-1 rounded-md hover:bg-green-50 transition-colors duration-200">
-                          Download PDF
-                        </button>
-                        <button className="text-purple-600 hover:text-purple-700 text-sm font-medium px-3 py-1 rounded-md hover:bg-purple-50 transition-colors duration-200">
-                          Print
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {/* Legacy challans for backward compatibility */}
-                  {currentPO.challans && currentPO.challans.map((challan: any, index: number) => (
-                    <div key={`legacy-${index}`} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow duration-200">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM21 17a2 2 0 11-4 0 2 2 0 014 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1 13h16.586a1 1 0 00.707-.293l2.414-2.414a1 1 0 000-1.414l-2.414-2.414A1 1 0 0017.586 6H1a1 1 0 00-1 1v5a1 1 0 001 1z" />
-                            </svg>
-                          </div>
-                          <div>
-                            <h5 className="font-semibold text-gray-900">{challan.challan_number}</h5>
-                            <p className="text-sm text-gray-500">Legacy Challan</p>
-                          </div>
-                        </div>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(challan.status)}`}>
-                          {formatStatus(challan.status)}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <span className="text-sm text-gray-500">Challan Date</span>
-                            <p className="text-sm font-medium text-gray-900">{challan.challan_date ? new Date(challan.challan_date).toLocaleDateString() : 'N/A'}</p>
-                          </div>
-                          <div>
-                            <span className="text-sm text-gray-500">Delivery Date</span>
-                            <p className="text-sm font-medium text-gray-900">{challan.delivery_date ? new Date(challan.delivery_date).toLocaleDateString() : 'N/A'}</p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="flex justify-end space-x-2 mt-4 pt-4 border-t border-gray-100">
-                        <button className="text-blue-600 hover:text-blue-700 text-sm font-medium px-3 py-1 rounded-md hover:bg-blue-50 transition-colors duration-200">
-                          View Details
-                        </button>
-                        <button className="text-green-600 hover:text-green-700 text-sm font-medium px-3 py-1 rounded-md hover:bg-green-50 transition-colors duration-200">
-                          Download PDF
+                        <button 
+                          onClick={() => handleDownloadChallan(challan.id, challan.challan_number)}
+                          disabled={downloading === challan.id}
+                          className="text-green-600 hover:text-green-700 text-sm font-medium px-3 py-1 rounded-md hover:bg-green-50 transition-colors duration-200 disabled:opacity-50"
+                        >
+                          {downloading === challan.id ? 'Downloading...' : 'Download PDF'}
                         </button>
                       </div>
                     </div>
@@ -739,6 +739,13 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
         isOpen={billDetailsModal.isOpen}
         onClose={() => setBillDetailsModal({ isOpen: false, billId: null })}
         billId={billDetailsModal.billId}
+      />
+
+      {/* Delivery Challan Details Modal */}
+      <DeliveryChallanDetailsModal
+        isOpen={challanDetailsModal.isOpen}
+        onClose={() => setChallanDetailsModal({ isOpen: false, challanId: null })}
+        challanId={challanDetailsModal.challanId}
       />
     </div>
   );

@@ -55,6 +55,57 @@ router.get('/', authenticateToken, authorize(['admin', 'procurement', 'finance',
   });
 }));
 
+// Get delivery challan by ID
+router.get('/:id', authenticateToken, authorize(['admin', 'procurement', 'finance', 'sales', 'auditor']), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const { data: deliveryChallan, error } = await supabaseAdmin
+    .from('delivery_challans')
+    .select(`
+      *,
+      purchase_orders(
+        po_number, 
+        status,
+        total_amount,
+        vendors(name, email, phone, contact_person),
+        purchase_order_items(quantity, description, unit_price, line_total)
+      )
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    return res.status(404).json({
+      error: 'Delivery challan not found',
+      code: 'CHALLAN_NOT_FOUND',
+      details: error.message
+    });
+  }
+
+  // Get document attachments for this challan
+  const { data: attachments, error: attachmentError } = await supabaseAdmin
+    .from('document_attachments')
+    .select('*')
+    .eq('reference_type', 'delivery_challan')
+    .eq('reference_id', id)
+    .order('created_at', { ascending: false });
+
+  if (attachmentError) {
+    console.error('Failed to fetch attachments:', attachmentError);
+    // Don't fail the request, just continue without attachments
+  }
+
+  res.json({
+    success: true,
+    data: {
+      deliveryChallan: {
+        ...deliveryChallan,
+        attachments: attachments || []
+      }
+    }
+  });
+}));
+
 // Create new delivery challan
 router.post('/', authenticateToken, authorize(['admin', 'procurement', 'finance', 'sales']), asyncHandler(async (req, res) => {
   const {

@@ -290,6 +290,37 @@ class ApiClient {
     }
 
     return response.blob();
+  }
+
+  // Delivery Challans methods
+  async getDeliveryChallans(params?: { page?: number; limit?: number; search?: string; status?: string; purchase_order_id?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.purchase_order_id) queryParams.append('purchase_order_id', params.purchase_order_id);
+
+    const endpoint = `/delivery-challans${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request(endpoint);
+  }
+
+  async getDeliveryChallanById(id: string) {
+    return this.request(`/delivery-challans/${id}`);
+  }
+
+  async createDeliveryChallan(challanData: any) {
+    return this.request('/delivery-challans', {
+      method: 'POST',
+      body: JSON.stringify(challanData),
+    });
+  }
+
+  async updateDeliveryChallanStatus(id: string, status: string) {
+    return this.request(`/delivery-challans/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
   }  // Delivery Challans methods
   async getDeliveryChallans(params?: { page?: number; limit?: number; search?: string; status?: string; purchase_order_id?: string }) {
     const queryParams = new URLSearchParams();
