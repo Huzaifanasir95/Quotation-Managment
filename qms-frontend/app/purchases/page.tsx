@@ -338,7 +338,13 @@ export default function PurchasesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        <span className="text-gray-400">No bills</span>
+                        {po.vendor_bills && po.vendor_bills.length > 0 ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            {po.vendor_bills.length} bill{po.vendor_bills.length > 1 ? 's' : ''}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">No bills</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

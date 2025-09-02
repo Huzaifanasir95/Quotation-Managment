@@ -250,9 +250,13 @@ class ApiClient {
     if (params?.status) queryParams.append('status', params.status);
     if (params?.vendor_id) queryParams.append('vendor_id', params.vendor_id);
     if (params?.purchase_order_id) queryParams.append('purchase_order_id', params.purchase_order_id);
-    
+
     const endpoint = `/vendor-bills${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return this.request(endpoint);
+  }
+
+  async getVendorBillById(id: string) {
+    return this.request(`/vendor-bills/${id}`);
   }
 
   async createVendorBill(billData: any) {
@@ -269,7 +273,24 @@ class ApiClient {
     });
   }
 
-  // Delivery Challans methods
+  // Document methods
+  async getDocuments(entityType: string, entityId: string) {
+    return this.request(`/documents/${entityType}/${entityId}`);
+  }
+
+  async downloadDocument(documentId: string): Promise<Blob> {
+    const response = await fetch(`${this.baseURL}/documents/download/${documentId}`, {
+      headers: {
+        'Authorization': `Bearer ${this.getToken()}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to download document');
+    }
+
+    return response.blob();
+  }  // Delivery Challans methods
   async getDeliveryChallans(params?: { page?: number; limit?: number; search?: string; status?: string; purchase_order_id?: string }) {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
@@ -616,11 +637,27 @@ export interface PurchaseOrder {
     gst_number?: string;
   };
   purchase_order_items?: PurchaseOrderItem[];
+  vendor_bills?: Array<{
+    id: string;
+    bill_number: string;
+    status: string;
+    total_amount: number;
+    bill_date?: string;
+    due_date?: string;
+  }>;
   bills?: Array<{
     id: string;
     filename: string;
     file_path: string;
     uploaded_at: string;
+  }>;
+  delivery_challans?: Array<{
+    id: string;
+    challan_number: string;
+    status: string;
+    challan_date: string;
+    delivery_date?: string;
+    notes?: string;
   }>;
   challans?: Array<{
     id: string;

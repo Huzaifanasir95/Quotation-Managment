@@ -146,6 +146,52 @@ router.post('/', authenticateToken, authorize(['admin', 'procurement', 'finance'
   });
 }));
 
+// Get vendor bill by ID
+router.get('/:id', authenticateToken, authorize(['admin', 'procurement', 'finance', 'sales', 'auditor']), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const { data: vendorBill, error } = await supabaseAdmin
+    .from('vendor_bills')
+    .select(`
+      *,
+      vendors(name, email, phone, gst_number, contact_person),
+      purchase_orders(po_number, status)
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    return res.status(404).json({
+      error: 'Vendor bill not found',
+      code: 'BILL_NOT_FOUND',
+      details: error.message
+    });
+  }
+
+  // Get document attachments for this bill
+  const { data: attachments, error: attachmentError } = await supabaseAdmin
+    .from('document_attachments')
+    .select('*')
+    .eq('reference_type', 'vendor_bill')
+    .eq('reference_id', id)
+    .order('created_at', { ascending: false });
+
+  if (attachmentError) {
+    console.error('Failed to fetch attachments:', attachmentError);
+    // Don't fail the request, just continue without attachments
+  }
+
+  res.json({
+    success: true,
+    data: {
+      vendorBill: {
+        ...vendorBill,
+        attachments: attachments || []
+      }
+    }
+  });
+}));
+
 // Update vendor bill status
 router.patch('/:id/status', authenticateToken, authorize(['admin', 'procurement', 'finance']), asyncHandler(async (req, res) => {
   const { id } = req.params;
