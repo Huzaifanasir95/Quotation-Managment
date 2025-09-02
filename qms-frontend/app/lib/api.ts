@@ -280,6 +280,14 @@ class ApiClient {
     });
   }
 
+  // OCR methods
+  async saveOCRResults(ocrData: any) {
+    return this.request('/ocr/save-results', {
+      method: 'POST',
+      body: JSON.stringify(ocrData),
+    });
+  }
+
   // Document methods
   async getDocuments(entityType: string, entityId: string) {
     return this.request(`/documents/${entityType}/${entityId}`);
