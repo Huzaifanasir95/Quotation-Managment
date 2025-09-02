@@ -12,15 +12,18 @@
     "@heroicons/react": "^2.2.0",
     "@supabase/supabase-js": "^2.56.1",
     "next": "15.5.2",
+    "papaparse": "^5.5.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.62.0",
-    "tesseract.js": "^6.0.1"
+    "tesseract.js": "^6.0.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4.1.12",
     "@types/node": "^20",
+    "@types/papaparse": "^5.3.16",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.21",

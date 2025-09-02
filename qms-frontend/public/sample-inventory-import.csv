@@ -1,0 +1,16 @@
+SKU,Name,Description,Category,Type,UnitOfMeasure,CurrentStock,ReorderPoint,MaxStockLevel,LastPurchasePrice,AverageCost,SellingPrice,Status
+PROD-001,Laptop Computer,Dell Inspiron 15 3000 Series,Electronics,finished_good,units,25,10,100,450.00,475.00,650.00,active
+PROD-002,Office Chair,Ergonomic Office Chair with Lumbar Support,Office Supplies,finished_good,units,15,5,50,120.00,135.00,199.99,active
+PROD-003,Steel Rods,High-grade steel rods for construction,Raw Materials,raw_material,kg,500,100,2000,2.50,2.75,4.00,active
+PROD-004,Printer Paper,A4 Size White Copy Paper 500 Sheets,Office Supplies,finished_good,reams,200,50,500,8.99,9.25,12.99,active
+PROD-005,USB Cable,USB Type-C to USB-A Cable 6ft,Electronics,spare_parts,units,100,20,300,5.99,6.50,12.99,active
+PROD-006,Safety Helmet,Construction Safety Helmet ANSI Approved,Raw Materials,finished_good,units,30,10,100,25.00,27.50,45.00,active
+PROD-007,Marker Pen,Permanent Marker Black,Office Supplies,finished_good,units,75,25,200,1.50,1.75,2.99,active
+PROD-008,Network Switch,24-Port Gigabit Ethernet Switch,Electronics,finished_good,units,8,3,20,180.00,195.00,299.99,active
+PROD-009,Cleaning Service,Office Cleaning Service,Services,service,hours,0,0,0,25.00,25.00,35.00,active
+PROD-010,Plastic Pellets,Raw plastic pellets for injection molding,Raw Materials,raw_material,kg,1000,200,5000,1.25,1.40,2.50,active
+PROD-011,Monitor Stand,Adjustable Monitor Stand,Office Supplies,finished_good,units,20,5,50,35.00,38.50,59.99,active
+PROD-012,Screws Set,Assorted screws and bolts kit,Spare Parts,spare_parts,sets,50,15,100,12.00,13.50,24.99,active
+PROD-013,Coffee Machine,Commercial Coffee Machine,Office Supplies,finished_good,units,3,1,10,450.00,475.00,699.99,active
+PROD-014,CPU Cooler,High-Performance CPU Cooling Fan,Electronics,spare_parts,units,12,5,30,45.00,48.50,79.99,active
+PROD-015,Whiteboard,Large Magnetic Whiteboard 4x8 ft,Office Supplies,finished_good,units,8,2,20,120.00,135.00,199.99,active

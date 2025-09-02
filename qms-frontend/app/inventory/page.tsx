@@ -166,10 +166,6 @@ export default function InventoryPage() {
   const totalInventoryValue = inventoryItems.reduce((sum, item) => sum + item.totalValue, 0);
   const lowStockItems = inventoryItems.filter(item => item.status === 'Low Stock').length;
   const outOfStockItems = inventoryItems.filter(item => item.status === 'Out of Stock').length;
-  const fastMovingItems = inventoryItems
-    .filter(item => item.currentStock > 0)
-    .sort((a, b) => b.currentStock - a.currentStock)
-    .slice(0, 5);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -479,23 +475,6 @@ export default function InventoryPage() {
             <p className="text-sm text-gray-600">
               Found {filteredItems.length} item(s) out of {inventoryItems.length} total
             </p>
-          </div>
-        </div>
-
-        {/* Fast Moving Items */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top 5 Items by Stock Level</h3>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {fastMovingItems.map((item, index) => (
-              <div key={item.id} className="text-center p-4 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600 mb-1">{index + 1}</div>
-                <div className="text-sm font-medium text-gray-900 truncate">{item.name}</div>
-                <div className="text-xs text-gray-500">{item.sku}</div>
-                <div className="text-sm text-green-600 font-medium">
-                  {item.currentStock} {item.unitOfMeasure}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
 
