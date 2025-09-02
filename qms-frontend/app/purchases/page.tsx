@@ -31,6 +31,10 @@ export default function PurchasesPage() {
     dateTo: '',
     poId: ''
   });
+  
+  // UI state
+  const [showFilters, setShowFilters] = useState(true);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
   // Fetch data from backend
   const loadPurchaseOrders = async () => {
@@ -198,7 +202,7 @@ export default function PurchasesPage() {
           <div className="flex justify-center">
             <button
               onClick={() => setShowCreatePO(true)}
-              className="flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-800 text-white rounded-lg hover:from-blue-700 hover:via-purple-700 hover:to-blue-900 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 text-lg font-medium"
+              className="flex items-center justify-center px-8 py-4 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors duration-200 shadow-md hover:shadow-lg text-lg font-medium"
             >
               <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -209,186 +213,329 @@ export default function PurchasesPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Vendor</label>
-              <select
-                value={filters.vendor}
-                onChange={(e) => setFilters({ ...filters, vendor: e.target.value })}
-                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        <div className="bg-white rounded-lg shadow-md mb-6">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
+            <div className="flex items-center gap-4">
+              {/* View Mode Toggle */}
+              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded-md transition-colors ${
+                    viewMode === 'list' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  title="List View"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-md transition-colors ${
+                    viewMode === 'grid' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                  title="Grid View"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* Hide/Show Filters Button */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
               >
-                {vendorOptions.map(vendor => (
-                  <option key={vendor} value={vendor}>{vendor}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {statuses.map(status => (
-                  <option key={status} value={status}>{status === 'All' ? 'All' : formatStatus(status)}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date From</label>
-              <input
-                type="date"
-                value={filters.dateFrom}
-                onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date To</label>
-              <input
-                type="date"
-                value={filters.dateTo}
-                onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">PO ID</label>
-              <input
-                type="text"
-                value={filters.poId}
-                onChange={(e) => setFilters({ ...filters, poId: e.target.value })}
-                placeholder="Search PO ID..."
-                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+                <span className="text-sm font-medium">
+                  {showFilters ? 'Hide Filters' : 'Show Filters'}
+                </span>
+                <svg 
+                  className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
             </div>
           </div>
+          
+          {showFilters && (
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Vendor</label>
+                  <select
+                    value={filters.vendor}
+                    onChange={(e) => setFilters({ ...filters, vendor: e.target.value })}
+                    className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {vendorOptions.map(vendor => (
+                      <option key={vendor} value={vendor}>{vendor}</option>
+                    ))}
+                  </select>
+                </div>
 
-          <div className="mt-4 flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              Found {filteredPOs.length} purchase order(s)
-            </p>
-            <button
-              onClick={clearFilters}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Clear Filters
-            </button>
-          </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <select
+                    value={filters.status}
+                    onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                    className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {statuses.map(status => (
+                      <option key={status} value={status}>{status === 'All' ? 'All' : formatStatus(status)}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date From</label>
+                  <input
+                    type="date"
+                    value={filters.dateFrom}
+                    onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                    className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date To</label>
+                  <input
+                    type="date"
+                    value={filters.dateTo}
+                    onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                    className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">PO ID</label>
+                  <input
+                    type="text"
+                    value={filters.poId}
+                    onChange={(e) => setFilters({ ...filters, poId: e.target.value })}
+                    placeholder="Search PO ID..."
+                    className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between">
+                <p className="text-sm text-gray-600">
+                  Found {filteredPOs.length} purchase order(s)
+                </p>
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Purchase Orders Table */}
+        {/* Purchase Orders */}
         <div className="bg-white rounded-lg shadow-md">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900">Purchase Orders</h3>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="p-6">
             {filteredPOs.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-500">No purchase orders found.</p>
                 <p className="text-sm text-gray-400 mt-1">Total POs: {purchaseOrders.length} | Filtered: {filteredPOs.length}</p>
               </div>
+            ) : viewMode === 'list' ? (
+              // List View
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PO ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Linked Ref</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Created</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attached Bills</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredPOs.map((po) => (
+                      <tr key={po.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{po.po_number}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{po.vendors?.name || 'Unknown Vendor'}</div>
+                            <div className="text-sm text-gray-500">{po.vendors?.gst_number || 'N/A'}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            <div>Quote: {po.quotation_id || 'N/A'}</div>
+                            <div>Order: {po.sales_order_id || 'N/A'}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">{new Date(po.po_date).toLocaleDateString()}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(po.status)}`}>
+                            {formatStatus(po.status)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">${po.total_amount.toLocaleString()}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {po.vendor_bills && po.vendor_bills.length > 0 ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                {po.vendor_bills.length} bill{po.vendor_bills.length > 1 ? 's' : ''}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">No bills</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <div className="flex flex-wrap gap-1">
+                            <button
+                              onClick={() => handleViewPODetails(po)}
+                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-150 text-xs font-medium"
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={() => handleEditPO(po)}
+                              className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors duration-150 text-xs font-medium"
+                            >
+                              Edit
+                            </button>
+                            {po.status === 'pending_approval' && (
+                              <button
+                                onClick={() => handleApprovePO(po)}
+                                className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors duration-150 text-xs font-medium"
+                              >
+                                Approve
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleAttachBill(po)}
+                              className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors duration-150 text-xs font-medium"
+                            >
+                              Attach Bill
+                            </button>
+                            <button
+                              onClick={() => handleGenerateChallan(po)}
+                              className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors duration-150 text-xs font-medium"
+                            >
+                              Challan
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
-              <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PO ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Linked Ref</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Created</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attached Bills</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              // Grid View
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredPOs.map((po) => (
-                  <tr key={po.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{po.po_number}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                  <div key={po.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-4">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{po.vendors?.name || 'Unknown Vendor'}</div>
-                        <div className="text-sm text-gray-500">{po.vendors?.gst_number || 'N/A'}</div>
+                        <h4 className="text-lg font-semibold text-gray-900">{po.po_number}</h4>
+                        <p className="text-sm text-gray-600">{po.vendors?.name || 'Unknown Vendor'}</p>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        <div>Quote: {po.quotation_id || 'N/A'}</div>
-                        <div>Order: {po.sales_order_id || 'N/A'}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{new Date(po.po_date).toLocaleDateString()}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(po.status)}`}>
                         {formatStatus(po.status)}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">${po.total_amount.toLocaleString()}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {po.vendor_bills && po.vendor_bills.length > 0 ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            {po.vendor_bills.length} bill{po.vendor_bills.length > 1 ? 's' : ''}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400">No bills</span>
-                        )}
+                    </div>
+                    
+                    <div className="space-y-2 mb-4">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Date:</span>
+                        <span className="text-gray-900">{new Date(po.po_date).toLocaleDateString()}</span>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => handleViewPODetails(po)}
-                          className="text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleEditPO(po)}
-                          className="text-green-600 hover:text-green-700 font-medium"
-                        >
-                          Edit
-                        </button>
-                        {po.status === 'pending_approval' && (
-                          <button
-                            onClick={() => handleApprovePO(po)}
-                            className="text-purple-600 hover:text-purple-700 font-medium"
-                          >
-                            Approve
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleAttachBill(po)}
-                          className="text-orange-600 hover:text-orange-700 font-medium"
-                        >
-                          Attach Bill
-                        </button>
-                        <button
-                          onClick={() => handleGenerateChallan(po)}
-                          className="text-indigo-600 hover:text-indigo-700 font-medium"
-                        >
-                          Challan
-                        </button>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Amount:</span>
+                        <span className="text-gray-900 font-medium">${po.total_amount.toLocaleString()}</span>
                       </div>
-                    </td>
-                  </tr>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Bills:</span>
+                        <span className="text-gray-900">
+                          {po.vendor_bills && po.vendor_bills.length > 0 ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                              {po.vendor_bills.length} attached
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">None</span>
+                          )}
+                        </span>
+                      </div>
+                      {(po.quotation_id || po.sales_order_id) && (
+                        <div className="text-sm">
+                          <span className="text-gray-500">Linked:</span>
+                          <div className="mt-1">
+                            {po.quotation_id && <div className="text-xs text-gray-600">Quote: {po.quotation_id}</div>}
+                            {po.sales_order_id && <div className="text-xs text-gray-600">Order: {po.sales_order_id}</div>}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleViewPODetails(po)}
+                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-150 text-xs font-medium"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => handleEditPO(po)}
+                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors duration-150 text-xs font-medium"
+                      >
+                        Edit
+                      </button>
+                      {po.status === 'pending_approval' && (
+                        <button
+                          onClick={() => handleApprovePO(po)}
+                          className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors duration-150 text-xs font-medium"
+                        >
+                          Approve
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleAttachBill(po)}
+                        className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors duration-150 text-xs font-medium"
+                      >
+                        Attach Bill
+                      </button>
+                      <button
+                        onClick={() => handleGenerateChallan(po)}
+                        className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors duration-150 text-xs font-medium"
+                      >
+                        Challan
+                      </button>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
             )}
           </div>
         </div>
