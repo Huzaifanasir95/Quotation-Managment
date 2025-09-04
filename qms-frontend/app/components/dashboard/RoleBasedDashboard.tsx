@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAuth, RoleGuard } from '../../../lib/useAuth';
 import CreateQuotationModal from '../sales/CreateQuotationModal';
 import UploadInquiryModal from './UploadInquiryModal';
-import ConvertQuoteModal from './ConvertQuoteModal';
+import ConvertQuoteModal from '../sales/ConvertQuoteModal';
 import CreateInvoiceModal from './CreateInvoiceModal';
 import QuickReorderModal from './QuickReorderModal';
 
@@ -292,7 +292,13 @@ export default function RoleBasedDashboard() {
         }}
       />
       <UploadInquiryModal isOpen={showUploadInquiry} onClose={() => setShowUploadInquiry(false)} />
-      <ConvertQuoteModal isOpen={showConvertQuote} onClose={() => setShowConvertQuote(false)} />
+      <ConvertQuoteModal 
+        isOpen={showConvertQuote} 
+        onClose={() => setShowConvertQuote(false)}
+        onOrderCreated={() => {
+          console.log('Order created successfully from dashboard');
+        }}
+      />
       <CreateInvoiceModal isOpen={showCreateInvoice} onClose={() => setShowCreateInvoice(false)} />
       <QuickReorderModal isOpen={showQuickReorder} onClose={() => setShowQuickReorder(false)} />
     </div>

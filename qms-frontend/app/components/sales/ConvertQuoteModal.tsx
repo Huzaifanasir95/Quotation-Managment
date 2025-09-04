@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { apiClient } from '../../lib/api';
 
 interface ConvertQuoteModalProps {
@@ -31,6 +32,7 @@ interface Quote {
 type Step = 'select' | 'configure' | 'review';
 
 export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: ConvertQuoteModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<Step>('select');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [isConverting, setIsConverting] = useState(false);
@@ -50,6 +52,12 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
 
   const [availableQuotes, setAvailableQuotes] = useState<Quote[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Handle mounting for portal
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -228,11 +236,34 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
 
   const currentStepIndex = steps.findIndex(s => s.id === currentStep);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
-      <div className="bg-white rounded-2xl shadow-2xl max-w-7xl w-full max-h-[95vh] flex flex-col border border-gray-100">
+  const modalContent = (
+    <div 
+      className="fixed z-50" 
+      style={{ 
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px'
+      }}
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl max-w-7xl w-full flex flex-col border border-gray-100"
+        style={{ 
+          maxHeight: '95vh',
+          position: 'relative',
+          zIndex: 51
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="bg-gradient-to-r from-green-50 to-blue-50 px-8 py-6 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
@@ -817,4 +848,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
       </div>
     </div>
   );
+
+  // Render modal using portal to document.body for proper screen centering
+  return createPortal(modalContent, document.body);
 }
