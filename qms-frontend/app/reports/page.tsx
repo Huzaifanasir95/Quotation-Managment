@@ -85,6 +85,9 @@ export default function ReportsPage() {
         setError(null);
 
         // Fetch data in parallel
+        // Refresh token before making API calls
+        await apiClient.refreshToken();
+
         const [
           quotationsResponse,
           invoicesResponse,
@@ -92,7 +95,8 @@ export default function ReportsPage() {
           customersResponse,
           vendorsResponse,
           vendorBillsResponse,
-          purchaseOrdersResponse
+          purchaseOrdersResponse,
+          salesOrdersResponse
         ] = await Promise.all([
           apiClient.getQuotations({ limit: 1000 }),
           apiClient.getInvoices({ limit: 1000 }),
@@ -100,7 +104,8 @@ export default function ReportsPage() {
           apiClient.getCustomers({ limit: 1000 }),
           apiClient.getVendors({ limit: 1000 }),
           apiClient.getVendorBills({ limit: 1000 }),
-          apiClient.getPurchaseOrders({ limit: 1000 })
+          apiClient.getPurchaseOrders({ limit: 1000 }),
+          apiClient.request('/orders', { method: 'GET' }).catch(() => ({ data: [] }))
         ]);
 
         // Process KPI data - handle different response structures
@@ -132,6 +137,10 @@ export default function ReportsPage() {
                               Array.isArray(purchaseOrdersResponse?.data?.orders) ? purchaseOrdersResponse.data.orders :
                               Array.isArray(purchaseOrdersResponse) ? purchaseOrdersResponse : [];
 
+        const salesOrders = Array.isArray(salesOrdersResponse?.data?.orders) ? salesOrdersResponse.data.orders :
+                           Array.isArray(salesOrdersResponse?.data) ? salesOrdersResponse.data : 
+                           Array.isArray(salesOrdersResponse) ? salesOrdersResponse : [];
+
         console.log('Data arrays:', { 
           quotations: quotations.length, 
           invoices: invoices.length, 
@@ -139,27 +148,38 @@ export default function ReportsPage() {
           customers: customers.length, 
           vendors: vendors.length, 
           vendorBills: vendorBills.length, 
-          purchaseOrders: purchaseOrders.length 
+          purchaseOrders: purchaseOrders.length,
+          salesOrders: salesOrders.length
         });
 
         // Calculate KPIs
-        const pendingQuotations = quotations.filter((q: any) => q.status === 'pending').length;
-        const totalOrders = purchaseOrders.length; // Use purchase orders as "orders"
+        const pendingQuotations = quotations.filter((q: any) => q.status === 'draft' || q.status === 'sent').length;
+        const totalOrders = salesOrders.length; // Use sales orders as "orders"
         const totalInvoices = invoices.length;
-        const lowStockProducts = products.filter((p: any) => p.stock_quantity <= (p.reorder_level || 5));
-        const outOfStockProducts = products.filter((p: any) => p.stock_quantity === 0);
+        const lowStockProducts = products.filter((p: any) => {
+          const currentStock = p.current_stock || 0;
+          const reorderPoint = p.reorder_point || 5;
+          return currentStock > 0 && currentStock <= reorderPoint;
+        });
+        const outOfStockProducts = products.filter((p: any) => (p.current_stock || 0) === 0);
         
-        const totalRevenue = invoices.reduce((sum: number, inv: any) => sum + (inv.total_amount || 0), 0);
-        const totalCOGS = vendorBills.reduce((sum: number, bill: any) => sum + (bill.total_amount || 0), 0);
+        const totalRevenue = salesOrders.length > 0 
+          ? salesOrders.reduce((sum: number, order: any) => sum + (order.total_amount || 0), 0)
+          : invoices.reduce((sum: number, inv: any) => sum + (inv.total_amount || 0), 0);
+        
+        const totalCOGS = purchaseOrders.length > 0
+          ? purchaseOrders.reduce((sum: number, po: any) => sum + (po.total_amount || 0), 0)
+          : vendorBills.reduce((sum: number, bill: any) => sum + (bill.total_amount || 0), 0);
+        
         const pendingInvoiceAmount = invoices
-          .filter((inv: any) => inv.status === 'pending')
+          .filter((inv: any) => inv.status === 'draft' || inv.status === 'sent')
           .reduce((sum: number, inv: any) => sum + (inv.total_amount || 0), 0);
 
         setKpiData({
           pendingQuotations,
           totalOrders,
           totalInvoices,
-          stockAlerts: lowStockProducts.length,
+          stockAlerts: lowStockProducts.length + outOfStockProducts.length,
           totalRevenue,
           profitMargin: totalRevenue > 0 ? ((totalRevenue - totalCOGS) / totalRevenue * 100) : 0,
           pendingInvoiceAmount,
@@ -171,12 +191,12 @@ export default function ReportsPage() {
         const netProfit = grossProfit; // Simplified - would need expense data
 
         const pendingInvoicesData = invoices
-          .filter((inv: any) => inv.status === 'pending')
+          .filter((inv: any) => inv.status === 'draft' || inv.status === 'sent')
           .map((inv: any) => ({
             id: inv.id,
             customer: inv.customers?.name || 'Unknown Customer',
             amount: inv.total_amount || 0,
-            dueDate: inv.due_date || inv.created_at,
+            dueDate: new Date(inv.due_date || inv.created_at).toLocaleDateString(),
             overdue: new Date(inv.due_date || inv.created_at) < new Date()
           }));
 
@@ -193,29 +213,66 @@ export default function ReportsPage() {
 
         // Process sales data - group by month
         const monthlySalesMap = new Map<string, { month: string; amount: number; orders: number }>();
-        invoices.forEach((inv: any) => {
-          const month = new Date(inv.created_at).toLocaleString('default', { month: 'short' });
+        
+        // Use sales orders for sales data
+        salesOrders.forEach((order: any) => {
+          const date = new Date(order.order_date || order.created_at);
+          const month = date.toLocaleString('default', { month: 'short' });
           if (!monthlySalesMap.has(month)) {
             monthlySalesMap.set(month, { month, amount: 0, orders: 0 });
           }
           const monthData = monthlySalesMap.get(month)!;
-          monthData.amount += inv.total_amount || 0;
+          monthData.amount += order.total_amount || 0;
           monthData.orders += 1;
         });
 
-        const monthlySales = Array.from(monthlySalesMap.values()).slice(-3);
+        // If no sales orders, fallback to invoices
+        if (salesOrders.length === 0) {
+          invoices.forEach((inv: any) => {
+            const date = new Date(inv.invoice_date || inv.created_at);
+            const month = date.toLocaleString('default', { month: 'short' });
+            if (!monthlySalesMap.has(month)) {
+              monthlySalesMap.set(month, { month, amount: 0, orders: 0 });
+            }
+            const monthData = monthlySalesMap.get(month)!;
+            monthData.amount += inv.total_amount || 0;
+            monthData.orders += 1;
+          });
+        }
 
-        // Top customers by total invoice amount
+        const monthlySales = Array.from(monthlySalesMap.values())
+          .sort((a, b) => {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return months.indexOf(a.month) - months.indexOf(b.month);
+          })
+          .slice(-3);
+
+        // Top customers by total sales amount
         const customerTotals = new Map<string, { name: string; amount: number; orders: number }>();
-        invoices.forEach((inv: any) => {
-          const customerName = inv.customers?.name || 'Unknown Customer';
+        
+        // Use sales orders for customer data
+        salesOrders.forEach((order: any) => {
+          const customerName = order.customers?.name || 'Unknown Customer';
           if (!customerTotals.has(customerName)) {
             customerTotals.set(customerName, { name: customerName, amount: 0, orders: 0 });
           }
           const customerData = customerTotals.get(customerName)!;
-          customerData.amount += inv.total_amount || 0;
+          customerData.amount += order.total_amount || 0;
           customerData.orders += 1;
         });
+
+        // If no sales orders, fallback to invoices
+        if (salesOrders.length === 0) {
+          invoices.forEach((inv: any) => {
+            const customerName = inv.customers?.name || 'Unknown Customer';
+            if (!customerTotals.has(customerName)) {
+              customerTotals.set(customerName, { name: customerName, amount: 0, orders: 0 });
+            }
+            const customerData = customerTotals.get(customerName)!;
+            customerData.amount += inv.total_amount || 0;
+            customerData.orders += 1;
+          });
+        }
 
         const topCustomers = Array.from(customerTotals.values())
           .sort((a, b) => b.amount - a.amount)
@@ -228,29 +285,66 @@ export default function ReportsPage() {
 
         // Process procurement data
         const monthlyPurchasesMap = new Map<string, { month: string; amount: number; orders: number }>();
-        vendorBills.forEach((bill: any) => {
-          const month = new Date(bill.created_at).toLocaleString('default', { month: 'short' });
+        
+        // Use purchase orders for procurement data
+        purchaseOrders.forEach((po: any) => {
+          const date = new Date(po.po_date || po.created_at);
+          const month = date.toLocaleString('default', { month: 'short' });
           if (!monthlyPurchasesMap.has(month)) {
             monthlyPurchasesMap.set(month, { month, amount: 0, orders: 0 });
           }
           const monthData = monthlyPurchasesMap.get(month)!;
-          monthData.amount += bill.total_amount || 0;
+          monthData.amount += po.total_amount || 0;
           monthData.orders += 1;
         });
 
-        const monthlyPurchases = Array.from(monthlyPurchasesMap.values()).slice(-3);
+        // If no purchase orders, fallback to vendor bills
+        if (purchaseOrders.length === 0) {
+          vendorBills.forEach((bill: any) => {
+            const date = new Date(bill.bill_date || bill.created_at);
+            const month = date.toLocaleString('default', { month: 'short' });
+            if (!monthlyPurchasesMap.has(month)) {
+              monthlyPurchasesMap.set(month, { month, amount: 0, orders: 0 });
+            }
+            const monthData = monthlyPurchasesMap.get(month)!;
+            monthData.amount += bill.total_amount || 0;
+            monthData.orders += 1;
+          });
+        }
 
-        // Top vendors by total bill amount
+        const monthlyPurchases = Array.from(monthlyPurchasesMap.values())
+          .sort((a, b) => {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return months.indexOf(a.month) - months.indexOf(b.month);
+          })
+          .slice(-3);
+
+        // Top vendors by total purchase amount
         const vendorTotals = new Map<string, { name: string; amount: number; orders: number }>();
-        vendorBills.forEach((bill: any) => {
-          const vendorName = bill.vendors?.name || 'Unknown Vendor';
+        
+        // Use purchase orders for vendor data
+        purchaseOrders.forEach((po: any) => {
+          const vendorName = po.vendors?.name || 'Unknown Vendor';
           if (!vendorTotals.has(vendorName)) {
             vendorTotals.set(vendorName, { name: vendorName, amount: 0, orders: 0 });
           }
           const vendorData = vendorTotals.get(vendorName)!;
-          vendorData.amount += bill.total_amount || 0;
+          vendorData.amount += po.total_amount || 0;
           vendorData.orders += 1;
         });
+
+        // If no purchase orders, fallback to vendor bills
+        if (purchaseOrders.length === 0) {
+          vendorBills.forEach((bill: any) => {
+            const vendorName = bill.vendors?.name || 'Unknown Vendor';
+            if (!vendorTotals.has(vendorName)) {
+              vendorTotals.set(vendorName, { name: vendorName, amount: 0, orders: 0 });
+            }
+            const vendorData = vendorTotals.get(vendorName)!;
+            vendorData.amount += bill.total_amount || 0;
+            vendorData.orders += 1;
+          });
+        }
 
         const topVendors = Array.from(vendorTotals.values())
           .sort((a, b) => b.amount - a.amount)
@@ -263,19 +357,29 @@ export default function ReportsPage() {
 
         // Process inventory data
         const totalValue = products.reduce((sum: number, product: any) => {
-          return sum + ((product.unit_price || 0) * (product.stock_quantity || 0));
+          const currentStock = product.current_stock || 0;
+          const unitPrice = product.selling_price || product.last_purchase_price || product.average_cost || 0;
+          return sum + (unitPrice * currentStock);
         }, 0);
 
         const criticalItems = products
-          .filter((p: any) => p.stock_quantity <= (p.reorder_level || 5))
-          .map((p: any) => ({
-            sku: p.sku,
-            name: p.name,
-            current: p.stock_quantity || 0,
-            reorder: p.reorder_level || 5,
-            status: p.stock_quantity === 0 ? 'out-of-stock' : 
-                   p.stock_quantity <= (p.reorder_level || 5) / 2 ? 'critical' : 'low'
-          }))
+          .filter((p: any) => {
+            const currentStock = p.current_stock || 0;
+            const reorderPoint = p.reorder_point || 5;
+            return currentStock <= reorderPoint;
+          })
+          .map((p: any) => {
+            const currentStock = p.current_stock || 0;
+            const reorderPoint = p.reorder_point || 5;
+            return {
+              sku: p.sku || 'N/A',
+              name: p.name || 'Unknown Product',
+              current: currentStock,
+              reorder: reorderPoint,
+              status: currentStock === 0 ? 'out-of-stock' : 
+                     currentStock <= reorderPoint / 2 ? 'critical' : 'low'
+            };
+          })
           .slice(0, 10);
 
         setInventoryData({

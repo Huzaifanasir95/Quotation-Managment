@@ -20,6 +20,16 @@ export default function UploadTradeDocumentModal({
   customers = [], 
   vendors = [] 
 }: UploadTradeDocumentModalProps) {
+  
+  // Debug logging
+  console.log('Modal Props:', { 
+    businessEntities: businessEntities.length, 
+    customers: customers.length, 
+    vendors: vendors.length,
+    businessEntitiesData: businessEntities,
+    customersData: customers,
+    vendorsData: vendors
+  });
   const [uploadData, setUploadData] = useState({
     businessEntity: '',
     documentType: '',
@@ -28,11 +38,7 @@ export default function UploadTradeDocumentModal({
     customerVendor: '',
     customerVendorType: 'Customer',
     documentDate: '',
-    expiryDate: '',
-    issuingAuthority: '',
-    countryOfOrigin: '',
     notes: '',
-    complianceNotes: '',
     files: [] as File[]
   });
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -70,7 +76,7 @@ export default function UploadTradeDocumentModal({
     if (!uploadData.linkedReference.trim()) newErrors.linkedReference = 'Linked reference is required';
     if (!uploadData.linkedType) newErrors.linkedType = 'Linked type is required';
     if (!uploadData.customerVendor.trim()) newErrors.customerVendor = 'Customer/Vendor is required';
-    if (uploadData.files.length === 0) newErrors.files = 'At least one file must be uploaded';
+    // File upload is now optional
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -96,10 +102,29 @@ export default function UploadTradeDocumentModal({
         vendorId = vendor?.id;
       }
 
-      // Upload each file
-      for (const file of uploadData.files) {
+      // Create document record (with or without files)
+      if (uploadData.files.length > 0) {
+        // Upload each file
+        for (const file of uploadData.files) {
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('entity_type', 'trade_document');
+          formData.append('entity_id', uploadData.businessEntity);
+          formData.append('business_entity_id', uploadData.businessEntity);
+          formData.append('document_type', uploadData.documentType);
+          formData.append('linked_reference_type', uploadData.linkedType);
+          formData.append('linked_reference_number', uploadData.linkedReference);
+          if (customerId) formData.append('customer_id', customerId);
+          if (vendorId) formData.append('vendor_id', vendorId);
+          if (uploadData.documentDate) formData.append('document_date', uploadData.documentDate);
+          if (uploadData.notes) formData.append('notes', uploadData.notes);
+
+          await apiClient.refreshToken();
+          await apiClient.uploadDocument(formData);
+        }
+      } else {
+        // Create document record without file
         const formData = new FormData();
-        formData.append('file', file);
         formData.append('entity_type', 'trade_document');
         formData.append('entity_id', uploadData.businessEntity);
         formData.append('business_entity_id', uploadData.businessEntity);
@@ -109,12 +134,9 @@ export default function UploadTradeDocumentModal({
         if (customerId) formData.append('customer_id', customerId);
         if (vendorId) formData.append('vendor_id', vendorId);
         if (uploadData.documentDate) formData.append('document_date', uploadData.documentDate);
-        if (uploadData.expiryDate) formData.append('expiry_date', uploadData.expiryDate);
-        if (uploadData.issuingAuthority) formData.append('issuing_authority', uploadData.issuingAuthority);
-        if (uploadData.countryOfOrigin) formData.append('country_of_origin', uploadData.countryOfOrigin);
         if (uploadData.notes) formData.append('notes', uploadData.notes);
-        if (uploadData.complianceNotes) formData.append('compliance_notes', uploadData.complianceNotes);
 
+        await apiClient.refreshToken();
         await apiClient.uploadDocument(formData);
       }
       
@@ -135,11 +157,7 @@ export default function UploadTradeDocumentModal({
         customerVendor: '',
         customerVendorType: 'Customer',
         documentDate: '',
-        expiryDate: '',
-        issuingAuthority: '',
-        countryOfOrigin: '',
         notes: '',
-        complianceNotes: '',
         files: []
       });
       setErrors({});
@@ -198,24 +216,55 @@ export default function UploadTradeDocumentModal({
           {/* Business Entity Selection */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-3">Business Entity *</label>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {businessEntities.map((entity) => (
-                <button
-                  key={entity.id}
-                  type="button"
-                  onClick={() => handleInputChange('businessEntity', entity.id)}
-                  className={`p-4 border rounded-lg text-left text-black transition-colors duration-200 ${
-                    uploadData.businessEntity === entity.id
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-300 hover:border-gray-400'
+            <div className="mb-2 text-sm text-gray-600">
+              Available entities: {businessEntities.length} | 
+              Selected: {uploadData.businessEntity || 'None'}
+            </div>
+            
+            {businessEntities.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {businessEntities.map((entity) => (
+                  <button
+                    key={entity.id}
+                    type="button"
+                    onClick={() => handleInputChange('businessEntity', entity.id)}
+                    className={`p-4 border rounded-lg text-left text-black transition-colors duration-200 ${
+                      uploadData.businessEntity === entity.id
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    <div className="font-medium">{entity.name}</div>
+                    <div className="text-sm text-gray-600">{entity.legal_name || entity.type}</div>
+                    <div className="text-xs text-gray-500">{entity.country}</div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <select
+                  value={uploadData.businessEntity}
+                  onChange={(e) => handleInputChange('businessEntity', e.target.value)}
+                  className={`w-full text-black px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.businessEntity ? 'border-red-500' : 'border-gray-300'
                   }`}
                 >
-                  <div className="font-medium">{entity.name}</div>
-                  <div className="text-sm text-gray-600">{entity.type}</div>
-                  <div className="text-xs text-gray-500">{entity.country}</div>
-                </button>
-              ))}
-            </div>
+                  <option value="">Select Business Entity</option>
+                  {businessEntities.map((entity) => (
+                    <option key={entity.id} value={entity.id}>
+                      {entity.name} - {entity.legal_name || entity.country}
+                    </option>
+                  ))}
+                </select>
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    <strong>No business entities found.</strong> Please add business entities to your database first.
+                    <br />
+                    <span className="text-xs">You can run the sample-business-entities.sql file to add test data.</span>
+                  </p>
+                </div>
+              </div>
+            )}
             {errors.businessEntity && <p className="text-red-500 text-xs mt-1">{errors.businessEntity}</p>}
           </div>
 
@@ -337,38 +386,6 @@ export default function UploadTradeDocumentModal({
                 className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date</label>
-              <input
-                type="date"
-                value={uploadData.expiryDate}
-                onChange={(e) => handleInputChange('expiryDate', e.target.value)}
-                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Issuing Authority</label>
-              <input
-                type="text"
-                value={uploadData.issuingAuthority}
-                onChange={(e) => handleInputChange('issuingAuthority', e.target.value)}
-                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="e.g., Customs Department, Port Authority"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Country of Origin</label>
-              <input
-                type="text"
-                value={uploadData.countryOfOrigin}
-                onChange={(e) => handleInputChange('countryOfOrigin', e.target.value)}
-                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="e.g., Pakistan, China, USA"
-              />
-            </div>
           </div>
 
           {/* File Upload */}
@@ -407,7 +424,7 @@ export default function UploadTradeDocumentModal({
           </div>
 
           {/* Notes */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Document Notes</label>
               <textarea
@@ -416,17 +433,6 @@ export default function UploadTradeDocumentModal({
                 rows={3}
                 className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Additional notes about this document..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Compliance Notes</label>
-              <textarea
-                value={uploadData.complianceNotes}
-                onChange={(e) => handleInputChange('complianceNotes', e.target.value)}
-                rows={3}
-                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Compliance-related notes or requirements..."
               />
             </div>
           </div>

@@ -36,9 +36,13 @@ class ApiClient {
   private async request(endpoint: string, options: RequestInit = {}) {
     const url = `${this.baseURL}${endpoint}`;
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
     };
+
+    // Only set Content-Type to application/json if not FormData
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (this.token) {
       headers.Authorization = `Bearer ${this.token}`;
@@ -288,15 +292,11 @@ class ApiClient {
     });
   }
 
-  // Document methods
-  async getDocuments(entityType: string, entityId: string) {
-    return this.request(`/documents/${entityType}/${entityId}`);
-  }
 
   async downloadDocument(documentId: string): Promise<Blob> {
     const response = await fetch(`${this.baseURL}/documents/download/${documentId}`, {
       headers: {
-        'Authorization': `Bearer ${this.getToken()}`
+        'Authorization': `Bearer ${this.token}`
       }
     });
 
@@ -322,31 +322,6 @@ class ApiClient {
 
   async getDeliveryChallanById(id: string) {
     return this.request(`/delivery-challans/${id}`);
-  }
-
-  async createDeliveryChallan(challanData: any) {
-    return this.request('/delivery-challans', {
-      method: 'POST',
-      body: JSON.stringify(challanData),
-    });
-  }
-
-  async updateDeliveryChallanStatus(id: string, status: string) {
-    return this.request(`/delivery-challans/${id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
-  }  // Delivery Challans methods
-  async getDeliveryChallans(params?: { page?: number; limit?: number; search?: string; status?: string; purchase_order_id?: string }) {
-    const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.search) queryParams.append('search', params.search);
-    if (params?.status) queryParams.append('status', params.status);
-    if (params?.purchase_order_id) queryParams.append('purchase_order_id', params.purchase_order_id);
-    
-    const endpoint = `/delivery-challans${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return this.request(endpoint);
   }
 
   async createDeliveryChallan(challanData: any) {
@@ -638,11 +613,22 @@ class ApiClient {
   // Business entities methods
   async getBusinessEntities(options?: { limit?: number; offset?: number }) {
     const { limit = 100, offset = 0 } = options || {};
-    return this.request(`/business-entities?limit=${limit}&offset=${offset}`);
+    console.log('🔍 Fetching business entities with options:', { limit, offset });
+    console.log('🔍 API Base URL:', this.baseURL);
+    console.log('🔍 Auth token exists:', !!this.token);
+    
+    try {
+      const result = await this.request(`/business-entities?limit=${limit}&offset=${offset}`);
+      console.log('🔍 Business entities API result:', result);
+      console.log('🔍 Result data type:', typeof result?.data);
+      console.log('🔍 Result data is array:', Array.isArray(result?.data));
+      console.log('🔍 Result data length:', result?.data?.length);
+      return result;
+    } catch (error) {
+      console.error('❌ Business entities API error:', error);
+      throw error;
+    }
   }
-
-  // Business entities are handled through customers and vendors
-  // No separate business entities endpoint needed
 }
 
 // Create and export API client instance

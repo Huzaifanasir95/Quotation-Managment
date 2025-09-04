@@ -31,6 +31,11 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req, file, cb) => {
+    // Skip validation if no file is provided
+    if (!file) {
+      return cb(null, true);
+    }
+    
     const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
@@ -43,14 +48,26 @@ const upload = multer({
   }
 });
 
+// Custom middleware to handle optional file uploads
+const handleOptionalUpload = (req, res, next) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      // If it's a file type error and no file was actually uploaded, ignore it
+      if (err.message.includes('Invalid file type') && !req.file) {
+        return next();
+      }
+      return next(err);
+    }
+    next();
+  });
+};
+
 // Upload document
-router.post('/upload', authenticateToken, authorize(['admin', 'sales', 'procurement', 'finance']), upload.single('file'), asyncHandler(async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({
-      error: 'No file uploaded',
-      code: 'NO_FILE'
-    });
-  }
+router.post('/upload', authenticateToken, authorize(['admin', 'sales', 'procurement', 'finance']), handleOptionalUpload, asyncHandler(async (req, res) => {
+  // File upload is now optional - documents can be created without files
+  console.log('📝 Document upload request received');
+  console.log('📁 File:', req.file ? 'Present' : 'Not present');
+  console.log('📋 Body:', req.body);
 
   const { 
     entity_type, 
@@ -72,7 +89,13 @@ router.post('/upload', authenticateToken, authorize(['admin', 'sales', 'procurem
   } = req.body;
 
   // Validate required fields for trade documents
+  console.log('🔍 Validating fields...');
+  console.log('document_type:', document_type);
+  console.log('linked_reference_type:', linked_reference_type);
+  console.log('linked_reference_number:', linked_reference_number);
+  
   if (!document_type) {
+    console.log('❌ Missing document_type');
     return res.status(400).json({
       error: 'Document type is required',
       code: 'MISSING_DOCUMENT_TYPE'
@@ -80,19 +103,22 @@ router.post('/upload', authenticateToken, authorize(['admin', 'sales', 'procurem
   }
 
   if (!linked_reference_type || !linked_reference_number) {
+    console.log('❌ Missing linked reference info');
     return res.status(400).json({
       error: 'Linked reference information is required',
       code: 'MISSING_LINKED_REFERENCE'
     });
   }
+  
+  console.log('✅ Validation passed, creating document data...');
 
   const documentData = {
     reference_type: entity_type || 'trade_document',
     reference_id: entity_id,
-    file_name: req.file.originalname,
-    file_path: req.file.path,
-    file_size: req.file.size,
-    mime_type: req.file.mimetype,
+    file_name: req.file ? req.file.originalname : null,
+    file_path: req.file ? req.file.path : null,
+    file_size: req.file ? req.file.size : null,
+    mime_type: req.file ? req.file.mimetype : null,
     document_type,
     linked_reference_type,
     linked_reference_number,
@@ -102,7 +128,7 @@ router.post('/upload', authenticateToken, authorize(['admin', 'sales', 'procurem
     business_entity_id: business_entity_id || null,
     compliance_status: 'pending',
     compliance_notes: compliance_notes || null,
-    ocr_status: 'pending',
+    ocr_status: req.file ? 'pending' : 'not_applicable',
     document_date: document_date || null,
     expiry_date: expiry_date || null,
     issuing_authority: issuing_authority || null,
@@ -111,6 +137,8 @@ router.post('/upload', authenticateToken, authorize(['admin', 'sales', 'procurem
     uploaded_by: req.user.id
   };
 
+  console.log('💾 Inserting document data:', documentData);
+  
   const { data: document, error } = await supabaseAdmin
     .from('document_attachments')
     .insert(documentData)
@@ -123,11 +151,14 @@ router.post('/upload', authenticateToken, authorize(['admin', 'sales', 'procurem
     .single();
 
   if (error) {
-    // Clean up uploaded file on database error
-    try {
-      await fs.unlink(req.file.path);
-    } catch (unlinkError) {
-      console.error('Failed to clean up file:', unlinkError);
+    console.log('❌ Database error:', error);
+    // Clean up uploaded file on database error (only if file was uploaded)
+    if (req.file) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (unlinkError) {
+        console.error('Failed to clean up file:', unlinkError);
+      }
     }
 
     return res.status(400).json({
@@ -137,9 +168,9 @@ router.post('/upload', authenticateToken, authorize(['admin', 'sales', 'procurem
     });
   }
 
-  // Trigger OCR processing for supported file types
+  // Trigger OCR processing for supported file types (only if file was uploaded)
   const ocrSupportedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
-  if (ocrSupportedTypes.includes(req.file.mimetype)) {
+  if (req.file && ocrSupportedTypes.includes(req.file.mimetype)) {
     // Update OCR status to processing
     await supabaseAdmin
       .from('document_attachments')

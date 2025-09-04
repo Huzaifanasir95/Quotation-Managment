@@ -18,9 +18,7 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
     lines: [
       { accountId: '', debitAmount: 0, creditAmount: 0, description: '' },
       { accountId: '', debitAmount: 0, creditAmount: 0, description: '' }
-    ],
-    notes: '',
-    attachments: [] as File[]
+    ]
   });
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isProcessing, setIsProcessing] = useState(false);
@@ -35,13 +33,6 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
     { value: 'closing', label: 'Closing Entry', icon: '🔒' }
   ];
 
-  const accountTypes = [
-    'asset',
-    'liability',
-    'equity',
-    'revenue',
-    'expense'
-  ];
 
   // Fetch chart of accounts
   useEffect(() => {
@@ -66,14 +57,6 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
     fetchAccounts();
   }, [isOpen]);
 
-  const taxTypes = [
-    'GST',
-    'VAT',
-    'Sales Tax',
-    'Withholding Tax',
-    'Custom Duty',
-    'None'
-  ];
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
@@ -149,9 +132,7 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
           lines: [
             { accountId: '', debitAmount: 0, creditAmount: 0, description: '' },
             { accountId: '', debitAmount: 0, creditAmount: 0, description: '' }
-          ],
-          notes: '',
-          attachments: []
+          ]
         });
         setErrors({});
       } else {
@@ -205,17 +186,6 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    setEntryData(prev => ({ ...prev, attachments: [...prev.attachments, ...files] }));
-  };
-
-  const removeAttachment = (index: number) => {
-    setEntryData(prev => ({
-      ...prev,
-      attachments: prev.attachments.filter((_, i) => i !== index)
-    }));
-  };
 
   const getAccountTypeColor = (type: string) => {
     switch (type) {
@@ -437,45 +407,6 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
 
           </div>
 
-          {/* Attachments */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Attachments</label>
-            <input
-              type="file"
-              multiple
-              onChange={handleFileUpload}
-              className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-            />
-            {entryData.attachments.length > 0 && (
-              <div className="mt-3 space-y-2">
-                {entryData.attachments.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                    <span className="text-sm text-gray-700">{file.name}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(index)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Notes */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
-            <textarea
-              value={entryData.notes}
-              onChange={(e) => handleInputChange('notes', e.target.value)}
-              rows={2}
-              className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Any additional notes or explanations..."
-            />
-          </div>
         </form>
 
         {/* Footer */}

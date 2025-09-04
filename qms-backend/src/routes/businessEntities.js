@@ -14,7 +14,7 @@ router.get('/', authenticateToken, authorize(['admin', 'sales', 'procurement', '
     .select('*')
     .eq('is_active', true)
     .order('name', { ascending: true })
-    .range(offset, offset + limit - 1);
+    .limit(limit);
 
   if (error) {
     return res.status(400).json({
