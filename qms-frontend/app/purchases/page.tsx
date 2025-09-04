@@ -23,6 +23,12 @@ export default function PurchasesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Data loading states for progressive loading
+  const [dataLoading, setDataLoading] = useState({
+    purchaseOrders: true,
+    vendors: true
+  });
+  
   // Filters state
   const [filters, setFilters] = useState({
     vendor: 'All',
@@ -39,13 +45,25 @@ export default function PurchasesPage() {
   // Fetch data from backend
   const loadPurchaseOrders = async () => {
     try {
+      console.log('Starting purchase data fetch...');
+      const startTime = Date.now();
+      
       setLoading(true);
       setError(null);
+      setDataLoading({ purchaseOrders: true, vendors: true });
       
       // Fetch purchase orders and vendors in parallel
       const [poResponse, vendorsResponse] = await Promise.all([
-        apiClient.getPurchaseOrders({ limit: 100 }),
-        apiClient.getVendors({ limit: 100 })
+        apiClient.getPurchaseOrders({ limit: 100 }).then(response => {
+          console.log('Purchase orders loaded:', Date.now() - startTime + 'ms');
+          setDataLoading(prev => ({ ...prev, purchaseOrders: false }));
+          return response;
+        }),
+        apiClient.getVendors({ limit: 100 }).then(response => {
+          console.log('Vendors loaded:', Date.now() - startTime + 'ms');
+          setDataLoading(prev => ({ ...prev, vendors: false }));
+          return response;
+        })
       ]);
       
       if (poResponse.success) {
@@ -55,6 +73,8 @@ export default function PurchasesPage() {
       if (vendorsResponse.success) {
         setVendors(vendorsResponse.data.vendors || []);
       }
+      
+      console.log('All purchase data loaded:', Date.now() - startTime + 'ms');
     } catch (error) {
       console.error('Failed to fetch data:', error);
       setError('Failed to load purchase orders. Please try again.');
@@ -83,12 +103,15 @@ export default function PurchasesPage() {
   // Refresh data function
   const refreshData = async () => {
     try {
+      setDataLoading(prev => ({ ...prev, purchaseOrders: true }));
       const response = await apiClient.getPurchaseOrders({ limit: 100 });
       if (response.success) {
         setPurchaseOrders(response.data.purchaseOrders || []);
       }
     } catch (error) {
       console.error('Failed to refresh purchase orders:', error);
+    } finally {
+      setDataLoading(prev => ({ ...prev, purchaseOrders: false }));
     }
   };
 
@@ -153,19 +176,6 @@ export default function PurchasesPage() {
       poId: ''
     });
   };
-
-  // Loading state
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
 
   // Error state
   if (error) {
@@ -372,8 +382,49 @@ export default function PurchasesPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredPOs.map((po) => (
-                      <tr key={po.id} className="hover:bg-gray-50">
+                    {dataLoading.purchaseOrders ? (
+                      // Skeleton loading rows
+                      Array.from({ length: 5 }, (_, index) => (
+                        <tr key={`skeleton-${index}`} className="animate-pulse">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="h-4 bg-gray-200 rounded w-24"></div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="space-y-1">
+                              <div className="h-4 bg-gray-200 rounded w-32"></div>
+                              <div className="h-3 bg-gray-200 rounded w-20"></div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="space-y-1">
+                              <div className="h-3 bg-gray-200 rounded w-16"></div>
+                              <div className="h-3 bg-gray-200 rounded w-20"></div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="h-4 bg-gray-200 rounded w-20"></div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="h-4 bg-gray-200 rounded w-16"></div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="h-4 bg-gray-200 rounded w-16"></div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex gap-1">
+                              <div className="h-6 bg-gray-200 rounded w-12"></div>
+                              <div className="h-6 bg-gray-200 rounded w-12"></div>
+                              <div className="h-6 bg-gray-200 rounded w-16"></div>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      filteredPOs.map((po) => (
+                        <tr key={po.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{po.po_number}</div>
                         </td>
@@ -448,14 +499,50 @@ export default function PurchasesPage() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    ))
+                    )}
                   </tbody>
                 </table>
               </div>
             ) : (
               // Grid View
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredPOs.map((po) => (
+                {dataLoading.purchaseOrders ? (
+                  // Skeleton loading cards
+                  Array.from({ length: 6 }, (_, index) => (
+                    <div key={`skeleton-card-${index}`} className="border border-gray-200 rounded-lg p-6 animate-pulse">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="space-y-2">
+                          <div className="h-5 bg-gray-200 rounded w-24"></div>
+                          <div className="h-4 bg-gray-200 rounded w-32"></div>
+                        </div>
+                        <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+                      </div>
+                      
+                      <div className="space-y-3 mb-4">
+                        <div className="flex justify-between">
+                          <div className="h-3 bg-gray-200 rounded w-12"></div>
+                          <div className="h-3 bg-gray-200 rounded w-20"></div>
+                        </div>
+                        <div className="flex justify-between">
+                          <div className="h-3 bg-gray-200 rounded w-16"></div>
+                          <div className="h-3 bg-gray-200 rounded w-16"></div>
+                        </div>
+                        <div className="flex justify-between">
+                          <div className="h-3 bg-gray-200 rounded w-10"></div>
+                          <div className="h-3 bg-gray-200 rounded w-12"></div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <div className="h-6 bg-gray-200 rounded w-12"></div>
+                        <div className="h-6 bg-gray-200 rounded w-12"></div>
+                        <div className="h-6 bg-gray-200 rounded w-16"></div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  filteredPOs.map((po) => (
                   <div key={po.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between mb-4">
                       <div>
@@ -534,7 +621,8 @@ export default function PurchasesPage() {
                       </button>
                     </div>
                   </div>
-                ))}
+                ))
+                )}
               </div>
             )}
           </div>

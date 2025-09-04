@@ -27,48 +27,86 @@ export default function SalesPage() {
   const [salesData, setSalesData] = useState<SalesDashboardData | null>(null);
   const [quotationTrends, setQuotationTrends] = useState<QuotationTrend[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Changed to false for immediate UI
+  const [dataLoading, setDataLoading] = useState({
+    customers: true,
+    dashboard: true,
+    trends: true
+  });
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch data from backend
+  // Fetch data from backend - Optimized for performance
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        setLoading(false); // Set loading to false immediately to show skeleton UI
         setError(null);
+        console.log('🚀 Starting sales page data fetch...');
+        const startTime = Date.now();
         
-        // Only fetch essential data first (customers for immediate interaction)
-        const customersResponse = await apiClient.getSalesCustomers({ limit: 20 });
-        
-        if (customersResponse.success) {
-          setCustomers(customersResponse.data.customers);
-        }
-        
-        // Load dashboard data and trends in background after a short delay
-        setTimeout(async () => {
+        // Load customers first (most important for user interaction)
+        const fetchCustomers = async () => {
           try {
-            const [dashboardResponse, trendsResponse] = await Promise.all([
-              apiClient.getSalesDashboard(),
-              apiClient.getQuotationTrends()
-            ]);
+            console.log('📋 Fetching customers...');
+            const customersResponse = await apiClient.getSalesCustomers({ limit: 50 });
+            
+            if (customersResponse.success) {
+              setCustomers(customersResponse.data.customers);
+              console.log(`✅ Customers loaded (${Date.now() - startTime}ms)`);
+            }
+          } catch (err) {
+            console.error('❌ Failed to fetch customers:', err);
+          } finally {
+            setDataLoading(prev => ({ ...prev, customers: false }));
+          }
+        };
+
+        // Load dashboard data (for stats)
+        const fetchDashboard = async () => {
+          try {
+            console.log('📊 Fetching dashboard data...');
+            const dashboardResponse = await apiClient.getSalesDashboard();
             
             if (dashboardResponse.success) {
               setSalesData(dashboardResponse.data);
+              console.log(`✅ Dashboard data loaded (${Date.now() - startTime}ms)`);
             }
+          } catch (err) {
+            console.error('❌ Failed to fetch dashboard data:', err);
+          } finally {
+            setDataLoading(prev => ({ ...prev, dashboard: false }));
+          }
+        };
+
+        // Load trends data (least critical)
+        const fetchTrends = async () => {
+          try {
+            console.log('📈 Fetching trends data...');
+            const trendsResponse = await apiClient.getQuotationTrends();
             
             if (trendsResponse.success) {
               setQuotationTrends(trendsResponse.data.trends);
+              console.log(`✅ Trends loaded (${Date.now() - startTime}ms)`);
             }
           } catch (err) {
-            console.error('Failed to fetch dashboard data:', err);
+            console.error('❌ Failed to fetch trends:', err);
+          } finally {
+            setDataLoading(prev => ({ ...prev, trends: false }));
           }
-        }, 100);
+        };
+
+        // Start all fetches in parallel for fastest loading
+        Promise.all([
+          fetchCustomers(),
+          fetchDashboard(),
+          fetchTrends()
+        ]).then(() => {
+          console.log(`🎉 All sales data loaded in ${Date.now() - startTime}ms`);
+        });
         
       } catch (err) {
-        console.error('Failed to fetch sales data:', err);
+        console.error('❌ Critical error in sales data fetch:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch data');
-        setLoading(false);
       }
     };
     
@@ -143,19 +181,6 @@ export default function SalesPage() {
       console.error('Failed to refresh dashboard data:', error);
     }
   };
-  
-  // Loading state
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
   
   // Error state
   if (error) {
@@ -324,7 +349,51 @@ export default function SalesPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredCustomers.map((customer) => (
+                {dataLoading.customers ? (
+                  // Skeleton rows while loading
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <tr key={`skeleton-${index}`} className="animate-pulse">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-48"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-32"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-gray-200 rounded w-16 mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-12"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-6 bg-gray-200 rounded-full w-16"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-3">
+                          <div className="h-8 w-8 bg-gray-200 rounded"></div>
+                          <div className="h-8 w-8 bg-gray-200 rounded"></div>
+                          <div className="h-8 w-8 bg-gray-200 rounded"></div>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : filteredCustomers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center">
+                      <div className="text-gray-500">
+                        <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <p className="text-lg">No customers found</p>
+                        <p className="text-sm">Try adjusting your search criteria</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCustomers.map((customer) => (
                   <tr key={customer.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
@@ -389,7 +458,8 @@ export default function SalesPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
