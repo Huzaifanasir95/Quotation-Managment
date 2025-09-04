@@ -1,12 +1,15 @@
 'use client';
 
 import AppLayout from '../components/AppLayout';
-import RoleBasedDashboard from '../components/dashboard/RoleBasedDashboard';
+import { SuspenseWrapper, ComponentLoadingFallback } from '../components/SuspenseWrapper';
+import { LazyRoleBasedDashboard } from '../components/LazyComponents';
 
 export default function DashboardPage() {
   return (
     <AppLayout>
-      <RoleBasedDashboard />
+      <SuspenseWrapper fallback={<ComponentLoadingFallback />}>
+        <LazyRoleBasedDashboard />
+      </SuspenseWrapper>
     </AppLayout>
   );
 }

@@ -1,30 +1,47 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import AppLayout from '../components/AppLayout';
-import GeneratePLReportModal from '../components/accounting/GeneratePLReportModal';
-import PendingInvoicesReportModal from '../components/accounting/PendingInvoicesReportModal';
-import AddLedgerEntryModal from '../components/accounting/AddLedgerEntryModal';
-import LedgerEntryDetailsModal from '../components/accounting/LedgerEntryDetailsModal';
-import apiClient, { LedgerEntry, FinancialMetrics } from '../lib/api';
+import { SuspenseWrapper, ModalLoadingFallback } from '../components/SuspenseWrapper';
+import { 
+  LazyGeneratePLReportModal,
+  LazyPendingInvoicesReportModal,
+  LazyAddLedgerEntryModal,
+  LazyLedgerEntryDetailsModal
+} from '../components/LazyComponents';
+import { LedgerEntry, FinancialMetrics } from '../lib/api';
+import { useLedgerEntries, useFinancialMetrics } from '../../lib/hooks/useApi';
 
-export default function AccountingPage() {
+// Memoized KPI Card component to prevent unnecessary re-renders
+const KPICard = memo(({ title, value, color, icon }: {
+  title: string;
+  value: string | number;
+  color: string;
+  icon: React.ReactNode;
+}) => (
+  <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="flex items-center">
+      <div className={`p-2 ${color} rounded-lg`}>
+        {icon}
+      </div>
+      <div className="ml-4">
+        <p className="text-sm font-medium text-gray-600">{title}</p>
+        <p className={`text-2xl font-bold ${color.replace('bg-', 'text-').replace('-100', '-600')}`}>
+          {typeof value === 'number' ? `$${value.toLocaleString()}` : value}
+        </p>
+      </div>
+    </div>
+  </div>
+));
+
+KPICard.displayName = 'KPICard';
+
+const AccountingPage = () => {
   const [showPLReport, setShowPLReport] = useState(false);
   const [showPendingInvoices, setShowPendingInvoices] = useState(false);
   const [showAddLedger, setShowAddLedger] = useState(false);
   const [showEntryDetails, setShowEntryDetails] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<LedgerEntry | null>(null);
-  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
-  const [financialMetrics, setFinancialMetrics] = useState<FinancialMetrics>({
-    totalSales: 0,
-    totalPurchases: 0,
-    expenses: 0,
-    netProfit: 0,
-    pendingInvoices: 0,
-    pendingAmount: 0
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   
   // Filters state
   const [filters, setFilters] = useState({
@@ -39,104 +56,100 @@ export default function AccountingPage() {
   // Active tab for ledger view
   const [activeTab, setActiveTab] = useState<'sales' | 'purchases' | 'expenses' | 'all'>('all');
 
-  // Filter options
-  const customers = ['All', 'Customer A', 'Customer B', 'Customer C'];
-  const vendors = ['All', 'Vendor A', 'Vendor B', 'Vendor C'];
-  const accountTypes = ['All', 'Assets', 'Liabilities', 'Equity', 'Revenue', 'Expenses'];
-  const entryTypes = ['All', 'Sale', 'Purchase', 'Expense', 'Adjustment'];
+  // Memoized filter options to prevent unnecessary re-renders
+  const filterOptions = useMemo(() => ({
+    customers: ['All', 'Customer A', 'Customer B', 'Customer C'],
+    vendors: ['All', 'Vendor A', 'Vendor B', 'Vendor C'],
+    accountTypes: ['All', 'Assets', 'Liabilities', 'Equity', 'Revenue', 'Expenses'],
+    entryTypes: ['All', 'Sale', 'Purchase', 'Expense', 'Adjustment']
+  }), []);
 
-  // Fetch ledger data from API
-  const fetchLedgerData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Refresh token before making API calls
-      await apiClient.refreshToken();
-      
-      // Fetch ledger entries with filters
-      const ledgerParams = {
-        page: 1,
-        limit: 100,
-        ...(filters.dateFrom && { date_from: filters.dateFrom }),
-        ...(filters.dateTo && { date_to: filters.dateTo }),
-        ...(filters.entryType !== 'All' && { reference_type: filters.entryType }),
-        ...(filters.accountType !== 'All' && { account_type: filters.accountType })
-      };
-      
-      const [ledgerResponse, metricsResponse] = await Promise.all([
-        apiClient.getLedgerEntries(ledgerParams),
-        apiClient.getFinancialMetrics({
-          ...(filters.dateFrom && { date_from: filters.dateFrom }),
-          ...(filters.dateTo && { date_to: filters.dateTo })
-        })
-      ]);
-      
-      if (ledgerResponse.success) {
-        setLedgerEntries(ledgerResponse.data.entries || []);
-      }
-      
-      if (metricsResponse.success) {
-        setFinancialMetrics(metricsResponse.data.metrics);
-      }
-      
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch ledger data');
-      console.error('Error fetching ledger data:', err);
-    } finally {
-      setLoading(false);
-    }
+  // Memoized API parameters to prevent unnecessary re-fetches
+  const ledgerParams = useMemo(() => ({
+    page: 1,
+    limit: 100,
+    ...(filters.dateFrom && { date_from: filters.dateFrom }),
+    ...(filters.dateTo && { date_to: filters.dateTo }),
+    ...(filters.entryType !== 'All' && { reference_type: filters.entryType }),
+    ...(filters.accountType !== 'All' && { account_type: filters.accountType })
+  }), [filters]);
+
+  const metricsParams = useMemo(() => ({
+    ...(filters.dateFrom && { date_from: filters.dateFrom }),
+    ...(filters.dateTo && { date_to: filters.dateTo })
+  }), [filters.dateFrom, filters.dateTo]);
+
+  // Use React Query hooks for data fetching with automatic caching
+  const { 
+    data: ledgerResponse, 
+    isLoading: ledgerLoading, 
+    error: ledgerError,
+    refetch: refetchLedger
+  } = useLedgerEntries(ledgerParams);
+
+  const { 
+    data: metricsResponse, 
+    isLoading: metricsLoading, 
+    error: metricsError 
+  } = useFinancialMetrics(metricsParams);
+
+  // Extract data with fallbacks
+  const ledgerEntries = ledgerResponse?.data?.entries || [];
+  const financialMetrics = metricsResponse?.data?.metrics || {
+    totalSales: 0,
+    totalPurchases: 0,
+    expenses: 0,
+    netProfit: 0,
+    pendingInvoices: 0,
+    pendingAmount: 0
   };
-  
-  // Load data on component mount and filter changes
-  useEffect(() => {
-    fetchLedgerData();
-  }, [filters, activeTab]);
+
+  const loading = ledgerLoading || metricsLoading;
+  const error = ledgerError?.message || metricsError?.message || null;
 
 
-  // Filter ledger entries based on active tab and filters
-  const getFilteredEntries = () => {
+  // Memoized filtered entries to prevent unnecessary recalculations
+  const entriesWithBalance = useMemo(() => {
     let filtered = ledgerEntries;
 
     // Filter by tab
     if (activeTab === 'sales') {
-      filtered = filtered.filter(entry => entry.reference_type === 'sale');
+      filtered = filtered.filter((entry: any) => entry.reference_type === 'sale');
     } else if (activeTab === 'purchases') {
-      filtered = filtered.filter(entry => entry.reference_type === 'purchase');
+      filtered = filtered.filter((entry: any) => entry.reference_type === 'purchase');
     } else if (activeTab === 'expenses') {
-      filtered = filtered.filter(entry => entry.reference_type === 'expense');
+      filtered = filtered.filter((entry: any) => entry.reference_type === 'expense');
     }
 
     // Apply date filters
     if (filters.dateFrom) {
-      filtered = filtered.filter(entry => 
+      filtered = filtered.filter((entry: any) => 
         new Date(entry.entry_date) >= new Date(filters.dateFrom)
       );
     }
     if (filters.dateTo) {
-      filtered = filtered.filter(entry => 
+      filtered = filtered.filter((entry: any) => 
         new Date(entry.entry_date) <= new Date(filters.dateTo)
       );
     }
     if (filters.entryType !== 'All') {
-      filtered = filtered.filter(entry => entry.reference_type === filters.entryType.toLowerCase());
+      filtered = filtered.filter((entry: any) => entry.reference_type === filters.entryType.toLowerCase());
     }
 
     return filtered;
-  };
+  }, [ledgerEntries, activeTab, filters]);
 
-  const entriesWithBalance = getFilteredEntries();
-
-  const handleEntryClick = (entry: LedgerEntry) => {
+  // Memoized event handlers to prevent unnecessary re-renders
+  const handleEntryClick = useCallback((entry: LedgerEntry) => {
     setSelectedEntry(entry);
     setShowEntryDetails(true);
-  };
+  }, []);
   
-  const handleLedgerEntryAdded = () => {
-    fetchLedgerData(); // Refresh data after adding new entry
-  };
+  const handleLedgerEntryAdded = useCallback(() => {
+    refetchLedger(); // Use React Query refetch instead of manual API call
+  }, [refetchLedger]);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilters({
       dateFrom: '',
       dateTo: '',
@@ -145,7 +158,7 @@ export default function AccountingPage() {
       accountType: 'All',
       entryType: 'All'
     });
-  };
+  }, []);
 
   return (
     <AppLayout>
@@ -155,48 +168,39 @@ export default function AccountingPage() {
 
         {/* KPI Dashboard */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Sales</p>
-                <p className="text-2xl font-bold text-green-600">${financialMetrics.totalSales.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m6 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Purchases</p>
-                <p className="text-2xl font-bold text-red-600">${financialMetrics.totalPurchases.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Expenses</p>
-                <p className="text-2xl font-bold text-orange-600">${financialMetrics.expenses.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
+          <KPICard
+            title="Total Sales"
+            value={financialMetrics.totalSales}
+            color="bg-blue-100"
+            icon={
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+            }
+          />
+          
+          <KPICard
+            title="Total Purchases"
+            value={financialMetrics.totalPurchases}
+            color="bg-red-100"
+            icon={
+              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m6 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
+              </svg>
+            }
+          />
+          
+          <KPICard
+            title="Expenses"
+            value={financialMetrics.expenses}
+            color="bg-orange-100"
+            icon={
+              <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            }
+          />
+          
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center">
               <div className="p-2 bg-green-100 rounded-lg">
@@ -212,34 +216,28 @@ export default function AccountingPage() {
               </div>
             </div>
           </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Pending Invoices</p>
-                <p className="text-2xl font-bold text-yellow-600">{financialMetrics.pendingInvoices}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Pending Amount</p>
-                <p className="text-2xl font-bold text-purple-600">${financialMetrics.pendingAmount.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
+          
+          <KPICard
+            title="Pending Invoices"
+            value={financialMetrics.pendingInvoices.toString()}
+            color="bg-yellow-100"
+            icon={
+              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+          />
+          
+          <KPICard
+            title="Pending Amount"
+            value={financialMetrics.pendingAmount}
+            color="bg-purple-100"
+            icon={
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+            }
+          />
         </div>
 
         {/* Quick Actions */}
@@ -319,7 +317,7 @@ export default function AccountingPage() {
                 onChange={(e) => setFilters({ ...filters, customer: e.target.value })}
                 className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
-                {customers.map(customer => (
+                {filterOptions.customers.map((customer: string) => (
                   <option key={customer} value={customer}>{customer}</option>
                 ))}
               </select>
@@ -332,7 +330,7 @@ export default function AccountingPage() {
                 onChange={(e) => setFilters({ ...filters, vendor: e.target.value })}
                 className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
-                {vendors.map(vendor => (
+                {filterOptions.vendors.map((vendor: string) => (
                   <option key={vendor} value={vendor}>{vendor}</option>
                 ))}
               </select>
@@ -345,7 +343,7 @@ export default function AccountingPage() {
                 onChange={(e) => setFilters({ ...filters, accountType: e.target.value })}
                 className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
-                {accountTypes.map(type => (
+                {filterOptions.accountTypes.map((type: string) => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
@@ -358,7 +356,7 @@ export default function AccountingPage() {
                 onChange={(e) => setFilters({ ...filters, entryType: e.target.value })}
                 className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               >
-                {entryTypes.map(type => (
+                {filterOptions.entryTypes.map((type: string) => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
@@ -426,7 +424,7 @@ export default function AccountingPage() {
               <div className="text-center py-8">
                 <p className="text-red-500">Error: {error}</p>
                 <button 
-                  onClick={fetchLedgerData}
+                  onClick={() => refetchLedger()}
                   className="mt-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                 >
                   Retry
@@ -452,7 +450,7 @@ export default function AccountingPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {entriesWithBalance.map((entry) => (
+                  {entriesWithBalance.map((entry: any) => (
                     <tr key={entry.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
@@ -511,11 +509,30 @@ export default function AccountingPage() {
         </div>
       </div>
 
-      {/* Modals */}
-      <GeneratePLReportModal isOpen={showPLReport} onClose={() => setShowPLReport(false)} />
-      <PendingInvoicesReportModal isOpen={showPendingInvoices} onClose={() => setShowPendingInvoices(false)} />
-      <AddLedgerEntryModal isOpen={showAddLedger} onClose={() => setShowAddLedger(false)} onEntryAdded={handleLedgerEntryAdded} />
-      <LedgerEntryDetailsModal isOpen={showEntryDetails} onClose={() => setShowEntryDetails(false)} entry={selectedEntry} />
+      {/* Modals - Lazy loaded to reduce initial bundle size */}
+      {showPLReport && (
+        <SuspenseWrapper fallback={<ModalLoadingFallback />}>
+          <LazyGeneratePLReportModal isOpen={showPLReport} onClose={() => setShowPLReport(false)} />
+        </SuspenseWrapper>
+      )}
+      {showPendingInvoices && (
+        <SuspenseWrapper fallback={<ModalLoadingFallback />}>
+          <LazyPendingInvoicesReportModal isOpen={showPendingInvoices} onClose={() => setShowPendingInvoices(false)} />
+        </SuspenseWrapper>
+      )}
+      {showAddLedger && (
+        <SuspenseWrapper fallback={<ModalLoadingFallback />}>
+          <LazyAddLedgerEntryModal isOpen={showAddLedger} onClose={() => setShowAddLedger(false)} onEntryAdded={handleLedgerEntryAdded} />
+        </SuspenseWrapper>
+      )}
+      {showEntryDetails && (
+        <SuspenseWrapper fallback={<ModalLoadingFallback />}>
+          <LazyLedgerEntryDetailsModal isOpen={showEntryDetails} onClose={() => setShowEntryDetails(false)} entry={selectedEntry} />
+        </SuspenseWrapper>
+      )}
     </AppLayout>
   );
-}
+};
+
+// Export the memoized component to prevent unnecessary re-renders
+export default memo(AccountingPage);
