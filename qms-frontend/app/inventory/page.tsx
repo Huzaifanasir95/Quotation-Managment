@@ -1,12 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import AppLayout from '../components/AppLayout';
 import AddEditItemModal from '../components/inventory/AddEditItemModal';
 import ImportInventoryModal from '../components/inventory/ImportInventoryModal';
 import StockDetailModal from '../components/inventory/StockDetailModal';
 import AdjustStockModal from '../components/inventory/AdjustStockModal';
 import { apiClient, Product, ProductCategory, StockMovement } from '../lib/api';
+
+// Debounce hook for search
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 export default function InventoryPage() {
   const [showAddItem, setShowAddItem] = useState(false);
@@ -21,8 +38,21 @@ export default function InventoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [inventoryKPIs, setInventoryKPIs] = useState({
+    totalItems: 0,
+    lowStockItems: 0,
+    outOfStockItems: 0,
+    totalInventoryValue: 0
+  });
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const productsPerPage = 50; // Reduced from 1000 to 50 for better performance
   
   // Filters state
   const [filters, setFilters] = useState({
@@ -33,28 +63,24 @@ export default function InventoryPage() {
     status: 'All'
   });
   
+  // Debounced search for better performance
+  const debouncedSearch = useDebounce(filters.search, 300);
+  
   // UI state
   const [showFilters, setShowFilters] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
 
-  // Data fetching
-  const fetchData = async () => {
+  // Quick data loading for immediate UI display
+  const loadInitialData = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      
-      // Refresh token from localStorage before making API calls
       apiClient.refreshToken();
       
-      const [productsResponse, categoriesResponse, vendorsResponse] = await Promise.all([
-        apiClient.getProducts({ limit: 1000 }),
+      // Load categories, vendors, and KPIs in parallel for fast initial display
+      const [categoriesResponse, vendorsResponse, kpisResponse] = await Promise.all([
         apiClient.getProductCategories({ limit: 100 }),
-        apiClient.getVendors({ limit: 100 })
+        apiClient.getVendors({ limit: 100 }),
+        apiClient.getInventoryKPIs()
       ]);
-      
-      if (productsResponse.success) {
-        setProducts(productsResponse.data.products || []);
-      }
       
       if (categoriesResponse.success) {
         const loadedCategories = categoriesResponse.data.categories || [];
@@ -69,13 +95,75 @@ export default function InventoryPage() {
       if (vendorsResponse.success) {
         setVendors(vendorsResponse.data.vendors || []);
       }
+
+      if (kpisResponse.success) {
+        setInventoryKPIs(kpisResponse.data);
+      }
+      
+      setInitialLoading(false);
     } catch (err) {
-      console.error('Failed to fetch inventory data:', err);
-      setError('Failed to load inventory data. Please try again.');
-    } finally {
-      setLoading(false);
+      console.error('Failed to load initial data:', err);
+      setError('Failed to load initial data. Please try again.');
+      setInitialLoading(false);
     }
-  };
+  }, []);
+
+  // Load products with pagination
+  const loadProducts = useCallback(async (page: number = 1, resetProducts: boolean = true) => {
+    try {
+      setProductsLoading(true);
+      setError(null);
+      
+      apiClient.refreshToken();
+      
+      const params: any = {
+        page,
+        limit: productsPerPage
+      };
+      
+      // Apply filters
+      if (debouncedSearch) {
+        params.search = debouncedSearch;
+      }
+      
+      if (filters.category !== 'All') {
+        const selectedCategory = categories.find(cat => cat.name === filters.category);
+        if (selectedCategory) {
+          params.category = selectedCategory.id;
+        }
+      }
+      
+      if (filters.status !== 'All') {
+        params.status = filters.status.toLowerCase().replace(' ', '_');
+      }
+      
+      const productsResponse = await apiClient.getProducts(params);
+      
+      if (productsResponse.success) {
+        const newProducts = productsResponse.data.products || [];
+        
+        if (resetProducts) {
+          setProducts(newProducts);
+        } else {
+          setProducts(prev => [...prev, ...newProducts]);
+        }
+        
+        setCurrentPage(page);
+        setTotalProducts(productsResponse.data.pagination?.total || 0);
+        setTotalPages(productsResponse.data.pagination?.pages || 0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+      setError('Failed to load products. Please try again.');
+    } finally {
+      setProductsLoading(false);
+    }
+  }, [debouncedSearch, filters.category, filters.status, categories, productsPerPage]);
+
+  // Data fetching - now more efficient
+  const fetchData = useCallback(async () => {
+    await loadProducts(1, true);
+  }, [loadProducts]);
 
   // Create default categories if none exist
   const createDefaultCategories = async () => {
@@ -110,68 +198,90 @@ export default function InventoryPage() {
     }
   };
   
+  // Initial load
   useEffect(() => {
-    fetchData();
-  }, []);
+    loadInitialData();
+  }, [loadInitialData]);
+
+  // Load products when filters change
+  useEffect(() => {
+    if (!initialLoading) {
+      loadProducts(1, true);
+    }
+  }, [loadProducts, initialLoading]);
 
   // Helper functions to get status and calculate values
-  const getProductStatus = (product: Product) => {
+  const getProductStatus = useCallback((product: Product) => {
     if (product.current_stock <= 0) return 'Out of Stock';
     if (product.current_stock <= product.reorder_point) return 'Low Stock';
     return 'In Stock';
-  };
+  }, []);
   
-  const getProductTotalValue = (product: Product) => {
+  const getProductTotalValue = useCallback((product: Product) => {
     return product.current_stock * (product.average_cost || product.last_purchase_price || 0);
-  };
+  }, []);
   
-  // Transform products for display
-  const inventoryItems = products.map(product => ({
-    id: product.id,
-    sku: product.sku,
-    name: product.name,
-    description: product.description || '',
-    category: product.product_categories?.name || 'Uncategorized',
-    type: product.type,
-    vendor: 'N/A', // Will be populated when we have vendor relationships
-    currentStock: product.current_stock,
-    unitOfMeasure: product.unit_of_measure,
-    lastPurchasePrice: product.last_purchase_price || 0,
-    averageCost: product.average_cost || 0,
-    sellingPrice: product.selling_price || 0,
-    reorderPoint: product.reorder_point,
-    maxStockLevel: product.max_stock_level || 0,
-    status: getProductStatus(product),
-    totalValue: getProductTotalValue(product),
-    lastUpdated: new Date(product.updated_at).toISOString().split('T')[0],
-    linkedPOs: [], // Will be populated when we have PO relationships
-    stockHistory: [] // Will be populated when we fetch stock movements
-  }));
+  // Transform products for display - memoized for performance
+  const inventoryItems = useMemo(() => {
+    return products.map(product => ({
+      id: product.id,
+      sku: product.sku,
+      name: product.name,
+      description: product.description || '',
+      category: product.product_categories?.name || 'Uncategorized',
+      type: product.type,
+      vendor: 'N/A', // Will be populated when we have vendor relationships
+      currentStock: product.current_stock,
+      unitOfMeasure: product.unit_of_measure,
+      lastPurchasePrice: product.last_purchase_price || 0,
+      averageCost: product.average_cost || 0,
+      sellingPrice: product.selling_price || 0,
+      reorderPoint: product.reorder_point,
+      maxStockLevel: product.max_stock_level || 0,
+      status: getProductStatus(product),
+      totalValue: getProductTotalValue(product),
+      lastUpdated: new Date(product.updated_at).toISOString().split('T')[0],
+      linkedPOs: [], // Will be populated when we have PO relationships
+      stockHistory: [] // Will be populated when we fetch stock movements
+    }));
+  }, [products, getProductStatus, getProductTotalValue]);
   
-  const categoryOptions = ['All', ...categories.map(cat => cat.name)];
-  const vendorOptions = ['All', ...Array.from(new Set(vendors.map(vendor => vendor.name)))];
+  const categoryOptions = useMemo(() => ['All', ...categories.map(cat => cat.name)], [categories]);
+  const vendorOptions = useMemo(() => ['All', ...Array.from(new Set(vendors.map(vendor => vendor.name)))], [vendors]);
   const stockLevels = ['All', 'In Stock', 'Low Stock', 'Out of Stock'];
   const statuses = ['All', 'In Stock', 'Low Stock', 'Out of Stock', 'Available'];
 
-  const filteredItems = inventoryItems.filter(item => {
-    const matchesSearch = !filters.search || 
-      item.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-      item.sku.toLowerCase().includes(filters.search.toLowerCase()) ||
-      item.description.toLowerCase().includes(filters.search.toLowerCase());
-    const matchesCategory = filters.category === 'All' || item.category === filters.category;
-    const matchesVendor = filters.vendor === 'All' || item.vendor === filters.vendor;
-    const matchesStockLevel = filters.stockLevel === 'All' || item.status === filters.stockLevel;
-    const matchesStatus = filters.status === 'All' || item.status === filters.status;
+  // Filtered items - only for current page
+  const filteredItems = useMemo(() => {
+    return inventoryItems.filter(item => {
+      const matchesVendor = filters.vendor === 'All' || item.vendor === filters.vendor;
+      const matchesStockLevel = filters.stockLevel === 'All' || item.status === filters.stockLevel;
+      
+      return matchesVendor && matchesStockLevel;
+    });
+  }, [inventoryItems, filters.vendor, filters.stockLevel]);
+
+  // Calculate KPIs - use API data when available, fall back to client calculation
+  const kpis = useMemo(() => {
+    // If we have API KPIs data and no products loaded yet, use API data
+    if (inventoryKPIs.totalItems > 0 && products.length === 0) {
+      return inventoryKPIs;
+    }
     
-    return matchesSearch && matchesCategory && matchesVendor && matchesStockLevel && matchesStatus;
-  });
+    // Otherwise calculate from current filtered items for accuracy
+    const totalInventoryValue = filteredItems.reduce((sum, item) => sum + item.totalValue, 0);
+    const lowStockItems = filteredItems.filter(item => item.status === 'Low Stock').length;
+    const outOfStockItems = filteredItems.filter(item => item.status === 'Out of Stock').length;
+    
+    return {
+      totalInventoryValue,
+      lowStockItems,
+      outOfStockItems,
+      totalItems: totalProducts || inventoryKPIs.totalItems // Use total from API for accurate count
+    };
+  }, [filteredItems, totalProducts, inventoryKPIs]);
 
-  // Calculate KPIs
-  const totalInventoryValue = inventoryItems.reduce((sum, item) => sum + item.totalValue, 0);
-  const lowStockItems = inventoryItems.filter(item => item.status === 'Low Stock').length;
-  const outOfStockItems = inventoryItems.filter(item => item.status === 'Out of Stock').length;
-
-  const getStatusColor = (status: string) => {
+  const getStatusColor = useCallback((status: string) => {
     switch (status) {
       case 'In Stock': return 'bg-green-100 text-green-800';
       case 'Low Stock': return 'bg-yellow-100 text-yellow-800';
@@ -180,24 +290,24 @@ export default function InventoryPage() {
       case 'Already Owned': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
-  };
+  }, []);
 
-  const handleViewStockDetail = (item: any) => {
+  const handleViewStockDetail = useCallback((item: any) => {
     setSelectedItem(item);
     setShowStockDetail(true);
-  };
+  }, []);
 
-  const handleEditItem = (item: any) => {
+  const handleEditItem = useCallback((item: any) => {
     setEditingItem(item);
     setShowAddItem(true);
-  };
+  }, []);
 
-  const handleAdjustStock = (item: any) => {
+  const handleAdjustStock = useCallback((item: any) => {
     setSelectedItem(item);
     setIsAdjustStockModalOpen(true);
-  };
+  }, []);
 
-  const handleDeleteItem = async (item: any) => {
+  const handleDeleteItem = useCallback(async (item: any) => {
     if (confirm(`Are you sure you want to delete ${item.name}?`)) {
       try {
         const response = await apiClient.deleteProduct(item.id);
@@ -212,18 +322,18 @@ export default function InventoryPage() {
         alert('Failed to delete item');
       }
     }
-  };
+  }, [fetchData]);
 
-  const handleItemSaved = () => {
+  const handleItemSaved = useCallback(() => {
     fetchData(); // Refresh data after adding/editing item
     setEditingItem(null);
-  };
+  }, [fetchData]);
 
-  const handleStockAdjusted = () => {
+  const handleStockAdjusted = useCallback(() => {
     fetchData(); // Refresh data after stock adjustment
-  };
+  }, [fetchData]);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setFilters({
       search: '',
       category: 'All',
@@ -231,9 +341,9 @@ export default function InventoryPage() {
       stockLevel: 'All',
       status: 'All'
     });
-  };
+  }, []);
 
-  const exportInventory = () => {
+  const exportInventory = useCallback(() => {
     const csvContent = [
       ['SKU', 'Name', 'Category', 'Vendor', 'Current Stock', 'Unit', 'Last Price', 'Status'],
       ...inventoryItems.map(item => [
@@ -255,22 +365,17 @@ export default function InventoryPage() {
     a.download = 'inventory_export.csv';
     a.click();
     window.URL.revokeObjectURL(url);
-  };
+  }, [inventoryItems]);
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <span className="ml-3 text-lg text-gray-600">Loading inventory data...</span>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
+  // Load more products function for pagination
+  const loadMoreProducts = useCallback(() => {
+    if (currentPage < totalPages && !productsLoading) {
+      loadProducts(currentPage + 1, false);
+    }
+  }, [currentPage, totalPages, productsLoading, loadProducts]);
 
-  if (error) {
+  // Show error state
+  if (error && initialLoading) {
     return (
       <AppLayout>
         <div className="max-w-7xl mx-auto">
@@ -283,7 +388,7 @@ export default function InventoryPage() {
                 <h3 className="text-lg font-medium text-red-800">Error Loading Inventory</h3>
                 <p className="text-red-600">{error}</p>
                 <button 
-                  onClick={fetchData}
+                  onClick={loadInitialData}
                   className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
                 >
                   Retry
@@ -302,7 +407,7 @@ export default function InventoryPage() {
         {/* Header */}
         <div className="mb-8"></div>
 
-        {/* KPI Dashboard */}
+        {/* KPI Dashboard - Show immediately with skeleton or real data */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center">
@@ -313,7 +418,11 @@ export default function InventoryPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Inventory Value</p>
-                <p className="text-2xl font-bold text-gray-900">${totalInventoryValue.toLocaleString()}</p>
+                {initialLoading ? (
+                  <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900">${kpis.totalInventoryValue.toLocaleString()}</p>
+                )}
               </div>
             </div>
           </div>
@@ -327,7 +436,11 @@ export default function InventoryPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Low Stock Items</p>
-                <p className="text-2xl font-bold text-gray-900">{lowStockItems}</p>
+                {initialLoading ? (
+                  <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900">{kpis.lowStockItems}</p>
+                )}
               </div>
             </div>
           </div>
@@ -341,7 +454,11 @@ export default function InventoryPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Out of Stock</p>
-                <p className="text-2xl font-bold text-gray-900">{outOfStockItems}</p>
+                {initialLoading ? (
+                  <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900">{kpis.outOfStockItems}</p>
+                )}
               </div>
             </div>
           </div>
@@ -355,19 +472,24 @@ export default function InventoryPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Items</p>
-                <p className="text-2xl font-bold text-gray-900">{inventoryItems.length}</p>
+                {initialLoading ? (
+                  <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+                ) : (
+                  <p className="text-2xl font-bold text-gray-900">{kpis.totalItems}</p>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - Show immediately */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               onClick={() => setShowAddItem(true)}
-              className="flex items-center justify-center p-4 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors duration-200"
+              disabled={initialLoading}
+              className="flex items-center justify-center p-4 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors duration-200 disabled:opacity-50"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -377,7 +499,8 @@ export default function InventoryPage() {
 
             <button
               onClick={() => setShowImport(true)}
-              className="flex items-center justify-center p-4 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors duration-200"
+              disabled={initialLoading}
+              className="flex items-center justify-center p-4 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors duration-200 disabled:opacity-50"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -387,7 +510,8 @@ export default function InventoryPage() {
 
             <button
               onClick={exportInventory}
-              className="flex items-center justify-center p-4 bg-zinc-700 text-white rounded-lg hover:bg-zinc-800 transition-colors duration-200"
+              disabled={initialLoading || products.length === 0}
+              className="flex items-center justify-center p-4 bg-zinc-700 text-white rounded-lg hover:bg-zinc-800 transition-colors duration-200 disabled:opacity-50"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -521,7 +645,7 @@ export default function InventoryPage() {
 
               <div className="mt-4 flex items-center justify-between">
                 <p className="text-sm text-gray-600">
-                  Found {filteredItems.length} item(s) out of {inventoryItems.length} total
+                  Showing {filteredItems.length} item(s) on page {currentPage} of {totalPages} (Total: {totalProducts} items)
                 </p>
                 <button
                   onClick={clearFilters}
@@ -543,8 +667,17 @@ export default function InventoryPage() {
           <div className="p-6">
             {filteredItems.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500">No inventory items found.</p>
-                <p className="text-sm text-gray-400 mt-1">Total Items: {inventoryItems.length} | Filtered: {filteredItems.length}</p>
+                {productsLoading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span className="ml-3 text-gray-600">Loading products...</span>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-gray-500">No inventory items found.</p>
+                    <p className="text-sm text-gray-400 mt-1">Total Items: {totalProducts} | Showing: {filteredItems.length}</p>
+                  </>
+                )}
               </div>
             ) : viewMode === 'list' ? (
               // List View
@@ -636,86 +769,138 @@ export default function InventoryPage() {
                     ))}
                   </tbody>
                 </table>
-              </div>
-            ) : (
-              // Grid View
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredItems.map((item) => (
-                  <div key={item.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h4 className="text-lg font-semibold text-gray-900">{item.name}</h4>
-                        <p className="text-sm text-gray-600">{item.sku}</p>
-                        <p className="text-sm text-gray-500 mt-1 line-clamp-2">{item.description}</p>
-                      </div>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(item.status)}`}>
-                        {item.status}
-                      </span>
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="mt-6 flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      Page {currentPage} of {totalPages}
                     </div>
-                    
-                    <div className="space-y-2 mb-4">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Category:</span>
-                        <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          {item.category}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Current Stock:</span>
-                        <div className="text-right">
-                          <span className="text-gray-900 font-medium">{item.currentStock} {item.unitOfMeasure}</span>
-                          {item.currentStock <= item.reorderPoint && (
-                            <div className="text-xs text-red-600">Reorder needed</div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Last Price:</span>
-                        <span className="text-gray-900 font-medium">${item.lastPurchasePrice.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Avg Cost:</span>
-                        <span className="text-gray-900 font-medium">${item.averageCost.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Total Value:</span>
-                        <span className="text-gray-900 font-medium">${item.totalValue.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Vendor:</span>
-                        <span className="text-gray-900">{item.vendor}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex gap-2">
                       <button
-                        onClick={() => handleViewStockDetail(item)}
-                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-150 text-xs font-medium"
+                        onClick={() => loadProducts(currentPage - 1, true)}
+                        disabled={currentPage <= 1 || productsLoading}
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        View
+                        Previous
                       </button>
                       <button
-                        onClick={() => handleEditItem(item)}
-                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors duration-150 text-xs font-medium"
+                        onClick={() => loadProducts(currentPage + 1, true)}
+                        disabled={currentPage >= totalPages || productsLoading}
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleAdjustStock(item)}
-                        className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors duration-150 text-xs font-medium"
-                      >
-                        Adjust
-                      </button>
-                      <button
-                        onClick={() => handleDeleteItem(item)}
-                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-150 text-xs font-medium"
-                      >
-                        Delete
+                        Next
                       </button>
                     </div>
                   </div>
-                ))}
+                )}
               </div>
+            ) : (
+              // Grid View
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredItems.map((item) => (
+                    <div key={item.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h4 className="text-lg font-semibold text-gray-900">{item.name}</h4>
+                          <p className="text-sm text-gray-600">{item.sku}</p>
+                          <p className="text-sm text-gray-500 mt-1 line-clamp-2">{item.description}</p>
+                        </div>
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(item.status)}`}>
+                          {item.status}
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-2 mb-4">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Category:</span>
+                          <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            {item.category}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Current Stock:</span>
+                          <div className="text-right">
+                            <span className="text-gray-900 font-medium">{item.currentStock} {item.unitOfMeasure}</span>
+                            {item.currentStock <= item.reorderPoint && (
+                              <div className="text-xs text-red-600">Reorder needed</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Last Price:</span>
+                          <span className="text-gray-900 font-medium">${item.lastPurchasePrice.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Avg Cost:</span>
+                          <span className="text-gray-900 font-medium">${item.averageCost.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Total Value:</span>
+                          <span className="text-gray-900 font-medium">${item.totalValue.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">Vendor:</span>
+                          <span className="text-gray-900">{item.vendor}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => handleViewStockDetail(item)}
+                          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-150 text-xs font-medium"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => handleEditItem(item)}
+                          className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors duration-150 text-xs font-medium"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleAdjustStock(item)}
+                          className="px-3 py-1 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors duration-150 text-xs font-medium"
+                        >
+                          Adjust
+                        </button>
+                        <button
+                          onClick={() => handleDeleteItem(item)}
+                          className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-150 text-xs font-medium"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Pagination Controls for Grid View */}
+                {totalPages > 1 && (
+                  <div className="mt-6 flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => loadProducts(currentPage - 1, true)}
+                        disabled={currentPage <= 1 || productsLoading}
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => loadProducts(currentPage + 1, true)}
+                        disabled={currentPage >= totalPages || productsLoading}
+                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

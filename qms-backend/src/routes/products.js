@@ -8,17 +8,39 @@ const router = express.Router();
 
 // Get all products
 router.get('/', authenticateToken, authorize(['admin', 'sales', 'procurement', 'finance', 'auditor']), asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, search, category, type, status } = req.query;
+  const { page = 1, limit = 50, search, category, type, status } = req.query;
   const offset = (page - 1) * limit;
+
+  // Cap the limit to prevent excessive data loading
+  const maxLimit = Math.min(parseInt(limit), 100);
 
   let query = supabaseAdmin
     .from('products')
     .select(`
-      *,
-      product_categories(name)
+      id,
+      sku,
+      name,
+      description,
+      category_id,
+      type,
+      unit_of_measure,
+      current_stock,
+      reorder_point,
+      max_stock_level,
+      last_purchase_price,
+      average_cost,
+      selling_price,
+      status,
+      created_at,
+      updated_at,
+      product_categories!inner(
+        id,
+        name
+      )
     `, { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+    .eq('status', status || 'active')
+    .order('updated_at', { ascending: false })
+    .range(offset, offset + maxLimit - 1);
 
   if (search) {
     query = query.or(`name.ilike.%${search}%,sku.ilike.%${search}%,description.ilike.%${search}%`);
@@ -32,13 +54,10 @@ router.get('/', authenticateToken, authorize(['admin', 'sales', 'procurement', '
     query = query.eq('type', type);
   }
 
-  if (status) {
-    query = query.eq('status', status);
-  }
-
   const { data: products, error, count } = await query;
 
   if (error) {
+    console.error('Products fetch error:', error);
     return res.status(400).json({
       error: 'Failed to fetch products',
       code: 'FETCH_FAILED',
@@ -49,12 +68,12 @@ router.get('/', authenticateToken, authorize(['admin', 'sales', 'procurement', '
   res.json({
     success: true,
     data: {
-      products,
+      products: products || [],
       pagination: {
         page: parseInt(page),
-        limit: parseInt(limit),
-        total: count,
-        pages: Math.ceil(count / limit)
+        limit: maxLimit,
+        total: count || 0,
+        pages: Math.ceil((count || 0) / maxLimit)
       }
     }
   });
@@ -191,6 +210,58 @@ router.get('/alerts/low-stock', authenticateToken, authorize(['admin', 'procurem
     success: true,
     data: { products }
   });
+}));
+
+// Get inventory statistics/KPIs
+router.get('/stats/kpis', authenticateToken, authorize(['admin', 'sales', 'procurement', 'finance', 'auditor']), asyncHandler(async (req, res) => {
+  try {
+    // Get basic counts and aggregations
+    const { data: stats, error } = await supabaseAdmin
+      .from('products')
+      .select(`
+        current_stock,
+        reorder_point,
+        average_cost,
+        last_purchase_price,
+        status
+      `)
+      .eq('status', 'active');
+
+    if (error) {
+      return res.status(400).json({
+        error: 'Failed to fetch inventory statistics',
+        code: 'STATS_FETCH_FAILED',
+        details: error.message
+      });
+    }
+
+    const products = stats || [];
+    
+    // Calculate KPIs
+    const totalItems = products.length;
+    const lowStockItems = products.filter(p => p.current_stock <= p.reorder_point).length;
+    const outOfStockItems = products.filter(p => p.current_stock <= 0).length;
+    const totalInventoryValue = products.reduce((sum, p) => {
+      const cost = p.average_cost || p.last_purchase_price || 0;
+      return sum + (p.current_stock * cost);
+    }, 0);
+
+    res.json({
+      success: true,
+      data: {
+        totalItems,
+        lowStockItems,
+        outOfStockItems,
+        totalInventoryValue: Math.round(totalInventoryValue * 100) / 100 // Round to 2 decimal places
+      }
+    });
+  } catch (error) {
+    console.error('KPIs calculation error:', error);
+    res.status(500).json({
+      error: 'Failed to calculate inventory statistics',
+      code: 'STATS_CALCULATION_FAILED'
+    });
+  }
 }));
 
 module.exports = router;

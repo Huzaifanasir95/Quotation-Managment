@@ -408,6 +408,10 @@ class ApiClient {
     return this.request('/products/alerts/low-stock');
   }
 
+  async getInventoryKPIs() {
+    return this.request('/products/stats/kpis');
+  }
+
   // Ledger methods
   async getLedgerEntries(params?: { 
     page?: number; 
