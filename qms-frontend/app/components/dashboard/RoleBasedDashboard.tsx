@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth, RoleGuard } from '../../../lib/useAuth';
-import NewQuotationModal from './NewQuotationModal';
+import CreateQuotationModal from '../sales/CreateQuotationModal';
 import UploadInquiryModal from './UploadInquiryModal';
 import ConvertQuoteModal from './ConvertQuoteModal';
 import CreateInvoiceModal from './CreateInvoiceModal';
@@ -284,7 +284,7 @@ export default function RoleBasedDashboard() {
       </RoleGuard>
 
       {/* Modals */}
-      <NewQuotationModal 
+      <CreateQuotationModal 
         isOpen={showNewQuotation} 
         onClose={() => setShowNewQuotation(false)}
         onQuotationCreated={() => {

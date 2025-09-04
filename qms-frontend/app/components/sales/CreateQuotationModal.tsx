@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { apiClient } from '../../lib/api';
 
 interface CreateQuotationModalProps {
@@ -12,6 +13,7 @@ interface CreateQuotationModalProps {
 type TabType = 'customer' | 'items' | 'taxes' | 'attachments' | 'preview';
 
 export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreated }: CreateQuotationModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('customer');
   const [formData, setFormData] = useState({
     customerId: '',
@@ -22,6 +24,12 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [isLoading, setIsLoading] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+
+  // Handle mounting for portal
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   // Reset modal state when it opens or closes
   const resetModalState = () => {
@@ -192,11 +200,34 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const currentTabIndex = tabs.findIndex(t => t.id === activeTab);
   const progress = ((currentTabIndex + 1) / tabs.length) * 100;
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
-      <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[95vh] flex flex-col border border-gray-100">
+  const modalContent = (
+    <div 
+      className="fixed z-50" 
+      style={{ 
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px'
+      }}
+      onClick={handleClose}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full flex flex-col border border-gray-100"
+        style={{ 
+          maxHeight: '95vh',
+          position: 'relative',
+          zIndex: 51
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="bg-gradient-to-r from-slate-50 to-gray-50 px-8 py-6 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
@@ -571,4 +602,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       </div>
     </div>
   );
+
+  // Render modal using portal to document.body for proper screen centering
+  return createPortal(modalContent, document.body);
 }
