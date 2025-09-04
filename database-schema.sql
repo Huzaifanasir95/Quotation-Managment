@@ -196,8 +196,8 @@ CREATE TABLE public.ledger_entry_lines (
   description text,
   created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT ledger_entry_lines_pkey PRIMARY KEY (id),
-  CONSTRAINT ledger_entry_lines_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.chart_of_accounts(id),
-  CONSTRAINT ledger_entry_lines_ledger_entry_id_fkey FOREIGN KEY (ledger_entry_id) REFERENCES public.ledger_entries(id)
+  CONSTRAINT ledger_entry_lines_ledger_entry_id_fkey FOREIGN KEY (ledger_entry_id) REFERENCES public.ledger_entries(id),
+  CONSTRAINT ledger_entry_lines_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.chart_of_accounts(id)
 );
 CREATE TABLE public.ocr_results (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -212,8 +212,8 @@ CREATE TABLE public.ocr_results (
   extracted_entities jsonb,
   processed_by uuid,
   CONSTRAINT ocr_results_pkey PRIMARY KEY (id),
-  CONSTRAINT ocr_results_processed_by_fkey FOREIGN KEY (processed_by) REFERENCES public.users(id),
-  CONSTRAINT ocr_results_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.document_attachments(id)
+  CONSTRAINT ocr_results_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.document_attachments(id),
+  CONSTRAINT ocr_results_processed_by_fkey FOREIGN KEY (processed_by) REFERENCES public.users(id)
 );
 CREATE TABLE public.product_categories (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -304,8 +304,8 @@ CREATE TABLE public.quotation_items (
   line_total numeric NOT NULL,
   created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT quotation_items_pkey PRIMARY KEY (id),
-  CONSTRAINT quotation_items_quotation_id_fkey FOREIGN KEY (quotation_id) REFERENCES public.quotations(id),
-  CONSTRAINT quotation_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id)
+  CONSTRAINT quotation_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id),
+  CONSTRAINT quotation_items_quotation_id_fkey FOREIGN KEY (quotation_id) REFERENCES public.quotations(id)
 );
 CREATE TABLE public.quotations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -327,10 +327,10 @@ CREATE TABLE public.quotations (
   created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT quotations_pkey PRIMARY KEY (id),
-  CONSTRAINT quotations_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES public.users(id),
-  CONSTRAINT quotations_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+  CONSTRAINT quotations_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customers(id),
   CONSTRAINT quotations_business_entity_id_fkey FOREIGN KEY (business_entity_id) REFERENCES public.business_entities(id),
-  CONSTRAINT quotations_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customers(id)
+  CONSTRAINT quotations_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+  CONSTRAINT quotations_approved_by_fkey FOREIGN KEY (approved_by) REFERENCES public.users(id)
 );
 CREATE TABLE public.sales_order_items (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -365,10 +365,10 @@ CREATE TABLE public.sales_orders (
   created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT sales_orders_pkey PRIMARY KEY (id),
-  CONSTRAINT sales_orders_quotation_id_fkey FOREIGN KEY (quotation_id) REFERENCES public.quotations(id),
+  CONSTRAINT sales_orders_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customers(id),
   CONSTRAINT sales_orders_business_entity_id_fkey FOREIGN KEY (business_entity_id) REFERENCES public.business_entities(id),
   CONSTRAINT sales_orders_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
-  CONSTRAINT sales_orders_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customers(id)
+  CONSTRAINT sales_orders_quotation_id_fkey FOREIGN KEY (quotation_id) REFERENCES public.quotations(id)
 );
 CREATE TABLE public.stock_movements (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

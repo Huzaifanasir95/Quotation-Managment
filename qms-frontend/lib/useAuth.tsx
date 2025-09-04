@@ -66,18 +66,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
+    console.log('🔑 Starting login process for:', email);
+    const startTime = Date.now();
+    
     try {
+      setLoading(true);
       const response = await apiClient.login(email, password);
       
       if (response.success) {
+        console.log('✅ Login API call successful, setting user data');
         setUser(response.data.user);
+        const totalTime = Date.now() - startTime;
+        console.log(`🎉 Login process completed in ${totalTime}ms`);
         return { success: true };
       } else {
         throw new Error(response.message || 'Login failed');
       }
     } catch (error: any) {
-      console.error('Login error:', error);
+      const totalTime = Date.now() - startTime;
+      console.error(`❌ Login process failed in ${totalTime}ms:`, error);
       throw new Error(error.message || 'An error occurred during login');
+    } finally {
+      setLoading(false);
     }
   };
 

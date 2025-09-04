@@ -48,38 +48,66 @@ class ApiClient {
       headers.Authorization = `Bearer ${this.token}`;
     }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    // Add timeout for requests (15 seconds)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Network error' }));
-      console.error('API Error:', {
-        url,
-        status: response.status,
-        statusText: response.statusText,
-        error,
-        requestBody: options.body
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        signal: controller.signal,
       });
-      throw new Error(error.details ? JSON.stringify(error.details) : error.message || `HTTP ${response.status}`);
-    }
 
-    return response.json();
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Network error' }));
+        console.error('API Error:', {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          error,
+          requestBody: options.body
+        });
+        throw new Error(error.details ? JSON.stringify(error.details) : error.message || `HTTP ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout. Please check your internet connection and try again.');
+      }
+      throw error;
+    }
   }
 
   // Auth methods
   async login(email: string, password: string) {
-    const response = await this.request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
+    console.log('🔑 Attempting login for:', email);
+    const startTime = Date.now();
     
-    if (response.success && response.data.token) {
-      this.setToken(response.data.token);
+    try {
+      const response = await this.request('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+      
+      const loginTime = Date.now() - startTime;
+      console.log(`✅ Login completed in ${loginTime}ms`);
+      
+      if (response.success && response.data.token) {
+        this.setToken(response.data.token);
+        console.log('🎫 Token set successfully');
+      }
+      
+      return response;
+    } catch (error: any) {
+      const loginTime = Date.now() - startTime;
+      console.error(`❌ Login failed in ${loginTime}ms:`, error.message);
+      throw error;
     }
-    
-    return response;
   }
 
   async register(userData: any) {

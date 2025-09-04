@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
@@ -12,21 +12,43 @@ interface AuthFormData {
 
 export default function HomePage() {
   const [error, setError] = useState('');
+  const [loadingTime, setLoadingTime] = useState(0);
   const router = useRouter();
   const { login, loading } = useAuth();
   const { register, handleSubmit, formState: { errors } } = useForm<AuthFormData>();
 
+  // Update loading time every 100ms when loading
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (loading) {
+      const startTime = Date.now();
+      interval = setInterval(() => {
+        setLoadingTime(Date.now() - startTime);
+      }, 100);
+    } else {
+      setLoadingTime(0);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [loading]);
+
   const onSubmit = async (data: AuthFormData) => {
     setError('');
+    console.log('🚀 Form submitted, starting login process...');
+    const startTime = Date.now();
     
     try {
       // Login using the auth context
       await login(data.email, data.password);
-      console.log('Login successful');
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ Login successful in ${totalTime}ms`);
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (err: any) {
-      console.error('Auth error:', err);
+      const totalTime = Date.now() - startTime;
+      console.error(`❌ Auth error in ${totalTime}ms:`, err);
       setError(err.message || 'An error occurred. Please try again.');
     }
   };
@@ -111,7 +133,7 @@ export default function HomePage() {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Signing In...
+                Signing In... {loadingTime > 0 && `(${(loadingTime / 1000).toFixed(1)}s)`}
               </span>
             ) : (
               'Sign In'

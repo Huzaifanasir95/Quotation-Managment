@@ -1,13 +1,18 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-// PostgreSQL connection configuration
+// PostgreSQL connection configuration - Optimized for performance
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000, // Increased timeout
+  acquireTimeoutMillis: 60000,   // Added acquire timeout
+  createTimeoutMillis: 30000,    // Added create timeout
+  destroyTimeoutMillis: 5000,    // Added destroy timeout
+  reapIntervalMillis: 1000,      // Added reap interval
+  createRetryIntervalMillis: 200, // Added retry interval
 });
 
 // Test database connection

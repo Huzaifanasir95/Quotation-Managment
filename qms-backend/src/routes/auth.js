@@ -27,8 +27,8 @@ router.post('/register', validate(schemas.userRegistration), asyncHandler(async 
     });
   }
 
-  // Hash password
-  const saltRounds = 12;
+  // Hash password - Reduced salt rounds for better performance
+  const saltRounds = 10;
   const password_hash = await bcrypt.hash(password, saltRounds);
 
   // Create user
@@ -69,49 +69,67 @@ router.post('/register', validate(schemas.userRegistration), asyncHandler(async 
   });
 }));
 
-// Login user
+// Login user - Optimized for performance
 router.post('/login', validate(schemas.userLogin), asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // Get user by email
+  const startTime = Date.now();
+  console.log(`🔑 Login attempt for: ${email}`);
+
+  // Get user by email with minimal fields first
   const { data: user, error } = await supabaseAdmin
     .from('users')
-    .select('*')
+    .select('id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at')
     .eq('email', email)
     .eq('is_active', true)
     .single();
 
   if (error || !user) {
+    console.log(`❌ User not found or inactive: ${email} (${Date.now() - startTime}ms)`);
     return res.status(401).json({
+      success: false,
       error: 'Invalid credentials',
       code: 'INVALID_CREDENTIALS'
     });
   }
+
+  console.log(`📋 User found: ${email} (${Date.now() - startTime}ms)`);
 
   // Verify password
+  const passwordStartTime = Date.now();
   const isValidPassword = await bcrypt.compare(password, user.password_hash);
+  console.log(`🔐 Password verification took: ${Date.now() - passwordStartTime}ms`);
+  
   if (!isValidPassword) {
+    console.log(`❌ Invalid password for: ${email} (${Date.now() - startTime}ms)`);
     return res.status(401).json({
+      success: false,
       error: 'Invalid credentials',
       code: 'INVALID_CREDENTIALS'
     });
   }
 
-  // Update last login
-  await supabaseAdmin
+  // Update last login asynchronously (don't wait for it)
+  supabaseAdmin
     .from('users')
     .update({ last_login: new Date().toISOString() })
-    .eq('id', user.id);
+    .eq('id', user.id)
+    .then(() => console.log(`📝 Last login updated for: ${email}`))
+    .catch(err => console.error(`❌ Failed to update last login:`, err));
 
   // Generate JWT token
+  const tokenStartTime = Date.now();
   const token = jwt.sign(
     { userId: user.id, email: user.email, role: user.role },
     config.jwt.secret,
     { expiresIn: config.jwt.expiresIn }
   );
+  console.log(`🎫 Token generation took: ${Date.now() - tokenStartTime}ms`);
 
   // Remove password hash from response
   const { password_hash, ...userResponse } = user;
+
+  console.log(`✅ Login successful for: ${email} (Total: ${Date.now() - startTime}ms)`);
 
   res.json({
     success: true,
@@ -204,8 +222,8 @@ router.put('/change-password', authenticateToken, asyncHandler(async (req, res) 
     });
   }
 
-  // Hash new password
-  const saltRounds = 12;
+  // Hash new password - Reduced salt rounds for better performance
+  const saltRounds = 10;
   const new_password_hash = await bcrypt.hash(new_password, saltRounds);
 
   // Update password
