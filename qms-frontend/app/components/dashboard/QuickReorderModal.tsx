@@ -1,119 +1,184 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { apiClient, ProductCategory } from '../../lib/api';
 
 interface QuickReorderModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-interface LowStockItem {
-  id: string;
-  sku: string;
-  name: string;
-  currentStock: number;
-  reorderPoint: number;
-  suggestedQuantity: number;
-  unitCost: number;
-  supplier: string;
-}
-
 export default function QuickReorderModal({ isOpen, onClose }: QuickReorderModalProps) {
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
+  const [formData, setFormData] = useState({
+    sku: '',
+    name: '',
+    description: '',
+    category_id: '',
+    type: 'finished_good' as 'raw_material' | 'finished_good' | 'service' | 'spare_parts',
+    unit_of_measure: 'Piece',
+    last_purchase_price: 0,
+    reorder_point: 0,
+    current_stock: 0,
+    selling_price: 0,
+    max_stock_level: 0
+  });
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [isLoading, setIsLoading] = useState(false);
 
-  const lowStockItems = [
-    {
-      id: '1',
-      sku: 'LAP-001',
-      name: 'Laptop Dell XPS 13',
-      currentStock: 2,
-      reorderPoint: 5,
-      suggestedQuantity: 8,
-      unitCost: 950,
-      supplier: 'Tech Supplies Inc'
-    },
-    {
-      id: '2',
-      sku: 'MON-002',
-      name: 'Monitor 27" 4K',
-      currentStock: 1,
-      reorderPoint: 3,
-      suggestedQuantity: 5,
-      unitCost: 650,
-      supplier: 'Display Solutions'
-    },
-    {
-      id: '3',
-      sku: 'KEY-003',
-      name: 'Wireless Keyboard',
-      currentStock: 0,
-      reorderPoint: 10,
-      suggestedQuantity: 15,
-      unitCost: 45,
-      supplier: 'Input Devices Co'
-    }
+  const units = ['Piece', 'KG', 'Litre', 'Meter', 'Hour', 'Box', 'Set', 'Gram', 'Ton', 'Milliliter', 'Centimeter', 'Inch', 'Foot', 'Yard', 'Square Meter', 'Cubic Meter'];
+  const productTypes = [
+    { value: 'raw_material', label: 'Raw Material' },
+    { value: 'finished_good', label: 'Finished Good' },
+    { value: 'service', label: 'Service' },
+    { value: 'spare_parts', label: 'Spare Parts' }
   ];
 
-  const handleItemToggle = (itemId: string) => {
-    setSelectedItems(prev => 
-      prev.includes(itemId) 
-        ? prev.filter(id => id !== itemId)
-        : [...prev, itemId]
-    );
-  };
+  // Load categories when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadCategories();
+      // Reset form when opening
+      setFormData({
+        sku: '',
+        name: '',
+        description: '',
+        category_id: '',
+        type: 'finished_good',
+        unit_of_measure: 'Piece',
+        last_purchase_price: 0,
+        reorder_point: 0,
+        current_stock: 0,
+        selling_price: 0,
+        max_stock_level: 0
+      });
+      setErrors({});
+    }
+  }, [isOpen]);
 
-  const handleSelectAll = () => {
-    if (selectedItems.length === lowStockItems.length) {
-      setSelectedItems([]);
-    } else {
-      setSelectedItems(lowStockItems.map(item => item.id));
+  const loadCategories = async () => {
+    try {
+      const response = await apiClient.getProductCategories({ limit: 100 });
+      if (response.success) {
+        setCategories(response.data.categories || []);
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error);
     }
   };
 
-  const getSelectedItemsData = () => {
-    return lowStockItems.filter(item => selectedItems.includes(item.id));
+  const validateForm = () => {
+    const newErrors: {[key: string]: string} = {};
+
+    // Required fields validation
+    if (!formData.sku.trim()) newErrors.sku = 'SKU is required';
+    if (!formData.name.trim()) newErrors.name = 'Item name is required';
+    if (!formData.type) newErrors.type = 'Product type is required';
+    if (!formData.unit_of_measure.trim()) newErrors.unit_of_measure = 'Unit of measure is required';
+    
+    // Optional field validation
+    if (formData.last_purchase_price < 0) newErrors.last_purchase_price = 'Price cannot be negative';
+    if (formData.selling_price < 0) newErrors.selling_price = 'Selling price cannot be negative';
+    if (formData.reorder_point < 0) newErrors.reorder_point = 'Reorder point cannot be negative';
+    if (formData.current_stock < 0) newErrors.current_stock = 'Stock cannot be negative';
+    if (formData.max_stock_level < 0) newErrors.max_stock_level = 'Max stock level cannot be negative';
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const calculateTotalCost = () => {
-    return getSelectedItemsData().reduce((total, item) => {
-      return total + (item.suggestedQuantity * item.unitCost);
-    }, 0);
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
 
-  const handleCreatePO = async () => {
-    if (selectedItems.length === 0) return;
-
-    setIsCreating(true);
+    setIsLoading(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const poData = {
-        items: getSelectedItemsData(),
-        totalCost: calculateTotalCost()
+      const productData: any = {
+        sku: formData.sku,
+        name: formData.name,
+        type: formData.type,
+        unit_of_measure: formData.unit_of_measure,
+        current_stock: formData.current_stock,
+        reorder_point: formData.reorder_point,
+        status: 'active'
       };
+
+      // Add optional fields only if they have values
+      if (formData.description) productData.description = formData.description;
+      if (formData.category_id) productData.category_id = formData.category_id;
+      if (formData.max_stock_level > 0) productData.max_stock_level = formData.max_stock_level;
+      if (formData.last_purchase_price > 0) productData.last_purchase_price = formData.last_purchase_price;
+      if (formData.selling_price > 0) productData.selling_price = formData.selling_price;
       
-      console.log('Creating purchase order:', poData);
-      alert('Purchase order created successfully!');
-      onClose();
+      const response = await apiClient.createProduct(productData);
+      
+      if (response.success) {
+        alert('Item created successfully!');
+        onClose();
+        
+        // Reset form
+        setFormData({
+          sku: '',
+          name: '',
+          description: '',
+          category_id: '',
+          type: 'finished_good',
+          unit_of_measure: 'Piece',
+          last_purchase_price: 0,
+          reorder_point: 0,
+          current_stock: 0,
+          selling_price: 0,
+          max_stock_level: 0
+        });
+        setErrors({});
+      } else {
+        console.error('Failed to save item:', response);
+        
+        // Try to extract validation errors from response
+        if (response.details && Array.isArray(response.details)) {
+          const errorMessages = response.details.map((err: any) => 
+            `${err.field}: ${err.message}`
+          ).join('\n');
+          alert(`Failed to save item:\n${errorMessages}`);
+        } else {
+          alert(`Failed to save item: ${response.message || 'Unknown error'}`);
+        }
+      }
     } catch (error) {
-      console.error('Failed to create purchase order:', error);
-      alert('Failed to create purchase order. Please try again.');
+      console.error('Failed to save item:', error);
+      
+      // Try to parse error message if it's from API response
+      let errorMessage = 'Please try again.';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      alert(`Failed to save item: ${errorMessage}`);
     } finally {
-      setIsCreating(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string | number) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+  return (    
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Quick Reorder (Low Stock)</h2>
-            <p className="text-gray-600 mt-1">Prevent stockouts with suggested quantities</p>
+            <h2 className="text-2xl font-bold text-gray-900">Add New Inventory Item</h2>
+            <p className="text-gray-600 mt-1">Quick add inventory items to prevent stockouts</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,108 +187,232 @@ export default function QuickReorderModal({ isOpen, onClose }: QuickReorderModal
           </button>
         </div>
 
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Low Stock Items</h3>
-            <div className="flex items-center space-x-3">
-              <button onClick={handleSelectAll} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                {selectedItems.length === lowStockItems.length ? 'Deselect All' : 'Select All'}
-              </button>
-              <span className="text-sm text-gray-500">
-                {selectedItems.length} of {lowStockItems.length} selected
-              </span>
+        <form onSubmit={handleSubmit} className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Basic Information */}
+            <div className="md:col-span-2">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
             </div>
-          </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left">
-                    <input
-                      type="checkbox"
-                      checked={selectedItems.length === lowStockItems.length}
-                      onChange={handleSelectAll}
-                      className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                    />
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reorder</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Suggested</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Cost</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Supplier</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {lowStockItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-4">
-                      <input
-                        type="checkbox"
-                        checked={selectedItems.includes(item.id)}
-                        onChange={() => handleItemToggle(item.id)}
-                        className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-                      />
-                    </td>
-                    <td className="px-4 py-4">
-                      <div>
-                        <p className="font-medium text-gray-900">{item.name}</p>
-                        <p className="text-sm text-gray-500">{item.sku}</p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className={`text-sm font-medium ${
-                        item.currentStock === 0 ? 'text-red-600' : 'text-yellow-600'
-                      }`}>
-                        {item.currentStock}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="text-sm text-gray-900">{item.reorderPoint}</span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="text-sm text-gray-900">{item.suggestedQuantity}</span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="text-sm text-gray-900">${item.unitCost.toLocaleString()}</span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="text-sm text-gray-900">{item.supplier}</span>
-                    </td>
-                  </tr>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">SKU/Item Code *</label>
+              <input
+                type="text"
+                value={formData.sku}
+                onChange={(e) => handleInputChange('sku', e.target.value)}
+                className={`w-full px-3 py-2 border text-black rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                  errors.sku ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Enter SKU or item code"
+              />
+              {errors.sku && <p className="text-red-500 text-xs mt-1">{errors.sku}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Item Name *</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                className={`w-full px-3 py-2 border text-black rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                  errors.name ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Enter item name"
+              />
+              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                rows={3}
+                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                placeholder="Enter item description..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+              <select
+                value={formData.category_id}
+                onChange={(e) => handleInputChange('category_id', e.target.value)}
+                className={`w-full text-black px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                  errors.category_id ? 'border-red-500' : 'border-gray-300'
+                }`}
+              >
+                <option value="">Select category (optional)</option>
+                {categories.length > 0 ? (
+                  categories.map(category => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
+                  ))
+                ) : (
+                  <option value="" disabled>No categories available</option>
+                )}
+              </select>
+              {categories.length === 0 && (
+                <p className="mt-1 text-sm text-orange-600">
+                  No categories found. Categories can be managed from the admin panel.
+                </p>
+              )}
+              {errors.category_id && <p className="text-red-500 text-xs mt-1">{errors.category_id}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Product Type</label>
+              <select
+                value={formData.type}
+                onChange={(e) => handleInputChange('type', e.target.value)}
+                className={`w-full text-black px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                  errors.type ? 'border-red-500' : 'border-gray-300'
+                }`}
+              >
+                {productTypes.map(type => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
                 ))}
-              </tbody>
-            </table>
+              </select>
+              {errors.type && <p className="text-red-500 text-xs mt-1">{errors.type}</p>}
+            </div>
+
+            {/* Stock & Pricing */}
+            <div className="md:col-span-2">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Stock & Pricing</h3>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Unit of Measure</label>
+              <select
+                value={formData.unit_of_measure}
+                onChange={(e) => handleInputChange('unit_of_measure', e.target.value)}
+                className={`w-full text-black px-3 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                  errors.unit_of_measure ? 'border-red-500' : 'border-gray-300'
+                }`}
+              >
+                {units.map(unit => (
+                  <option key={unit} value={unit}>{unit}</option>
+                ))}
+              </select>
+              {errors.unit_of_measure && <p className="text-red-500 text-xs mt-1">{errors.unit_of_measure}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Last Purchase Price</label>
+              <input
+                type="number"
+                value={formData.last_purchase_price}
+                onChange={(e) => handleInputChange('last_purchase_price', Number(e.target.value))}
+                className={`w-full px-3 py-2 text-black border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                  errors.last_purchase_price ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+              />
+              {errors.last_purchase_price && <p className="text-red-500 text-xs mt-1">{errors.last_purchase_price}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Selling Price</label>
+              <input
+                type="number"
+                value={formData.selling_price}
+                onChange={(e) => handleInputChange('selling_price', Number(e.target.value))}
+                className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Reorder Point</label>
+              <input
+                type="number"
+                value={formData.reorder_point}
+                onChange={(e) => handleInputChange('reorder_point', Number(e.target.value))}
+                className={`w-full px-3 py-2 text-black border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                  errors.reorder_point ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="0"
+                min="0"
+              />
+              {errors.reorder_point && <p className="text-red-500 text-xs mt-1">{errors.reorder_point}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Current Stock</label>
+              <input
+                type="number"
+                value={formData.current_stock}
+                onChange={(e) => handleInputChange('current_stock', Number(e.target.value))}
+                className={`w-full px-3 py-2 text-black border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                  errors.current_stock ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="0"
+                min="0"
+                step="0.001"
+              />
+              {errors.current_stock && <p className="text-red-500 text-xs mt-1">{errors.current_stock}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Max Stock Level</label>
+              <input
+                type="number"
+                value={formData.max_stock_level}
+                onChange={(e) => handleInputChange('max_stock_level', Number(e.target.value))}
+                className={`w-full px-3 py-2 text-black border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent ${
+                  errors.max_stock_level ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="0"
+                min="0"
+                step="0.001"
+              />
+              {errors.max_stock_level && <p className="text-red-500 text-xs mt-1">{errors.max_stock_level}</p>}
+            </div>
+
           </div>
 
-          {selectedItems.length > 0 && (
-            <div className="mt-6 bg-gray-50 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Selected Items: {selectedItems.length}</p>
-                  <p className="text-lg font-semibold text-red-600">Total Cost: ${calculateTotalCost().toLocaleString()}</p>
-                </div>
-                <button
-                  onClick={handleCreatePO}
-                  disabled={isCreating}
-                  className="px-6 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
-                >
-                  {isCreating ? 'Creating PO...' : 'Create Purchase Order'}
-                </button>
+          {/* Summary */}
+          <div className="mt-6 bg-red-50 rounded-lg p-4">
+            <h4 className="font-medium text-gray-900 mb-3">Summary</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Estimated Value:</span>
+                <span className="ml-2 font-medium text-green-600">
+                  ${(formData.current_stock * formData.last_purchase_price).toFixed(2)}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-600">Status:</span>
+                <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                  formData.current_stock > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
+                  {formData.current_stock > 0 ? 'In Stock' : 'Out of Stock'}
+                </span>
               </div>
             </div>
-          )}
-        </div>
+          </div>
 
-        <div className="flex items-center justify-end p-6 border-t border-gray-200 bg-gray-50">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-        </div>
+          {/* Footer */}
+          <div className="flex items-center justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="px-6 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Creating Item...' : 'Create Item'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
