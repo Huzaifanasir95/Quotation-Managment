@@ -239,6 +239,97 @@ app.get('/api/v1/sales/customers/limit-50', (req, res) => {
   });
 });
 
+// Additional sales endpoints that might be needed
+app.get('/api/v1/sales/customers', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      customers: [
+        {
+          id: 1,
+          name: 'ABC Corporation',
+          email: 'contact@abc-corp.com',
+          phone: '+1-555-0123',
+          address: '123 Business St, City, State 12345',
+          totalQuotes: 15,
+          totalValue: 45000,
+          status: 'active'
+        },
+        {
+          id: 2,
+          name: 'XYZ Limited',
+          email: 'info@xyz-ltd.com',
+          phone: '+1-555-0456',
+          address: '456 Commerce Ave, City, State 67890',
+          totalQuotes: 12,
+          totalValue: 38000,
+          status: 'active'
+        },
+        {
+          id: 3,
+          name: 'Tech Solutions Inc',
+          email: 'hello@techsolutions.com',
+          phone: '+1-555-0789',
+          address: '789 Innovation Dr, City, State 54321',
+          totalQuotes: 10,
+          totalValue: 32000,
+          status: 'active'
+        }
+      ],
+      total: 3,
+      currentPage: 1,
+      totalPages: 1
+    }
+  });
+});
+
+// Quotations endpoint
+app.get('/api/v1/sales/quotations', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      quotations: [
+        {
+          id: 1,
+          quoteNumber: 'QUO-2025-001',
+          customer: 'ABC Corporation',
+          customerId: 1,
+          amount: 15000,
+          status: 'pending',
+          date: '2025-09-01',
+          validUntil: '2025-09-30',
+          items: 3
+        },
+        {
+          id: 2,
+          quoteNumber: 'QUO-2025-002',
+          customer: 'XYZ Limited',
+          customerId: 2,
+          amount: 12000,
+          status: 'converted',
+          date: '2025-09-02',
+          validUntil: '2025-10-01',
+          items: 2
+        },
+        {
+          id: 3,
+          quoteNumber: 'QUO-2025-003',
+          customer: 'Tech Solutions Inc',
+          customerId: 3,
+          amount: 8500,
+          status: 'pending',
+          date: '2025-09-03',
+          validUntil: '2025-10-02',
+          items: 4
+        }
+      ],
+      total: 3,
+      currentPage: 1,
+      totalPages: 1
+    }
+  });
+});
+
 // Catch all other routes
 app.use('*', (req, res) => {
   res.status(404).json({
