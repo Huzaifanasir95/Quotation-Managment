@@ -160,6 +160,85 @@ app.get('/api/v1/product-categories', (req, res) => {
   });
 });
 
+// Sales API endpoints
+app.get('/api/v1/sales/quotation-trends', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      trends: [
+        { month: 'Jan', quotes: 25, converted: 12 },
+        { month: 'Feb', quotes: 30, converted: 18 },
+        { month: 'Mar', quotes: 35, converted: 22 },
+        { month: 'Apr', quotes: 28, converted: 15 },
+        { month: 'May', quotes: 40, converted: 28 },
+        { month: 'Jun', quotes: 38, converted: 25 }
+      ]
+    }
+  });
+});
+
+app.get('/api/v1/sales/dashboard', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      totalQuotations: 150,
+      pendingQuotations: 25,
+      convertedQuotations: 85,
+      totalRevenue: 125000,
+      averageQuoteValue: 5200,
+      conversionRate: 65.5,
+      topCustomers: [
+        { id: 1, name: 'ABC Corporation', totalQuotes: 15, totalValue: 45000 },
+        { id: 2, name: 'XYZ Ltd', totalQuotes: 12, totalValue: 38000 },
+        { id: 3, name: 'Tech Solutions', totalQuotes: 10, totalValue: 32000 }
+      ],
+      recentQuotations: [
+        { id: 1, customer: 'ABC Corp', amount: 15000, status: 'pending', date: '2025-09-01' },
+        { id: 2, customer: 'XYZ Ltd', amount: 12000, status: 'converted', date: '2025-09-02' },
+        { id: 3, customer: 'Tech Solutions', amount: 8500, status: 'pending', date: '2025-09-03' }
+      ]
+    }
+  });
+});
+
+app.get('/api/v1/sales/customers/limit-50', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      {
+        id: 1,
+        name: 'ABC Corporation',
+        email: 'contact@abc-corp.com',
+        phone: '+1-555-0123',
+        address: '123 Business St, City, State 12345',
+        totalQuotes: 15,
+        totalValue: 45000,
+        status: 'active'
+      },
+      {
+        id: 2,
+        name: 'XYZ Limited',
+        email: 'info@xyz-ltd.com',
+        phone: '+1-555-0456',
+        address: '456 Commerce Ave, City, State 67890',
+        totalQuotes: 12,
+        totalValue: 38000,
+        status: 'active'
+      },
+      {
+        id: 3,
+        name: 'Tech Solutions Inc',
+        email: 'hello@techsolutions.com',
+        phone: '+1-555-0789',
+        address: '789 Innovation Dr, City, State 54321',
+        totalQuotes: 10,
+        totalValue: 32000,
+        status: 'active'
+      }
+    ]
+  });
+});
+
 // Catch all other routes
 app.use('*', (req, res) => {
   res.status(404).json({
