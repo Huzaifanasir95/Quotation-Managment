@@ -801,6 +801,318 @@ app.get('/api/v1/stock-movements', async (req, res) => {
   }
 });
 
+// Orders endpoint (sales orders)
+app.get('/api/v1/orders', async (req, res) => {
+  try {
+    const { page = 1, limit = 50, search } = req.query;
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from('orders')
+      .select(`
+        *,
+        customers (name, email)
+      `, { count: 'exact' })
+      .range(offset, offset + limit - 1)
+      .order('created_at', { ascending: false });
+
+    if (search) {
+      query = query.or(`order_number.ilike.%${search}%`);
+    }
+
+    const { data: orders, error, count } = await query;
+
+    if (error) {
+      console.error('Orders fetch error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch orders'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        orders: orders || [],
+        total: count || 0,
+        currentPage: parseInt(page),
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Orders error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Vendor bills endpoint
+app.get('/api/v1/vendor-bills', async (req, res) => {
+  try {
+    const { page = 1, limit = 50, search, vendor_id, purchase_order_id } = req.query;
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from('vendor_bills')
+      .select(`
+        *,
+        vendors (name, email),
+        purchase_orders (po_number)
+      `, { count: 'exact' })
+      .range(offset, offset + limit - 1)
+      .order('created_at', { ascending: false });
+
+    if (search) {
+      query = query.or(`bill_number.ilike.%${search}%`);
+    }
+
+    if (vendor_id) {
+      query = query.eq('vendor_id', vendor_id);
+    }
+
+    if (purchase_order_id) {
+      query = query.eq('purchase_order_id', purchase_order_id);
+    }
+
+    const { data: vendorBills, error, count } = await query;
+
+    if (error) {
+      console.error('Vendor bills fetch error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch vendor bills'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        bills: vendorBills || [],
+        total: count || 0,
+        currentPage: parseInt(page),
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Vendor bills error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Invoices endpoint  
+app.get('/api/v1/invoices', async (req, res) => {
+  try {
+    const { page = 1, limit = 50, search, status, customer_id } = req.query;
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from('invoices')
+      .select(`
+        *,
+        customers (name, email)
+      `, { count: 'exact' })
+      .range(offset, offset + limit - 1)
+      .order('created_at', { ascending: false });
+
+    if (search) {
+      query = query.or(`invoice_number.ilike.%${search}%`);
+    }
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    if (customer_id) {
+      query = query.eq('customer_id', customer_id);
+    }
+
+    const { data: invoices, error, count } = await query;
+
+    if (error) {
+      console.error('Invoices fetch error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch invoices'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        invoices: invoices || [],
+        total: count || 0,
+        currentPage: parseInt(page),
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Invoices error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Ledger endpoints
+app.get('/api/v1/ledger', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 50, 
+      date_from, 
+      date_to, 
+      reference_type, 
+      account_type, 
+      customer_vendor, 
+      entry_type 
+    } = req.query;
+    
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from('ledger_entries')
+      .select('*', { count: 'exact' })
+      .range(offset, offset + limit - 1)
+      .order('created_at', { ascending: false });
+
+    if (date_from) {
+      query = query.gte('entry_date', date_from);
+    }
+
+    if (date_to) {
+      query = query.lte('entry_date', date_to);
+    }
+
+    if (reference_type) {
+      query = query.eq('reference_type', reference_type);
+    }
+
+    if (account_type) {
+      query = query.eq('account_type', account_type);
+    }
+
+    if (entry_type) {
+      query = query.eq('entry_type', entry_type);
+    }
+
+    const { data: entries, error, count } = await query;
+
+    if (error) {
+      console.error('Ledger entries fetch error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch ledger entries'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        entries: entries || [],
+        total: count || 0,
+        currentPage: parseInt(page),
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Ledger entries error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Financial metrics endpoint
+app.get('/api/v1/ledger/metrics/summary', async (req, res) => {
+  try {
+    const { date_from, date_to } = req.query;
+
+    // Get basic financial data from various tables
+    const [
+      { data: invoices, error: invoicesError },
+      { data: vendorBills, error: vendorBillsError },
+      { data: ledgerEntries, error: ledgerError }
+    ] = await Promise.all([
+      supabase.from('invoices').select('total_amount, status, created_at'),
+      supabase.from('vendor_bills').select('total_amount, status, created_at'),
+      supabase.from('ledger_entries').select('total_debit, total_credit, reference_type, entry_date')
+    ]);
+
+    if (invoicesError || vendorBillsError || ledgerError) {
+      console.error('Financial metrics fetch error:', { invoicesError, vendorBillsError, ledgerError });
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch financial metrics'
+      });
+    }
+
+    // Apply date filters if provided
+    let filteredInvoices = invoices || [];
+    let filteredVendorBills = vendorBills || [];
+    let filteredLedgerEntries = ledgerEntries || [];
+
+    if (date_from) {
+      filteredInvoices = filteredInvoices.filter(inv => new Date(inv.created_at) >= new Date(date_from));
+      filteredVendorBills = filteredVendorBills.filter(bill => new Date(bill.created_at) >= new Date(date_from));
+      filteredLedgerEntries = filteredLedgerEntries.filter(entry => new Date(entry.entry_date) >= new Date(date_from));
+    }
+
+    if (date_to) {
+      filteredInvoices = filteredInvoices.filter(inv => new Date(inv.created_at) <= new Date(date_to));
+      filteredVendorBills = filteredVendorBills.filter(bill => new Date(bill.created_at) <= new Date(date_to));
+      filteredLedgerEntries = filteredLedgerEntries.filter(entry => new Date(entry.entry_date) <= new Date(date_to));
+    }
+
+    // Calculate metrics
+    const totalSales = filteredInvoices
+      .filter(inv => inv.status === 'paid' || inv.status === 'sent')
+      .reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+
+    const totalPurchases = filteredVendorBills
+      .filter(bill => bill.status === 'paid' || bill.status === 'approved')
+      .reduce((sum, bill) => sum + (bill.total_amount || 0), 0);
+
+    const expenses = filteredLedgerEntries
+      .filter(entry => entry.reference_type === 'expense')
+      .reduce((sum, entry) => sum + (entry.total_debit || 0), 0);
+
+    const netProfit = totalSales - totalPurchases - expenses;
+
+    const pendingInvoices = filteredInvoices.filter(inv => inv.status === 'draft' || inv.status === 'sent').length;
+    
+    const pendingAmount = filteredInvoices
+      .filter(inv => inv.status === 'draft' || inv.status === 'sent')
+      .reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+
+    res.json({
+      success: true,
+      data: {
+        metrics: {
+          totalSales: parseFloat(totalSales.toFixed(2)),
+          totalPurchases: parseFloat(totalPurchases.toFixed(2)),
+          expenses: parseFloat(expenses.toFixed(2)),
+          netProfit: parseFloat(netProfit.toFixed(2)),
+          pendingInvoices,
+          pendingAmount: parseFloat(pendingAmount.toFixed(2))
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Financial metrics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 // Catch all other routes
 app.use('*', (req, res) => {
   res.status(404).json({
