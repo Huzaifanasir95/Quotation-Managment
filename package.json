@@ -1,0 +1,35 @@
+{
+  "name": "qms-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Quality Management System - Full Stack Application",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd qms-frontend && npm run dev",
+    "dev:backend": "cd qms-backend && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd qms-frontend && npm run build",
+    "build:backend": "cd qms-backend && npm install",
+    "start": "npm run start:frontend",
+    "start:frontend": "cd qms-frontend && npm run start",
+    "start:backend": "cd qms-backend && npm run start",
+    "install:all": "npm install && cd qms-frontend && npm install && cd ../qms-backend && npm install",
+    "vercel-build": "cd qms-frontend && npm install && npm run build"
+  },
+  "workspaces": [
+    "qms-frontend",
+    "qms-backend"
+  ],
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/malikadan212/QMS.git"
+  },
+  "author": "QMS Team",
+  "license": "MIT"
+}

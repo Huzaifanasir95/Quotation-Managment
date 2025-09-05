@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "qms-frontend/package.json",
+      "use": "@vercel/next"
+    },
+    {
+      "src": "qms-backend/src/server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "qms-backend/src/server.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "qms-frontend/$1"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "qms-backend/src/server.js": {
+      "maxDuration": 30
+    }
+  }
+}
