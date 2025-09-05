@@ -6,14 +6,14 @@
       "use": "@vercel/next"
     },
     {
-      "src": "qms-backend/src/server.js",
+      "src": "qms-backend/api/index.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "qms-backend/src/server.js"
+      "dest": "qms-backend/api/index.js"
     },
     {
       "src": "/(.*)",
@@ -22,10 +22,5 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  },
-  "functions": {
-    "qms-backend/src/server.js": {
-      "maxDuration": 30
-    }
   }
 }
