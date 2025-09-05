@@ -3,27 +3,27 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const { RateLimiterMemory } = require('rate-limiter-flexible');
-const config = require('./config');
-const { errorHandler, logger } = require('./middleware/errorHandler');
+const config = require('../src/config');
+const { errorHandler, logger } = require('../src/middleware/errorHandler');
 
 // Import routes
-const authRoutes = require('./routes/auth');
-const customerRoutes = require('./routes/customers');
-const vendorRoutes = require('./routes/vendors');
-const productRoutes = require('./routes/products');
-const quotationRoutes = require('./routes/quotations');
-const purchaseOrderRoutes = require('./routes/purchaseOrders');
-const invoiceRoutes = require('./routes/invoices');
-const stockMovementRoutes = require('./routes/stockMovements');
-const documentRoutes = require('./routes/documents');
-const businessEntityRoutes = require('./routes/businessEntities');
-const indexRoutes = require('./routes/index');
-const salesRoutes = require('./routes/sales');
-const orderRoutes = require('./routes/orders');
-const vendorBillRoutes = require('./routes/vendorBills');
-const deliveryChallanRoutes = require('./routes/deliveryChallans');
-const productCategoryRoutes = require('./routes/productCategories');
-const ledgerRoutes = require('./routes/ledger');
+const authRoutes = require('../src/routes/auth');
+const customerRoutes = require('../src/routes/customers');
+const vendorRoutes = require('../src/routes/vendors');
+const productRoutes = require('../src/routes/products');
+const quotationRoutes = require('../src/routes/quotations');
+const purchaseOrderRoutes = require('../src/routes/purchaseOrders');
+const invoiceRoutes = require('../src/routes/invoices');
+const stockMovementRoutes = require('../src/routes/stockMovements');
+const documentRoutes = require('../src/routes/documents');
+const businessEntityRoutes = require('../src/routes/businessEntities');
+const indexRoutes = require('../src/routes/index');
+const salesRoutes = require('../src/routes/sales');
+const orderRoutes = require('../src/routes/orders');
+const vendorBillRoutes = require('../src/routes/vendorBills');
+const deliveryChallanRoutes = require('../src/routes/deliveryChallans');
+const productCategoryRoutes = require('../src/routes/productCategories');
+const ledgerRoutes = require('../src/routes/ledger');
 
 const app = express();
 
