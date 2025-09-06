@@ -567,6 +567,86 @@ app.get('/api/v1/business-entities', async (req, res) => {
   }
 });
 
+// Documents endpoints
+app.get('/api/v1/documents', async (req, res) => {
+  try {
+    const { 
+      document_type, 
+      compliance_status, 
+      ocr_status, 
+      customer_id, 
+      vendor_id, 
+      business_entity_id,
+      linked_reference_type,
+      date_from,
+      date_to,
+      limit = 100,
+      offset = 0
+    } = req.query;
+
+    let query = supabase
+      .from('document_attachments')
+      .select(`
+        *,
+        customers (id, name, email, gst_number),
+        vendors (id, name, email, gst_number),
+        business_entities (id, name, legal_name, country)
+      `)
+      .order('uploaded_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    // Apply filters
+    if (document_type && document_type !== 'All') {
+      query = query.eq('document_type', document_type);
+    }
+    if (compliance_status && compliance_status !== 'All') {
+      query = query.eq('compliance_status', compliance_status);
+    }
+    if (ocr_status && ocr_status !== 'All') {
+      query = query.eq('ocr_status', ocr_status);
+    }
+    if (customer_id) {
+      query = query.eq('customer_id', customer_id);
+    }
+    if (vendor_id) {
+      query = query.eq('vendor_id', vendor_id);
+    }
+    if (business_entity_id) {
+      query = query.eq('business_entity_id', business_entity_id);
+    }
+    if (linked_reference_type && linked_reference_type !== 'All') {
+      query = query.eq('linked_reference_type', linked_reference_type);
+    }
+    if (date_from) {
+      query = query.gte('uploaded_at', date_from);
+    }
+    if (date_to) {
+      query = query.lte('uploaded_at', date_to + 'T23:59:59');
+    }
+
+    const { data: documents, error } = await query;
+
+    if (error) {
+      console.error('Documents fetch error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch documents'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: documents || []
+    });
+  } catch (error) {
+    console.error('Documents error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 app.get('/api/v1/product-categories', async (req, res) => {
   try {
     const { data: categories, error } = await supabase
