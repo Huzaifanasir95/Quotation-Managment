@@ -149,6 +149,88 @@ app.get('/api/v1/products', async (req, res) => {
   }
 });
 
+// Create product endpoint
+app.post('/api/v1/products', async (req, res) => {
+  try {
+    const productData = req.body;
+    console.log('Creating product with data:', productData);
+
+    // Validate required fields
+    if (!productData.sku || !productData.name || !productData.type || !productData.unit_of_measure) {
+      return res.status(400).json({
+        success: false,
+        message: 'SKU, name, type, and unit of measure are required'
+      });
+    }
+
+    // Check if SKU already exists
+    const { data: existingProduct, error: checkError } = await supabase
+      .from('products')
+      .select('sku')
+      .eq('sku', productData.sku)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('SKU check error:', checkError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to check SKU uniqueness'
+      });
+    }
+
+    if (existingProduct) {
+      return res.status(400).json({
+        success: false,
+        message: 'SKU already exists'
+      });
+    }
+
+    // Prepare product data for insertion
+    const finalProductData = {
+      ...productData,
+      current_stock: productData.current_stock || 0,
+      reorder_point: productData.reorder_point || 0,
+      status: productData.status || 'active',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('Final product data:', finalProductData);
+
+    // Create product
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .insert(finalProductData)
+      .select('*')
+      .single();
+
+    if (productError) {
+      console.error('Product creation error:', productError);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create product',
+        error: productError.message
+      });
+    }
+
+    console.log('Product created successfully:', product);
+
+    res.status(201).json({
+      success: true,
+      message: 'Product created successfully',
+      data: { product }
+    });
+
+  } catch (error) {
+    console.error('Product creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
 app.get('/api/v1/products/stats/kpis', async (req, res) => {
   try {
     const { data: products, error } = await supabase
