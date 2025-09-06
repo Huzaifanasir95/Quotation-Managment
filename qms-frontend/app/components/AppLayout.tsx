@@ -43,24 +43,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </div>
           </div>
         </div>
-        
-        {/* Additional footer info */}
-        <div className="mt-2 pt-2 border-t border-gray-100">
-          <div className="flex items-center justify-between text-xs text-gray-400">
-            <div className="flex items-center space-x-4">
-              <span>Built with Next.js & Supabase</span>
-              <span>•</span>
-              <span>Last updated: {new Date().toLocaleDateString()}</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <a href="#" className="hover:text-gray-600 transition-colors">Privacy</a>
-              <span>•</span>
-              <a href="#" className="hover:text-gray-600 transition-colors">Terms</a>
-              <span>•</span>
-              <a href="#" className="hover:text-gray-600 transition-colors">Support</a>
-            </div>
-          </div>
-        </div>
       </footer>
     </div>
   );

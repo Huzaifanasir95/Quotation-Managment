@@ -114,7 +114,7 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
 
   const addItem = () => {
     const newItem: QuotationItem = {
-      id: Date.now().toString(),
+      id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       description: '',
       quantity: 1,
       unit_price: 0,

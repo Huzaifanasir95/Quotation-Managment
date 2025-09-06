@@ -196,13 +196,14 @@ app.get('/api/v1/quotations', async (req, res) => {
       .from('quotations')
       .select(`
         *,
-        customers (name, email)
+        customers (name, email),
+        quotation_items (*)
       `, { count: 'exact' })
       .range(offset, offset + limit - 1)
       .order('created_at', { ascending: false });
 
     if (search) {
-      query = query.or(`quote_number.ilike.%${search}%`);
+      query = query.or(`quotation_number.ilike.%${search}%`);
     }
 
     const { data: quotations, error, count } = await query;
@@ -226,6 +227,195 @@ app.get('/api/v1/quotations', async (req, res) => {
     });
   } catch (error) {
     console.error('Quotations error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Create quotation endpoint
+app.post('/api/v1/quotations', async (req, res) => {
+  try {
+    const { items, ...quotationData } = req.body;
+    console.log('Creating quotation with data:', { quotationData, itemsCount: items?.length });
+
+    // Generate quotation number
+    const currentYear = new Date().getFullYear();
+    const { data: lastQuotation } = await supabase
+      .from('quotations')
+      .select('quotation_number')
+      .like('quotation_number', `Q-${currentYear}-%`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    let nextNumber = 1;
+    if (lastQuotation && lastQuotation.quotation_number) {
+      const lastNumber = parseInt(lastQuotation.quotation_number.split('-')[2]);
+      nextNumber = isNaN(lastNumber) ? 1 : lastNumber + 1;
+    }
+
+    const quotation_number = `Q-${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
+
+    // Calculate totals
+    let subtotal = 0;
+    let tax_amount = 0;
+    let discount_amount = 0;
+
+    const processedItems = items?.map(item => {
+      const quantity = Number(item.quantity) || 0;
+      const unitPrice = Number(item.unit_price) || 0;
+      const discountPercent = Number(item.discount_percent) || 0;
+      const taxPercent = Number(item.tax_percent) || 0;
+
+      const line_total = quantity * unitPrice;
+      const discount = line_total * (discountPercent / 100);
+      const taxable_amount = line_total - discount;
+      const tax = taxable_amount * (taxPercent / 100);
+
+      subtotal += line_total;
+      discount_amount += discount;
+      tax_amount += tax;
+
+      return {
+        description: item.description || '',
+        quantity,
+        unit_price: unitPrice,
+        discount_percent: discountPercent,
+        tax_percent: taxPercent,
+        line_total: taxable_amount + tax
+      };
+    }) || [];
+
+    const total_amount = subtotal - discount_amount + tax_amount;
+
+    const finalQuotationData = {
+      ...quotationData,
+      quotation_number,
+      subtotal,
+      tax_amount,
+      discount_amount,
+      total_amount,
+      status: 'draft',
+      created_at: new Date().toISOString()
+    };
+
+    console.log('Final quotation data:', finalQuotationData);
+
+    // Create quotation
+    const { data: quotation, error: quotationError } = await supabase
+      .from('quotations')
+      .insert(finalQuotationData)
+      .select('*')
+      .single();
+
+    if (quotationError) {
+      console.error('Quotation creation error:', quotationError);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create quotation',
+        error: quotationError.message
+      });
+    }
+
+    console.log('Quotation created successfully:', quotation);
+
+    // Create quotation items if there are any
+    if (processedItems.length > 0) {
+      const quotationItems = processedItems.map(item => ({
+        ...item,
+        quotation_id: quotation.id
+      }));
+
+      console.log('Creating quotation items:', quotationItems);
+
+      const { error: itemsError } = await supabase
+        .from('quotation_items')
+        .insert(quotationItems);
+
+      if (itemsError) {
+        console.error('Quotation items creation error:', itemsError);
+        // Rollback quotation creation
+        await supabase.from('quotations').delete().eq('id', quotation.id);
+        return res.status(400).json({
+          success: false,
+          message: 'Failed to create quotation items',
+          error: itemsError.message
+        });
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Quotation created successfully',
+      data: { quotation }
+    });
+
+  } catch (error) {
+    console.error('Quotation creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
+// Update quotation status endpoint
+app.patch('/api/v1/quotations/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status is required'
+      });
+    }
+
+    const validStatuses = ['draft', 'sent', 'approved', 'rejected', 'accepted', 'converted'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status. Valid statuses are: ' + validStatuses.join(', ')
+      });
+    }
+
+    const { data: quotation, error } = await supabase
+      .from('quotations')
+      .update({ 
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Quotation status update error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update quotation status'
+      });
+    }
+
+    if (!quotation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Quotation status updated successfully',
+      data: { quotation }
+    });
+
+  } catch (error) {
+    console.error('Quotation status update error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -985,10 +1175,10 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
       });
     }
 
-    if (quotation.status !== 'approved' && quotation.status !== 'accepted') {
+    if (quotation.status !== 'approved' && quotation.status !== 'accepted' && quotation.status !== 'sent') {
       return res.status(400).json({
         success: false,
-        message: 'Only approved quotations can be converted to orders'
+        message: 'Only approved, accepted, or sent quotations can be converted to orders'
       });
     }
 

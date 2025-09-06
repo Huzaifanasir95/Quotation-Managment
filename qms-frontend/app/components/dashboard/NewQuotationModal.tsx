@@ -33,7 +33,7 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
   const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     customer_id: '',
-    quotation_date: new Date().toISOString().split('T')[0],
+    quotation_date: '',
     valid_until: '',
     terms_conditions: '',
     notes: ''
@@ -54,11 +54,14 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
   useEffect(() => {
     if (isOpen) {
       fetchCustomers();
-      // Set default valid until date (30 days from now)
+      // Set default dates after component mounts to avoid hydration issues
+      const today = new Date().toISOString().split('T')[0];
       const validUntil = new Date();
       validUntil.setDate(validUntil.getDate() + 30);
+      
       setFormData(prev => ({
         ...prev,
+        quotation_date: today,
         valid_until: validUntil.toISOString().split('T')[0]
       }));
     }
@@ -80,7 +83,7 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
 
   const addItem = () => {
     const newItem: QuotationItem = {
-      id: Date.now().toString(),
+      id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       description: '',
       quantity: 1,
       unit_price: 0,
@@ -219,7 +222,7 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
         // Reset form
         setFormData({
           customer_id: '',
-          quotation_date: new Date().toISOString().split('T')[0],
+          quotation_date: '',
           valid_until: '',
           terms_conditions: '',
           notes: ''

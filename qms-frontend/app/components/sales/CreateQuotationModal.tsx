@@ -131,13 +131,38 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   };
 
   const loadProducts = async () => {
-    // For now, using mock products since we don't have a products API endpoint yet
-    setProducts([
-      { id: '1', name: 'Laptop Dell XPS 13', price: 1200 },
-      { id: '2', name: 'Monitor 27" 4K', price: 800 },
-      { id: '3', name: 'Wireless Mouse', price: 50 },
-      { id: '4', name: 'USB-C Hub', price: 45 }
-    ]);
+    try {
+      const response = await apiClient.getProducts({ limit: 100 });
+      if (response.success) {
+        // Transform the API response to match the expected format
+        const transformedProducts = response.data.products?.map((product: any) => ({
+          id: product.id.toString(),
+          name: `${product.name} - $${product.selling_price || product.price || 0}`,
+          price: parseFloat(product.selling_price || product.price || 0),
+          description: product.description || '',
+          sku: product.sku || ''
+        })) || [];
+        setProducts(transformedProducts);
+      } else {
+        console.error('Failed to load products:', response);
+        // Fallback to mock data if API fails
+        setProducts([
+          { id: '1', name: 'Laptop Dell XPS 13 - $1200', price: 1200 },
+          { id: '2', name: 'Monitor 27" 4K - $800', price: 800 },
+          { id: '3', name: 'Wireless Mouse - $50', price: 50 },
+          { id: '4', name: 'USB-C Hub - $45', price: 45 }
+        ]);
+      }
+    } catch (error) {
+      console.error('Failed to load products:', error);
+      // Fallback to mock data if API call fails
+      setProducts([
+        { id: '1', name: 'Laptop Dell XPS 13 - $1200', price: 1200 },
+        { id: '2', name: 'Monitor 27" 4K - $800', price: 800 },
+        { id: '3', name: 'Wireless Mouse - $50', price: 50 },
+        { id: '4', name: 'USB-C Hub - $45', price: 45 }
+      ]);
+    }
   };
 
   const addItem = () => {
