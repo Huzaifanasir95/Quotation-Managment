@@ -782,6 +782,90 @@ app.get('/api/v1/customers', async (req, res) => {
   }
 });
 
+// Create customer endpoint
+app.post('/api/v1/customers', async (req, res) => {
+  try {
+    const customerData = req.body;
+    console.log('Creating customer with data:', customerData);
+
+    // Validate required fields
+    if (!customerData.name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Customer name is required'
+      });
+    }
+
+    // Check if email already exists (if provided)
+    if (customerData.email) {
+      const { data: existingCustomer, error: checkError } = await supabase
+        .from('customers')
+        .select('email')
+        .eq('email', customerData.email)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('Email check error:', checkError);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to check email uniqueness'
+        });
+      }
+
+      if (existingCustomer) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already exists'
+        });
+      }
+    }
+
+    // Prepare customer data for insertion
+    const finalCustomerData = {
+      ...customerData,
+      status: customerData.status || 'active',
+      credit_limit: customerData.credit_limit || 0,
+      payment_terms: customerData.payment_terms || 30,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('Final customer data:', finalCustomerData);
+
+    // Create customer
+    const { data: customer, error: customerError } = await supabase
+      .from('customers')
+      .insert(finalCustomerData)
+      .select('*')
+      .single();
+
+    if (customerError) {
+      console.error('Customer creation error:', customerError);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create customer',
+        error: customerError.message
+      });
+    }
+
+    console.log('Customer created successfully:', customer);
+
+    res.status(201).json({
+      success: true,
+      message: 'Customer created successfully',
+      data: { customer }
+    });
+
+  } catch (error) {
+    console.error('Customer creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
 app.get('/api/v1/vendors', async (req, res) => {
   try {
     const { data: vendors, error } = await supabase
@@ -1264,6 +1348,30 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
       });
     }
 
+    // Validate required quotation fields
+    if (!quotation.customer_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quotation must have a valid customer ID'
+      });
+    }
+
+    if (!quotation.total_amount || quotation.total_amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quotation must have a valid total amount'
+      });
+    }
+
+    console.log('Converting quotation:', {
+      id: quotation.id,
+      number: quotation.quotation_number,
+      customer_id: quotation.customer_id,
+      total_amount: quotation.total_amount,
+      status: quotation.status,
+      items_count: quotation.quotation_items?.length || 0
+    });
+
     // Generate order number
     const orderNumber = `O-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
@@ -1282,7 +1390,7 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
         discount_amount: quotation.discount_amount,
         total_amount: quotation.total_amount,
         notes: notes || null,
-        created_by: 'system', // In a real app, this would be the current user ID
+        created_by: null, // Set to null instead of 'system'
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -1291,9 +1399,22 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
 
     if (orderError) {
       console.error('Order creation error:', orderError);
+      console.error('Order data that failed:', {
+        order_number: orderNumber,
+        customer_id: quotation.customer_id,
+        quotation_id: quotation.id,
+        order_date: new Date().toISOString().split('T')[0],
+        expected_delivery_date: expected_delivery || null,
+        status: 'pending',
+        subtotal: quotation.subtotal,
+        tax_amount: quotation.tax_amount,
+        discount_amount: quotation.discount_amount,
+        total_amount: quotation.total_amount
+      });
       return res.status(500).json({
         success: false,
-        message: 'Failed to create order'
+        message: 'Failed to create order',
+        error: orderError.message || 'Unknown database error'
       });
     }
 

@@ -202,6 +202,24 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
     setEditingQuotationId(quotation.id);
   };
 
+  const handleApproveQuotation = async (quotation: Quotation) => {
+    try {
+      const confirmApprove = confirm(`Are you sure you want to approve quotation ${quotation.number}?`);
+      if (!confirmApprove) return;
+
+      const response = await apiClient.updateQuotationStatus(quotation.id, 'approved');
+      if (response.success) {
+        alert(`Quotation ${quotation.number} has been approved successfully!`);
+        loadQuotations(); // Refresh the list
+      } else {
+        throw new Error(response.message || 'Failed to approve quotation');
+      }
+    } catch (error) {
+      console.error('Failed to approve quotation:', error);
+      alert(`Failed to approve quotation: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   const handleQuotationUpdated = () => {
     // Refresh the quotations list
     loadQuotations();
@@ -582,6 +600,17 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                           </svg>
                           View Details
                         </button>
+                        {quotation.status.toLowerCase() === 'draft' && (
+                          <button
+                            onClick={() => handleApproveQuotation(quotation)}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center"
+                          >
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Approve
+                          </button>
+                        )}
                         <button
                           onClick={() => handleEditQuotation(quotation)}
                           className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 flex items-center"
@@ -639,6 +668,14 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                       >
                         View
                       </button>
+                      {quotation.status.toLowerCase() === 'draft' && (
+                        <button
+                          onClick={() => handleApproveQuotation(quotation)}
+                          className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm"
+                        >
+                          Approve
+                        </button>
+                      )}
                       <button
                         onClick={() => handleEditQuotation(quotation)}
                         className="flex-1 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 text-sm"

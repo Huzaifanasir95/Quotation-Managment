@@ -121,13 +121,9 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
-        alternate_phone: formData.alternatePhone.trim() || null,
         gst_number: formData.gst.trim() || null,
-        pan_number: formData.panNumber.trim() || null,
+        tax_id: formData.panNumber.trim() || null,
         contact_person: formData.contactPerson.trim(),
-        designation: formData.designation.trim() || null,
-        department: formData.department.trim() || null,
-        website: formData.website.trim() || null,
         address: formData.address.trim() || null,
         city: formData.city.trim() || null,
         state: formData.state.trim() || null,
@@ -135,8 +131,6 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
         country: formData.country || null,
         credit_limit: formData.creditLimit ? Number(formData.creditLimit) : null,
         payment_terms: Number(formData.paymentTerms),
-        customer_type: formData.customerType,
-        notes: formData.notes.trim() || null,
         status: 'active'
       };
 
@@ -222,7 +216,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     className={`w-full text-black px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.name ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                     }`}
-                    placeholder="Enter customer name"
+                    placeholder="ABC Trading Company"
                   />
                   {errors.name && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -263,7 +257,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     className={`w-full text-black px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                     }`}
-                    placeholder="customer@example.com"
+                    placeholder="info@abctrading.com.pk"
                   />
                   {errors.email && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -286,7 +280,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     className={`w-full text-black px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.website ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                     }`}
-                    placeholder="https://www.example.com"
+                    placeholder="https://www.abctrading.com.pk"
                   />
                   {errors.website && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -320,7 +314,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     className={`w-full text-black px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.phone ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                     }`}
-                    placeholder="+1 (555) 123-4567"
+                    placeholder="+92 42 111-222-333"
                   />
                   {errors.phone && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -341,7 +335,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     value={formData.alternatePhone}
                     onChange={(e) => handleInputChange('alternatePhone', e.target.value)}
                     className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-all duration-200"
-                    placeholder="+1 (555) 987-6543"
+                    placeholder="+92 300 1234567"
                   />
                 </div>
 
@@ -356,7 +350,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     className={`w-full text-black px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.contactPerson ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                     }`}
-                    placeholder="John Doe"
+                    placeholder="Ahmad Ali"
                   />
                   {errors.contactPerson && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -377,7 +371,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     value={formData.designation}
                     onChange={(e) => handleInputChange('designation', e.target.value)}
                     className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-all duration-200"
-                    placeholder="e.g., Manager, Director, CEO"
+                    placeholder="e.g., Manager, Director, CEO, Sales Manager"
                   />
                 </div>
 
@@ -390,7 +384,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     value={formData.department}
                     onChange={(e) => handleInputChange('department', e.target.value)}
                     className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-all duration-200"
-                    placeholder="e.g., Procurement, Finance, Operations"
+                    placeholder="e.g., Procurement, Finance, Operations, Sales"
                   />
                 </div>
               </div>
@@ -407,7 +401,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    GST Number
+                    Tax Registration Number
                   </label>
                   <input
                     type="text"
@@ -416,7 +410,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     className={`w-full text-black px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.gst ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                     }`}
-                    placeholder="22AAAAA0000A1Z5"
+                    placeholder="NTN/GST/VAT Registration Number"
                   />
                   {errors.gst && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -426,12 +420,12 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                       {errors.gst}
                     </p>
                   )}
-                  <p className="mt-1 text-xs text-gray-500">15-digit Indian GST number</p>
+                  <p className="mt-1 text-xs text-gray-500">Tax registration number (GST/NTN/VAT)</p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    PAN Number
+                    Business ID Number
                   </label>
                   <input
                     type="text"
@@ -440,7 +434,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     className={`w-full text-black px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.panNumber ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                     }`}
-                    placeholder="ABCDE1234F"
+                    placeholder="Business Registration ID"
                   />
                   {errors.panNumber && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -450,7 +444,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                       {errors.panNumber}
                     </p>
                   )}
-                  <p className="mt-1 text-xs text-gray-500">10-character PAN format</p>
+                  <p className="mt-1 text-xs text-gray-500">Business registration or tax ID</p>
                 </div>
 
                 <div>
@@ -466,7 +460,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     className={`w-full text-black px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.creditLimit ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                     }`}
-                    placeholder="50000.00"
+                    placeholder="500000.00"
                   />
                   {errors.creditLimit && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
@@ -519,7 +513,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     value={formData.address}
                     onChange={(e) => handleInputChange('address', e.target.value)}
                     className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-all duration-200"
-                    placeholder="123 Business Street, Building Name"
+                    placeholder="Plot 123, Main Boulevard, DHA Phase 5"
                   />
                 </div>
 
@@ -532,7 +526,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     value={formData.city}
                     onChange={(e) => handleInputChange('city', e.target.value)}
                     className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-all duration-200"
-                    placeholder="Mumbai"
+                    placeholder="Lahore"
                   />
                 </div>
 
@@ -545,7 +539,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     value={formData.state}
                     onChange={(e) => handleInputChange('state', e.target.value)}
                     className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-all duration-200"
-                    placeholder="Maharashtra"
+                    placeholder="Punjab"
                   />
                 </div>
 
@@ -558,7 +552,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     value={formData.zipCode}
                     onChange={(e) => handleInputChange('zipCode', e.target.value)}
                     className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-all duration-200"
-                    placeholder="400001"
+                    placeholder="54000"
                   />
                 </div>
 
@@ -572,6 +566,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                     className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-all duration-200"
                   >
                     <option value="">Select country</option>
+                    <option value="PK">Pakistan</option>
                     <option value="IN">India</option>
                     <option value="US">United States</option>
                     <option value="CA">Canada</option>
