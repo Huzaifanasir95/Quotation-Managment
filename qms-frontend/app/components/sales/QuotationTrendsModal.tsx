@@ -23,9 +23,9 @@ export default function QuotationTrendsModal({ isOpen, onClose, trends }: Quotat
   const sortedTrends = [...trends].sort((a, b) => {
     switch (sortBy) {
       case 'quotations':
-        return b.quotations - a.quotations;
+        return (b.quotations || 0) - (a.quotations || 0);
       case 'revenue':
-        return b.revenue - a.revenue;
+        return (b.revenue || 0) - (a.revenue || 0);
       case 'month':
       default:
         // Sort by month order (assuming month is like "Jan", "Feb", etc.)
@@ -34,9 +34,9 @@ export default function QuotationTrendsModal({ isOpen, onClose, trends }: Quotat
     }
   });
 
-  const totalQuotations = trends.reduce((sum, trend) => sum + trend.quotations, 0);
-  const totalAccepted = trends.reduce((sum, trend) => sum + trend.accepted, 0);
-  const totalRevenue = trends.reduce((sum, trend) => sum + trend.revenue, 0);
+  const totalQuotations = trends.reduce((sum, trend) => sum + (trend.quotations || 0), 0);
+  const totalAccepted = trends.reduce((sum, trend) => sum + (trend.accepted || 0), 0);
+  const totalRevenue = trends.reduce((sum, trend) => sum + (trend.revenue || 0), 0);
   const acceptanceRate = totalQuotations > 0 ? ((totalAccepted / totalQuotations) * 100).toFixed(1) : '0';
 
   return (
@@ -71,7 +71,7 @@ export default function QuotationTrendsModal({ isOpen, onClose, trends }: Quotat
             </div>
             <div className="bg-white p-3 rounded-lg shadow-sm border">
               <p className="text-sm text-orange-600 font-medium">Total Revenue</p>
-              <p className="text-2xl font-bold text-orange-900">${totalRevenue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-orange-900">${(totalRevenue || 0).toLocaleString()}</p>
             </div>
           </div>
 
@@ -121,7 +121,10 @@ export default function QuotationTrendsModal({ isOpen, onClose, trends }: Quotat
           ) : (
             <div className="space-y-3">
               {sortedTrends.map((trend, index) => {
-                const acceptancePercentage = trend.quotations > 0 ? ((trend.accepted / trend.quotations) * 100).toFixed(1) : '0';
+                const quotations = trend.quotations || 0;
+                const accepted = trend.accepted || 0;
+                const revenue = trend.revenue || 0;
+                const acceptancePercentage = quotations > 0 ? ((accepted / quotations) * 100).toFixed(1) : '0';
                 
                 return (
                   <div
@@ -134,17 +137,17 @@ export default function QuotationTrendsModal({ isOpen, onClose, trends }: Quotat
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">
-                          {trend.quotations} Quotations
+                          {quotations} Quotations
                         </h3>
                         <p className="text-sm text-gray-600">
-                          {trend.accepted} accepted ({acceptancePercentage}% acceptance rate)
+                          {accepted} accepted ({acceptancePercentage}% acceptance rate)
                         </p>
                       </div>
                     </div>
                     
                     <div className="text-right">
                       <p className="text-2xl font-bold text-green-600">
-                        ${trend.revenue.toLocaleString()}
+                        ${revenue.toLocaleString()}
                       </p>
                       <p className="text-sm text-gray-600">Revenue</p>
                     </div>

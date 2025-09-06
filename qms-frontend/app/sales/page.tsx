@@ -414,8 +414,8 @@ export default function SalesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">${customer.totalQuotes.toLocaleString()}</p>
-                        <p className="text-xs text-gray-500">{customer.quotesCount} quotes</p>
+                        <p className="text-sm font-medium text-gray-900">${(customer.totalQuotes || 0).toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">{customer.quotesCount || 0} quotes</p>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

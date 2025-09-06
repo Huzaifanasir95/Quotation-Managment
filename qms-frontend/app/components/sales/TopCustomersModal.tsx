@@ -21,9 +21,9 @@ export default function TopCustomersModal({ isOpen, onClose, customers }: TopCus
 
   const sortedCustomers = [...customers].sort((a, b) => {
     if (sortBy === 'value') {
-      return b.totalQuotes - a.totalQuotes;
+      return (b.totalQuotes || 0) - (a.totalQuotes || 0);
     } else {
-      return b.quotesCount - a.quotesCount;
+      return (b.quotesCount || 0) - (a.quotesCount || 0);
     }
   });
 
@@ -77,30 +77,35 @@ export default function TopCustomersModal({ isOpen, onClose, customers }: TopCus
             </div>
           ) : (
             <div className="space-y-3">
-              {sortedCustomers.map((customer, index) => (
-                <div
-                  key={customer.name}
-                  className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-purple-50 rounded-lg hover:from-purple-50 hover:to-purple-100 transition-all duration-200 border border-gray-200"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md ${
-                      index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' : 
-                      index === 1 ? 'bg-gradient-to-br from-gray-400 to-gray-600' : 
-                      index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600' : 'bg-gradient-to-br from-blue-500 to-blue-600'
-                    }`}>
-                      {index + 1}
+              {sortedCustomers.map((customer, index) => {
+                const quotesCount = customer.quotesCount || 0;
+                const totalQuotes = customer.totalQuotes || 0;
+                
+                return (
+                  <div
+                    key={customer.name || `customer-${index}`}
+                    className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-purple-50 rounded-lg hover:from-purple-50 hover:to-purple-100 transition-all duration-200 border border-gray-200"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold shadow-md ${
+                        index === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' : 
+                        index === 1 ? 'bg-gradient-to-br from-gray-400 to-gray-600' : 
+                        index === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600' : 'bg-gradient-to-br from-blue-500 to-blue-600'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">{customer.name || 'Unknown Customer'}</h3>
+                        <p className="text-sm text-gray-600">{quotesCount} quotations</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{customer.name}</h3>
-                      <p className="text-sm text-gray-600">{customer.quotesCount} quotations</p>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-gray-900">${totalQuotes.toLocaleString()}</p>
+                      <p className="text-sm text-gray-600">Total Value</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-gray-900">${customer.totalQuotes.toLocaleString()}</p>
-                    <p className="text-sm text-gray-600">Total Value</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

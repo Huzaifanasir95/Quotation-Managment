@@ -242,7 +242,7 @@ app.get('/api/v1/sales/dashboard', async (req, res) => {
       { data: customers, error: customersError },
       { data: recentInquiries, error: inquiriesError }
     ] = await Promise.all([
-      supabase.from('quotations').select('status, total_amount, created_at'),
+      supabase.from('quotations').select('status, total_amount, created_at, customer_id, customers(name)'),
       supabase.from('customers').select('id, name, created_at'),
       supabase.from('quotations').select('id, created_at').order('created_at', { ascending: false }).limit(10)
     ]);
@@ -257,17 +257,18 @@ app.get('/api/v1/sales/dashboard', async (req, res) => {
 
     const totalQuotations = quotations?.length || 0;
     const pendingQuotations = quotations?.filter(q => q.status === 'pending').length || 0;
-    const convertedQuotations = quotations?.filter(q => q.status === 'converted').length || 0;
-    const totalRevenue = quotations?.filter(q => q.status === 'converted').reduce((sum, q) => sum + (q.total_amount || 0), 0) || 0;
+    const convertedQuotations = quotations?.filter(q => q.status === 'converted' || q.status === 'accepted').length || 0;
+    const totalRevenue = quotations?.filter(q => q.status === 'converted' || q.status === 'accepted').reduce((sum, q) => sum + (parseFloat(q.total_amount) || 0), 0) || 0;
 
     // Calculate top customers based on quotation totals
     const customerMap = new Map();
     quotations?.forEach(q => {
       if (q.customer_id) {
-        const existing = customerMap.get(q.customer_id) || { total: 0, count: 0 };
+        const existing = customerMap.get(q.customer_id) || { total: 0, count: 0, name: '' };
         customerMap.set(q.customer_id, {
-          total: existing.total + (q.total_amount || 0),
-          count: existing.count + 1
+          total: existing.total + (parseFloat(q.total_amount) || 0),
+          count: existing.count + 1,
+          name: q.customers?.name || existing.name || 'Unknown Customer'
         });
       }
     });
@@ -275,15 +276,12 @@ app.get('/api/v1/sales/dashboard', async (req, res) => {
     const topCustomers = Array.from(customerMap.entries())
       .sort((a, b) => b[1].total - a[1].total)
       .slice(0, 5)
-      .map(([customerId, data]) => {
-        const customer = customers?.find(c => c.id === customerId);
-        return {
-          id: customerId,
-          name: customer?.name || 'Unknown Customer',
-          totalQuotes: data.total,
-          quotesCount: data.count
-        };
-      });
+      .map(([customerId, data]) => ({
+        id: customerId,
+        name: data.name,
+        totalQuotes: Math.round(data.total * 100) / 100,
+        quotesCount: data.count
+      }));
 
     res.json({
       success: true,
@@ -291,9 +289,9 @@ app.get('/api/v1/sales/dashboard', async (req, res) => {
         totalQuotations,
         pendingQuotations,
         convertedQuotations,
-        totalRevenue: parseFloat(totalRevenue.toFixed(2)),
-        averageQuoteValue: totalQuotations > 0 ? parseFloat((totalRevenue / totalQuotations).toFixed(2)) : 0,
-        conversionRate: totalQuotations > 0 ? parseFloat(((convertedQuotations / totalQuotations) * 100).toFixed(1)) : 0,
+        totalRevenue: Math.round(totalRevenue * 100) / 100,
+        averageQuoteValue: totalQuotations > 0 ? Math.round((totalRevenue / totalQuotations) * 100) / 100 : 0,
+        conversionRate: totalQuotations > 0 ? Math.round(((convertedQuotations / totalQuotations) * 100) * 10) / 10 : 0,
         topCustomers: topCustomers,
         recentInquiries: recentInquiries?.length || 0,
         totalCustomers: customers?.length || 0
@@ -600,10 +598,11 @@ app.get('/api/v1/product-categories', async (req, res) => {
 
 app.get('/api/v1/sales/quotation-trends', async (req, res) => {
   try {
-    // Get quotation trends from database
+    // Get quotation trends from database for the last 6 months
     const { data: quotations, error } = await supabase
       .from('quotations')
-      .select('created_at, status')
+      .select('created_at, status, total_amount')
+      .gte('created_at', new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000).toISOString())
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -614,15 +613,35 @@ app.get('/api/v1/sales/quotation-trends', async (req, res) => {
       });
     }
 
-    // Process data into monthly trends (simplified)
-    const trends = [
-      { month: 'Jan', quotes: 25, converted: 12 },
-      { month: 'Feb', quotes: 30, converted: 18 },
-      { month: 'Mar', quotes: 35, converted: 22 },
-      { month: 'Apr', quotes: 28, converted: 15 },
-      { month: 'May', quotes: 40, converted: 28 },
-      { month: 'Jun', quotes: 38, converted: 25 }
-    ];
+    // Process data into monthly trends
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const now = new Date();
+    const trends = [];
+
+    // Generate last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthKey = monthNames[date.getMonth()];
+      
+      // Filter quotations for this month
+      const monthQuotations = quotations?.filter(q => {
+        const qDate = new Date(q.created_at);
+        return qDate.getMonth() === date.getMonth() && qDate.getFullYear() === date.getFullYear();
+      }) || [];
+
+      const quotationCount = monthQuotations.length;
+      const acceptedCount = monthQuotations.filter(q => q.status === 'accepted' || q.status === 'converted').length;
+      const revenue = monthQuotations
+        .filter(q => q.status === 'accepted' || q.status === 'converted')
+        .reduce((sum, q) => sum + (parseFloat(q.total_amount) || 0), 0);
+
+      trends.push({
+        month: monthKey,
+        quotations: quotationCount,
+        accepted: acceptedCount,
+        revenue: Math.round(revenue * 100) / 100
+      });
+    }
 
     res.json({
       success: true,
@@ -808,7 +827,7 @@ app.get('/api/v1/orders', async (req, res) => {
     const offset = (page - 1) * limit;
 
     let query = supabase
-      .from('orders')
+      .from('sales_orders')
       .select(`
         *,
         customers (name, email)
@@ -841,6 +860,142 @@ app.get('/api/v1/orders', async (req, res) => {
     });
   } catch (error) {
     console.error('Orders error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Convert quotation to order endpoint
+app.post('/api/v1/orders/convert-quote', async (req, res) => {
+  try {
+    const { quotation_id, expected_delivery, priority, payment_terms, notes } = req.body;
+
+    if (!quotation_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Quotation ID is required'
+      });
+    }
+
+    // Get the quotation details
+    const { data: quotation, error: quotationError } = await supabase
+      .from('quotations')
+      .select(`
+        *,
+        customers (name, email),
+        quotation_items (*)
+      `)
+      .eq('id', quotation_id)
+      .single();
+
+    if (quotationError || !quotation) {
+      console.error('Quotation fetch error:', quotationError);
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+
+    if (quotation.status === 'converted') {
+      return res.status(400).json({
+        success: false,
+        message: 'Quotation has already been converted to an order'
+      });
+    }
+
+    if (quotation.status !== 'approved' && quotation.status !== 'accepted') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only approved quotations can be converted to orders'
+      });
+    }
+
+    // Generate order number
+    const orderNumber = `O-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+
+    // Create the order
+    const { data: order, error: orderError } = await supabase
+      .from('sales_orders')
+      .insert({
+        order_number: orderNumber,
+        customer_id: quotation.customer_id,
+        quotation_id: quotation.id,
+        order_date: new Date().toISOString().split('T')[0], // Date only
+        expected_delivery_date: expected_delivery || null,
+        status: 'pending',
+        subtotal: quotation.subtotal,
+        tax_amount: quotation.tax_amount,
+        discount_amount: quotation.discount_amount,
+        total_amount: quotation.total_amount,
+        notes: notes || null,
+        created_by: 'system', // In a real app, this would be the current user ID
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (orderError) {
+      console.error('Order creation error:', orderError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to create order'
+      });
+    }
+
+    // Copy quotation items to order items
+    if (quotation.quotation_items && quotation.quotation_items.length > 0) {
+      const orderItems = quotation.quotation_items.map(item => ({
+        sales_order_id: order.id,
+        product_id: item.product_id,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        discount_percent: item.discount_percent,
+        tax_percent: item.tax_percent,
+        line_total: item.line_total,
+        created_at: new Date().toISOString()
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('sales_order_items')
+        .insert(orderItems);
+
+      if (itemsError) {
+        console.error('Order items creation error:', itemsError);
+        // Don't fail the whole operation, just log the error
+      }
+    }
+
+    // Update quotation status to converted
+    const { error: updateError } = await supabase
+      .from('quotations')
+      .update({ 
+        status: 'converted',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', quotation_id);
+
+    if (updateError) {
+      console.error('Quotation update error:', updateError);
+      // Don't fail the operation, the order is already created
+    }
+
+    res.json({
+      success: true,
+      data: {
+        order: {
+          ...order,
+          customer: quotation.customers
+        }
+      },
+      message: `Order ${orderNumber} created successfully from quotation ${quotation.quotation_number}`
+    });
+
+  } catch (error) {
+    console.error('Convert quote to order error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
