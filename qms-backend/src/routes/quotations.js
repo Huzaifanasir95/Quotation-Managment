@@ -183,6 +183,112 @@ router.post('/', authenticateToken, authorize(['admin', 'sales']), validate(sche
   });
 }));
 
+// Update quotation
+router.put('/:id', authenticateToken, authorize(['admin', 'sales']), validate(schemas.quotation), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { items, ...quotationData } = req.body;
+
+  // Check if quotation exists
+  const { data: existingQuotation, error: fetchError } = await supabaseAdmin
+    .from('quotations')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !existingQuotation) {
+    return res.status(404).json({
+      error: 'Quotation not found',
+      code: 'QUOTATION_NOT_FOUND'
+    });
+  }
+
+  // Calculate totals
+  let subtotal = 0;
+  let tax_amount = 0;
+  let discount_amount = 0;
+
+  const processedItems = items.map(item => {
+    const line_total = item.quantity * item.unit_price;
+    const discount = line_total * (item.discount_percent || 0) / 100;
+    const taxable_amount = line_total - discount;
+    const tax = taxable_amount * (item.tax_percent || 0) / 100;
+
+    subtotal += line_total;
+    discount_amount += discount;
+    tax_amount += tax;
+
+    return {
+      ...item,
+      line_total: taxable_amount + tax
+    };
+  });
+
+  const total_amount = subtotal - discount_amount + tax_amount;
+
+  const finalQuotationData = {
+    ...quotationData,
+    subtotal,
+    tax_amount,
+    discount_amount,
+    total_amount,
+    updated_at: new Date().toISOString()
+  };
+
+  // Update quotation
+  const { data: quotation, error: quotationError } = await supabaseAdmin
+    .from('quotations')
+    .update(finalQuotationData)
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (quotationError) {
+    return res.status(400).json({
+      error: 'Failed to update quotation',
+      code: 'UPDATE_FAILED',
+      details: quotationError.message
+    });
+  }
+
+  // Delete existing quotation items
+  const { error: deleteItemsError } = await supabaseAdmin
+    .from('quotation_items')
+    .delete()
+    .eq('quotation_id', id);
+
+  if (deleteItemsError) {
+    return res.status(400).json({
+      error: 'Failed to update quotation items',
+      code: 'ITEMS_UPDATE_FAILED',
+      details: deleteItemsError.message
+    });
+  }
+
+  // Create new quotation items
+  const quotationItems = processedItems.map(item => ({
+    ...item,
+    quotation_id: id
+  }));
+
+  const { error: itemsError } = await supabaseAdmin
+    .from('quotation_items')
+    .insert(quotationItems);
+
+  if (itemsError) {
+    return res.status(400).json({
+      error: 'Failed to create quotation items',
+      code: 'ITEMS_CREATION_FAILED',
+      details: itemsError.message
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Quotation updated successfully',
+    data: { quotation }
+  });
+}));
+
 // Update quotation status
 router.patch('/:id/status', authenticateToken, authorize(['admin', 'sales']), asyncHandler(async (req, res) => {
   const { id } = req.params;

@@ -190,6 +190,17 @@ class ApiClient {
     });
   }
 
+  async updateQuotation(id: string, quotationData: any) {
+    return this.request(`/quotations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(quotationData),
+    });
+  }
+
+  async getQuotationById(id: string) {
+    return this.request(`/quotations/${id}`);
+  }
+
   async updateQuotationStatus(id: string, status: string) {
     return this.request(`/quotations/${id}/status`, {
       method: 'PATCH',

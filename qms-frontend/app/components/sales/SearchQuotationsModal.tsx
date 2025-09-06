@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../lib/api';
+import EditQuotationModal from './EditQuotationModal';
 
 interface SearchQuotationsModalProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
   const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(false);
+  const [editingQuotationId, setEditingQuotationId] = useState<string | null>(null);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -58,6 +60,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
     setSortOrder('desc');
     setSelectedQuotation(null);
     setIsFiltersCollapsed(false);
+    setEditingQuotationId(null);
   };
 
   const loadQuotations = async () => {
@@ -196,7 +199,12 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
 
   const handleEditQuotation = (quotation: Quotation) => {
     console.log('Editing quotation:', quotation);
-    alert(`Edit functionality for quotation ${quotation.number} will be implemented.`);
+    setEditingQuotationId(quotation.id);
+  };
+
+  const handleQuotationUpdated = () => {
+    // Refresh the quotations list
+    loadQuotations();
   };
 
   const handleExportQuotations = () => {
@@ -796,6 +804,16 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
           </div>
         )}
       </div>
+      
+      {/* Edit Quotation Modal */}
+      {editingQuotationId && (
+        <EditQuotationModal
+          isOpen={!!editingQuotationId}
+          onClose={() => setEditingQuotationId(null)}
+          quotationId={editingQuotationId}
+          onQuotationUpdated={handleQuotationUpdated}
+        />
+      )}
     </div>
   );
 }
