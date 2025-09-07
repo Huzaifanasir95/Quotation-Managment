@@ -215,6 +215,19 @@ class ApiClient {
     });
   }
 
+  // Sales Order methods
+  async getOrders(params?: { page?: number; limit?: number; search?: string; status?: string; customer_id?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.customer_id) queryParams.append('customer_id', params.customer_id);
+    
+    const endpoint = `/orders${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request(endpoint);
+  }
+
   // Purchase Order methods
   async getPurchaseOrders(params?: { page?: number; limit?: number; search?: string; status?: string; vendor_id?: string }) {
     const queryParams = new URLSearchParams();

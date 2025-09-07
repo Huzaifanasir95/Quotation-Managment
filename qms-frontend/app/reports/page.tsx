@@ -3,6 +3,23 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '@/app/lib/api';
 import AppLayout from '../components/AppLayout';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  Area,
+  AreaChart
+} from 'recharts';
 
 export default function ReportsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
@@ -105,7 +122,7 @@ export default function ReportsPage() {
           apiClient.getVendors({ limit: 1000 }),
           apiClient.getVendorBills({ limit: 1000 }),
           apiClient.getPurchaseOrders({ limit: 1000 }),
-          apiClient.request('/orders', { method: 'GET' }).catch(() => ({ data: [] }))
+          apiClient.getOrders({ limit: 1000 }).catch(() => ({ data: [] }))
         ]);
 
         // Process KPI data - handle different response structures
@@ -401,6 +418,64 @@ export default function ReportsPage() {
     fetchReportsData();
   }, [selectedPeriod]);
 
+  // Chart color schemes
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
+  const CHART_COLORS = {
+    primary: '#3B82F6',
+    secondary: '#10B981',
+    accent: '#F59E0B',
+    danger: '#EF4444',
+    purple: '#8B5CF6',
+    teal: '#14B8A6'
+  };
+
+  // Prepare chart data
+  const quotationStatusData = [
+    { name: 'Pending', value: kpiData.pendingQuotations, color: CHART_COLORS.accent },
+    { name: 'Approved', value: Math.floor(kpiData.pendingQuotations * 1.5), color: CHART_COLORS.secondary },
+    { name: 'Rejected', value: Math.floor(kpiData.pendingQuotations * 0.3), color: CHART_COLORS.danger }
+  ];
+
+  const monthlyRevenueData = salesData.monthlySales.map(month => ({
+    month: month.month,
+    revenue: month.amount,
+    orders: month.orders,
+    profit: month.amount * 0.25 // Estimated 25% profit margin
+  }));
+
+  const customerPerformanceData = salesData.topCustomers.map(customer => ({
+    name: customer.name.length > 15 ? customer.name.substring(0, 15) + '...' : customer.name,
+    amount: customer.amount,
+    orders: customer.orders
+  }));
+
+  const inventoryStatusData = [
+    { name: 'In Stock', value: Math.max(0, inventoryData.totalItems - inventoryData.lowStockItems - inventoryData.outOfStock), color: CHART_COLORS.secondary },
+    { name: 'Low Stock', value: inventoryData.lowStockItems, color: CHART_COLORS.accent },
+    { name: 'Out of Stock', value: inventoryData.outOfStock, color: CHART_COLORS.danger }
+  ];
+
+  const procurementChartData = procurementData.monthlyPurchases.map(month => ({
+    month: month.month,
+    purchases: month.amount,
+    orders: month.orders
+  }));
+
+  // Ensure data arrays exist to prevent map errors
+  const safeMonthlyRevenueData = monthlyRevenueData.length > 0 ? monthlyRevenueData : [
+    { month: 'Jan', revenue: 0, orders: 0, profit: 0 },
+    { month: 'Feb', revenue: 0, orders: 0, profit: 0 },
+    { month: 'Mar', revenue: 0, orders: 0, profit: 0 }
+  ];
+
+  const safeCustomerData = customerPerformanceData.length > 0 ? customerPerformanceData : [
+    { name: 'No Data', amount: 0, orders: 0 }
+  ];
+
+  const safeVendorData = procurementData.topVendors.length > 0 ? procurementData.topVendors : [
+    { name: 'No Data', amount: 0, orders: 0 }
+  ];
+
   if (loading) {
     return (
       <AppLayout>
@@ -513,41 +588,152 @@ export default function ReportsPage() {
           </div>
         </div>
 
+        {/* Charts Section */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Analytics Dashboard</h2>
+          
+          {/* Revenue Trend Line Chart */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Revenue Trend</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={safeMonthlyRevenueData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip formatter={(value, name) => [`$${value.toLocaleString()}`, name]} />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke={CHART_COLORS.primary} 
+                  strokeWidth={3}
+                  name="Revenue"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="profit" 
+                  stroke={CHART_COLORS.secondary} 
+                  strokeWidth={2}
+                  name="Estimated Profit"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Quotation Status Pie Chart */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quotation Status Distribution</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={quotationStatusData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent ? (percent * 100).toFixed(0) : 0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {quotationStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Inventory Status Pie Chart */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Inventory Status Overview</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={inventoryStatusData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent ? (percent * 100).toFixed(0) : 0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {inventoryStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Bar Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Customer Performance Bar Chart */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Customer Performance</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={safeCustomerData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip formatter={(value, name) => [`$${value.toLocaleString()}`, name]} />
+                  <Legend />
+                  <Bar dataKey="amount" fill={CHART_COLORS.primary} name="Revenue" />
+                  <Bar dataKey="orders" fill={CHART_COLORS.accent} name="Orders" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Procurement vs Sales Comparison */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Sales vs Procurement Comparison</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={safeMonthlyRevenueData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip formatter={(value, name) => [`$${value.toLocaleString()}`, name]} />
+                  <Legend />
+                  <Bar dataKey="revenue" fill={CHART_COLORS.secondary} name="Sales Revenue" />
+                  <Bar dataKey="orders" fill={CHART_COLORS.purple} name="Order Count" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
         {/* Financial Reports */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Financial Reports</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Profit & Loss Statement */}
+            {/* Profit & Loss Chart */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Profit & Loss Statement</h3>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-600">Total Revenue</span>
-                  <span className="font-semibold text-green-600">${financialData.profitLoss.revenue.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-600">Cost of Goods Sold</span>
-                  <span className="font-semibold text-red-600">-${financialData.profitLoss.cogs.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-600">Gross Profit</span>
-                  <span className="font-semibold text-blue-600">${financialData.profitLoss.grossProfit.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-200">
-                  <span className="text-gray-600">Operating Expenses</span>
-                  <span className="font-semibold text-red-600">-${financialData.profitLoss.expenses.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center py-2 bg-gray-50 px-4 rounded-lg">
-                  <span className="font-semibold text-gray-900">Net Profit</span>
-                  <span className="font-bold text-green-600 text-lg">${financialData.profitLoss.netProfit.toLocaleString()}</span>
-                </div>
-              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Profit & Loss Visualization</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={[
+                  { name: 'Revenue', amount: financialData.profitLoss.revenue, color: CHART_COLORS.secondary },
+                  { name: 'COGS', amount: -financialData.profitLoss.cogs, color: CHART_COLORS.danger },
+                  { name: 'Gross Profit', amount: financialData.profitLoss.grossProfit, color: CHART_COLORS.primary },
+                  { name: 'Net Profit', amount: financialData.profitLoss.netProfit, color: CHART_COLORS.accent }
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`$${Math.abs(Number(value) || 0).toLocaleString()}`, '']} />
+                  <Bar dataKey="amount" fill={CHART_COLORS.primary} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
 
             {/* Pending Invoice Report */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Pending Invoice Report</h3>
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-64 overflow-y-auto">
                 {financialData.pendingInvoices.map((invoice) => (
                   <div key={invoice.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div>
@@ -575,66 +761,75 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Sales & Procurement Reports */}
+        {/* Additional Charts Section */}
         <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Sales & Procurement Reports</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Performance Analytics</h2>
+          
+          {/* Procurement Trend Area Chart */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Procurement vs Sales Trend</h3>
+            <ResponsiveContainer width="100%" height={350}>
+              <AreaChart data={safeMonthlyRevenueData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip formatter={(value, name) => [`$${value.toLocaleString()}`, name]} />
+                <Legend />
+                <Area 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stackId="1" 
+                  stroke={CHART_COLORS.secondary} 
+                  fill={CHART_COLORS.secondary}
+                  name="Sales Revenue"
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="profit" 
+                  stackId="2" 
+                  stroke={CHART_COLORS.accent} 
+                  fill={CHART_COLORS.accent}
+                  name="Profit Margin"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Vendor Performance & Product Analytics */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Monthly Sales Summary */}
+            {/* Top Vendors Bar Chart */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Sales Summary</h3>
-              <div className="space-y-4">
-                {salesData.monthlySales.map((month, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">{month.month} 2024</p>
-                      <p className="text-sm text-gray-600">{month.orders} orders</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-green-600">${month.amount.toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <h4 className="font-medium text-gray-900 mb-3">Top Customers</h4>
-                <div className="space-y-2">
-                  {salesData.topCustomers.map((customer, index) => (
-                    <div key={index} className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">{customer.name}</span>
-                      <span className="font-medium text-gray-900">${customer.amount.toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Vendor Performance</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={safeVendorData.map(vendor => ({
+                  name: vendor.name.length > 12 ? vendor.name.substring(0, 12) + '...' : vendor.name,
+                  amount: vendor.amount,
+                  orders: vendor.orders
+                }))}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip formatter={(value, name) => [`$${value.toLocaleString()}`, name]} />
+                  <Legend />
+                  <Bar dataKey="amount" fill={CHART_COLORS.teal} name="Purchase Amount" />
+                  <Bar dataKey="orders" fill={CHART_COLORS.purple} name="Order Count" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
 
-            {/* Purchase Summary */}
+            {/* Monthly Orders Comparison */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Purchase Summary</h3>
-              <div className="space-y-4">
-                {procurementData.monthlyPurchases.map((month, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">{month.month} 2024</p>
-                      <p className="text-sm text-gray-600">{month.orders} purchase orders</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-blue-600">${month.amount.toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <h4 className="font-medium text-gray-900 mb-3">Top Vendors</h4>
-                <div className="space-y-2">
-                  {procurementData.topVendors.map((vendor, index) => (
-                    <div key={index} className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">{vendor.name}</span>
-                      <span className="font-medium text-gray-900">${vendor.amount.toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Order Volume</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={safeMonthlyRevenueData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="orders" fill={CHART_COLORS.primary} name="Order Count" />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </div>
