@@ -85,8 +85,8 @@ export const useDebouncedCallback = <T extends any[]>(
   callback: (...args: T) => Promise<any>,
   delay: number = 300
 ) => {
-  const timeoutRef = useRef<NodeJS.Timeout>();
-  const abortControllerRef = useRef<AbortController>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const abortControllerRef = useRef<AbortController | undefined>(undefined);
 
   const debouncedCallback = useCallback((...args: T) => {
     // Clear existing timeout

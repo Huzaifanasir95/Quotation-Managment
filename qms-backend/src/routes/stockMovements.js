@@ -196,12 +196,16 @@ router.get('/product/:productId/history', authenticateToken, authorize(['admin',
 
 // Get low stock alerts
 router.get('/alerts/low-stock', authenticateToken, authorize(['admin', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
-  const { data: lowStockProducts, error } = await supabaseAdmin
+  // Get all products and filter low stock in JavaScript since Supabase doesn't support column comparison
+  const { data: allProducts, error } = await supabaseAdmin
     .from('products')
     .select('*')
-    .lt('current_stock', supabaseAdmin.raw('minimum_stock_level'))
-    .eq('is_active', true)
+    .eq('status', 'active')
     .order('current_stock', { ascending: true });
+
+  const lowStockProducts = allProducts ? allProducts.filter(product => 
+    product.current_stock < product.reorder_point
+  ) : [];
 
   if (error) {
     return res.status(400).json({

@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "QMS - Quotation Management System",
+  title: "Anoosh International",
   description: "Comprehensive Quotation Management System for Business Operations",
 };
 

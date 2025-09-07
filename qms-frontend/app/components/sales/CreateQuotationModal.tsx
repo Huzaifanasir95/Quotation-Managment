@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { apiClient } from '../../lib/api';
+import { apiClient, Customer } from '../../lib/api';
 
 interface CreateQuotationModalProps {
   isOpen: boolean;
@@ -10,7 +10,7 @@ interface CreateQuotationModalProps {
   onQuotationCreated?: () => void;
 }
 
-type TabType = 'customer' | 'items' | 'taxes' | 'attachments' | 'preview';
+type TabType = 'customer' | 'items' | 'terms' | 'attachments' | 'preview';
 
 export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreated }: CreateQuotationModalProps) {
   const [mounted, setMounted] = useState(false);
@@ -18,11 +18,16 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [formData, setFormData] = useState({
     customerId: '',
     validUntil: '',
-    notes: 'NULL'
+    notes: 'NULL',
+    termsConditions: ''
   });
   const [items, setItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+  const [defaultTerms, setDefaultTerms] = useState<string>('');
+  const [isLoadingTerms, setIsLoadingTerms] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
 
   // Handle mounting for portal
@@ -37,7 +42,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     setFormData({
       customerId: '',
       validUntil: '',
-      notes: 'NULL'
+      notes: 'NULL',
+      termsConditions: ''
     });
     setItems([]);
     setIsLoading(false);
@@ -47,7 +53,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   useEffect(() => {
     if (isOpen) {
       resetModalState();
-      loadCustomers();
+      fetchCustomers();
+      fetchTermsAndConditions();
       loadProducts();
     }
   }, [isOpen]);
@@ -80,11 +87,11 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       step: 2
     },
     { 
-      id: 'taxes', 
-      name: 'Taxes & Discounts', 
+      id: 'terms', 
+      name: 'Terms & Conditions', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       ),
       step: 3
@@ -114,19 +121,49 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   // Load customers and products when modal opens
   useEffect(() => {
     if (isOpen) {
-      loadCustomers();
+      fetchCustomers();
+      fetchTermsAndConditions();
       loadProducts();
     }
   }, [isOpen]);
 
-  const loadCustomers = async () => {
+  const fetchCustomers = async () => {
+    setIsLoadingCustomers(true);
     try {
-      const response = await apiClient.getCustomers({ limit: 100 });
+      const response = await apiClient.getSalesCustomers({ limit: 100 });
       if (response.success) {
         setCustomers(response.data.customers);
       }
     } catch (error) {
-      console.error('Failed to load customers:', error);
+      console.error('Failed to fetch customers:', error);
+    } finally {
+      setIsLoadingCustomers(false);
+    }
+  };
+
+  const fetchTermsAndConditions = async () => {
+    setIsLoadingTerms(true);
+    try {
+      const response = await apiClient.getTermsAndConditions();
+      if (response.success && response.data) {
+        const terms = response.data.quotation_terms || response.data.default_terms || '';
+        setDefaultTerms(terms);
+        setFormData(prev => ({
+          ...prev,
+          termsConditions: terms
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch terms and conditions:', error);
+      // Set fallback terms
+      const fallbackTerms = '1. This quotation is valid for 30 days from the date of issue.\n2. Prices are subject to change without notice.\n3. Payment terms: 50% advance, 50% on delivery.\n4. Delivery time: 7-14 business days after order confirmation.';
+      setDefaultTerms(fallbackTerms);
+      setFormData(prev => ({
+        ...prev,
+        termsConditions: fallbackTerms
+      }));
+    } finally {
+      setIsLoadingTerms(false);
     }
   };
 
@@ -192,6 +229,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         quotation_date: new Date().toISOString().split('T')[0],
         valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
         notes: formData.notes,
+        terms_conditions: formData.termsConditions,
         items: items.map(item => ({
           description: products.find(p => p.id === item.productId)?.name || 'Unknown Product',
           quantity: item.quantity,
@@ -466,21 +504,38 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
             </div>
           )}
 
-          {activeTab === 'taxes' && (
+          {activeTab === 'terms' && (
             <div className="max-w-2xl mx-auto">
               <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                 <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
                   <svg className="w-6 h-6 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  Taxes & Discounts
+                  Terms & Conditions
                 </h3>
-                <div className="text-center py-12">
-                  <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                  </svg>
-                  <p className="text-gray-500 text-lg">Tax Configuration</p>
-                  <p className="text-gray-400 text-sm">Tax and discount settings will be configured here</p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Terms & Conditions</label>
+                    <div className="relative">
+                      <textarea
+                        value={formData.termsConditions}
+                        readOnly
+                        className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed"
+                        rows={8}
+                      />
+                      {isLoadingTerms && (
+                        <div className="absolute inset-0 bg-gray-50 bg-opacity-75 flex items-center justify-center rounded-lg">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      <svg className="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      Terms are managed in Settings and cannot be edited here
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

@@ -50,6 +50,13 @@ interface SystemPreferences {
   smsNotifications: boolean;
 }
 
+interface TermsConditionsSettings {
+  defaultTerms: string;
+  quotationTerms: string;
+  invoiceTerms: string;
+  purchaseOrderTerms: string;
+}
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('company');
   const [showAddUser, setShowAddUser] = useState(false);
@@ -95,6 +102,13 @@ export default function SettingsPage() {
     smsNotifications: false
   });
 
+  const [termsSettings, setTermsSettings] = useState<TermsConditionsSettings>({
+    defaultTerms: '1. Payment is due within 30 days of invoice date.\n2. All prices are in USD and exclude shipping.\n3. Products are subject to availability.\n4. Returns accepted within 14 days with original packaging.\n5. Late payments may incur additional charges.\n6. Delivery terms as per agreement.',
+    quotationTerms: '1. This quotation is valid for 30 days from the date of issue.\n2. Prices are subject to change without notice.\n3. Payment terms: 50% advance, 50% on delivery.\n4. Delivery time: 7-14 business days after order confirmation.',
+    invoiceTerms: '1. Payment is due within 30 days of invoice date.\n2. Late payment charges: 2% per month.\n3. All disputes must be raised within 7 days of invoice date.\n4. Goods once sold cannot be returned without prior approval.',
+    purchaseOrderTerms: '1. Delivery as per agreed schedule.\n2. Quality as per specifications.\n3. Payment terms as agreed.\n4. Penalties for delayed delivery may apply.'
+  });
+
   const { register: registerCompany, handleSubmit: handleCompanySubmit } = useForm<CompanySettings>({
     defaultValues: companySettings
   });
@@ -109,6 +123,10 @@ export default function SettingsPage() {
 
   const { register: registerPrefs, handleSubmit: handlePrefsSubmit } = useForm<SystemPreferences>({
     defaultValues: systemPrefs
+  });
+
+  const { register: registerTerms, handleSubmit: handleTermsSubmit } = useForm<TermsConditionsSettings>({
+    defaultValues: termsSettings
   });
 
   // Load vendors from database
@@ -147,6 +165,7 @@ export default function SettingsPage() {
     { id: 'company', name: 'Company Settings', icon: '🏢' },
     { id: 'users', name: 'User Management', icon: '👥' },
     { id: 'vendors', name: 'Vendor Management', icon: '🏪' },
+    { id: 'terms', name: 'Terms & Conditions', icon: '📋' },
     { id: 'integrations', name: 'Integrations', icon: '🔗' },
     { id: 'preferences', name: 'System Preferences', icon: '⚙️' }
   ];
@@ -238,6 +257,11 @@ export default function SettingsPage() {
   const onPrefsSubmit = (data: SystemPreferences) => {
     setSystemPrefs(data);
     alert('System preferences saved successfully!');
+  };
+
+  const onTermsSubmit = (data: TermsConditionsSettings) => {
+    setTermsSettings(data);
+    alert('Terms & Conditions saved successfully!');
   };
 
   const toggleUserStatus = (userId: number) => {
@@ -854,6 +878,101 @@ export default function SettingsPage() {
                       className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200"
                     >
                       Save Integration Settings
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Terms & Conditions Tab */}
+            {activeTab === 'terms' && (
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Terms & Conditions Management</h2>
+                <form onSubmit={handleTermsSubmit(onTermsSubmit)} className="space-y-8">
+                  {/* Default Terms */}
+                  <div className="border border-gray-200 rounded-lg p-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Default Terms & Conditions
+                    </h3>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">General Terms</label>
+                      <textarea
+                        {...registerTerms('defaultTerms')}
+                        rows={6}
+                        className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="Enter default terms and conditions..."
+                      />
+                      <p className="text-sm text-gray-500 mt-1">These terms will be used as default for all documents unless overridden.</p>
+                    </div>
+                  </div>
+
+                  {/* Document-Specific Terms */}
+                  <div className="border border-gray-200 rounded-lg p-6">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Document-Specific Terms</h3>
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Quotation Terms</label>
+                        <textarea
+                          {...registerTerms('quotationTerms')}
+                          rows={4}
+                          className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="Terms specific to quotations..."
+                        />
+                        <p className="text-sm text-gray-500 mt-1">These terms will appear on quotations by default.</p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Invoice Terms</label>
+                        <textarea
+                          {...registerTerms('invoiceTerms')}
+                          rows={4}
+                          className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="Terms specific to invoices..."
+                        />
+                        <p className="text-sm text-gray-500 mt-1">These terms will appear on invoices by default.</p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Order Terms</label>
+                        <textarea
+                          {...registerTerms('purchaseOrderTerms')}
+                          rows={4}
+                          className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          placeholder="Terms specific to purchase orders..."
+                        />
+                        <p className="text-sm text-gray-500 mt-1">These terms will appear on purchase orders by default.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Usage Guidelines */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                    <h3 className="text-lg font-medium text-blue-900 mb-3 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Usage Guidelines
+                    </h3>
+                    <div className="text-sm text-blue-800 space-y-2">
+                      <p>• <strong>Default Terms:</strong> Used when no document-specific terms are set</p>
+                      <p>• <strong>Document-Specific Terms:</strong> Override default terms for specific document types</p>
+                      <p>• <strong>Manual Override:</strong> Users can still modify terms when creating individual documents</p>
+                      <p>• <strong>Line Breaks:</strong> Use line breaks to separate different terms for better readability</p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200 flex items-center"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Save Terms & Conditions
                     </button>
                   </div>
                 </form>

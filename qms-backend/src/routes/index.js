@@ -32,13 +32,17 @@ router.get('/dashboard/stats', authenticateToken, asyncHandler(async (req, res) 
       .eq('status', 'sent')
       .limit(5);
 
-    // Get low stock products
-    const { data: lowStockProducts } = await supabaseAdmin
+    // Get low stock products - using a different approach since supabase doesn't support column comparison directly
+    const { data: allProducts } = await supabaseAdmin
       .from('products')
       .select('*')
-      .lt('current_stock', supabaseAdmin.raw('minimum_stock_level'))
-      .eq('is_active', true)
-      .limit(5);
+      .eq('status', 'active')
+      .limit(100);
+
+    // Filter low stock products in JavaScript
+    const lowStockProducts = allProducts ? allProducts.filter(product => 
+      product.current_stock < product.reorder_point
+    ).slice(0, 5) : [];
 
     // Get recent activities (mock data for now)
     const recentActivities = [

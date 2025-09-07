@@ -585,6 +585,23 @@ class ApiClient {
     return this.request('/stock-movements/alerts/low-stock');
   }
 
+  // Dashboard methods
+  async getDashboardData() {
+    console.log('📊 Fetching dashboard data...');
+    const startTime = Date.now();
+    
+    try {
+      const response = await this.request('/dashboard/stats');
+      const loadTime = Date.now() - startTime;
+      console.log(`📊 Dashboard data loaded in ${loadTime}ms`);
+      return response;
+    } catch (error: any) {
+      const loadTime = Date.now() - startTime;
+      console.error(`❌ Dashboard data failed in ${loadTime}ms:`, error.message);
+      throw error;
+    }
+  }
+
   // Health check
   async healthCheck() {
     return this.request('/health');
@@ -669,6 +686,53 @@ class ApiClient {
       return result;
     } catch (error) {
       console.error('❌ Business entities API error:', error);
+      throw error;
+    }
+  }
+
+  // Settings API methods
+  async getSettings() {
+    try {
+      const result = await this.request('/settings');
+      return result;
+    } catch (error) {
+      console.error('❌ Settings API error:', error);
+      throw error;
+    }
+  }
+
+  async updateSettings(settings: any) {
+    try {
+      const result = await this.request('/settings', {
+        method: 'PUT',
+        body: JSON.stringify(settings)
+      });
+      return result;
+    } catch (error) {
+      console.error('❌ Update settings API error:', error);
+      throw error;
+    }
+  }
+
+  async getTermsAndConditions() {
+    try {
+      const result = await this.request('/settings/terms');
+      return result;
+    } catch (error) {
+      console.error('❌ Terms API error:', error);
+      throw error;
+    }
+  }
+
+  async updateTermsAndConditions(terms: any) {
+    try {
+      const result = await this.request('/settings/terms', {
+        method: 'PUT',
+        body: JSON.stringify(terms)
+      });
+      return result;
+    } catch (error) {
+      console.error('❌ Update terms API error:', error);
       throw error;
     }
   }

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth, RoleGuard } from '../../../lib/useAuth';
+import { apiClient } from '../../lib/api';
 import CreateQuotationModal from '../sales/CreateQuotationModal';
 import UploadInquiryModal from './UploadInquiryModal';
 import ConvertQuoteModal from '../sales/ConvertQuoteModal';
@@ -15,13 +16,61 @@ export default function RoleBasedDashboard() {
   const [showConvertQuote, setShowConvertQuote] = useState(false);
   const [showCreateInvoice, setShowCreateInvoice] = useState(false);
   const [showQuickReorder, setShowQuickReorder] = useState(false);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!user) {
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!user) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await apiClient.getDashboardData();
+        if (response.success) {
+          setDashboardData(response.data);
+        } else {
+          setError('Failed to load dashboard data');
+        }
+      } catch (err: any) {
+        console.error('Dashboard data fetch error:', err);
+        setError(err.message || 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [user]);
+
+  if (!user || loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">
+            <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -178,7 +227,9 @@ export default function RoleBasedDashboard() {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Pending Approvals</h3>
             <p className="text-gray-600 text-sm mb-4">Keep workflow moving with quick approvals</p>
-            <div className="text-2xl font-bold text-yellow-600 mb-2">3</div>
+            <div className="text-2xl font-bold text-yellow-600 mb-2">
+              {dashboardData?.pendingApprovals?.length || 0}
+            </div>
             <p className="text-gray-500 text-xs">Items awaiting approval</p>
           </div>
         </RoleGuard>

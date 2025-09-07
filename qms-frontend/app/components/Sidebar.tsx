@@ -61,7 +61,7 @@ export default function Sidebar() {
     return (
       <div className="fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-50">
         <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a]">
-          <h1 className="text-2xl font-bold text-white">QMS</h1>
+          <h1 className="text-2xl font-bold text-white">Anoosh International</h1>
         </div>
         <div className="flex items-center justify-center h-32">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
@@ -75,7 +75,7 @@ export default function Sidebar() {
     return (
       <div className="fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-50">
         <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a]">
-          <h1 className="text-2xl font-bold text-white">QMS</h1>
+          <h1 className="text-2xl font-bold text-white">Anoosh International</h1>
         </div>
         <div className="p-4 text-center">
           <p className="text-white text-sm">Please log in to continue</p>
@@ -110,7 +110,7 @@ export default function Sidebar() {
     <div className="fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-50">
       {/* Logo Section */}
       <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a]">
-        <h1 className="text-2xl font-bold text-white">QMS</h1>
+        <h1 className="text-2xl font-bold text-white">Anoosh International</h1>
       </div>
 
       {/* User Info */}

@@ -24,6 +24,7 @@ const vendorBillRoutes = require('./routes/vendorBills');
 const deliveryChallanRoutes = require('./routes/deliveryChallans');
 const productCategoryRoutes = require('./routes/productCategories');
 const ledgerRoutes = require('./routes/ledger');
+const settingsRoutes = require('./routes/settings');
 
 const app = express();
 
@@ -123,6 +124,7 @@ app.use('/api/v1/vendor-bills', vendorBillRoutes);
 app.use('/api/v1/delivery-challans', deliveryChallanRoutes);
 app.use('/api/v1/product-categories', productCategoryRoutes);
 app.use('/api/v1/ledger', ledgerRoutes);
+app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1', indexRoutes);
 
 // 404 handler

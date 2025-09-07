@@ -16,8 +16,6 @@ interface QuotationItem {
   description: string;
   quantity: number;
   unit_price: number;
-  discount_percent: number;
-  tax_percent: number;
   line_total: number;
 }
 
@@ -43,6 +41,8 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [defaultTerms, setDefaultTerms] = useState<string>('');
+  const [isLoadingTerms, setIsLoadingTerms] = useState(false);
 
   // Handle mounting for portal
   useEffect(() => {
@@ -50,10 +50,11 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
     return () => setMounted(false);
   }, []);
 
-  // Fetch customers when modal opens
+  // Fetch customers and terms when modal opens
   useEffect(() => {
     if (isOpen) {
       fetchCustomers();
+      fetchTermsAndConditions();
       // Set default dates after component mounts to avoid hydration issues
       const today = new Date().toISOString().split('T')[0];
       const validUntil = new Date();
@@ -81,14 +82,38 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
     }
   };
 
+  const fetchTermsAndConditions = async () => {
+    setIsLoadingTerms(true);
+    try {
+      const response = await apiClient.getTermsAndConditions();
+      if (response.success && response.data) {
+        const terms = response.data.quotation_terms || response.data.default_terms || '';
+        setDefaultTerms(terms);
+        setFormData(prev => ({
+          ...prev,
+          terms_conditions: terms
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch terms and conditions:', error);
+      // Set fallback terms
+      const fallbackTerms = '1. This quotation is valid for 30 days from the date of issue.\n2. Prices are subject to change without notice.\n3. Payment terms: 50% advance, 50% on delivery.\n4. Delivery time: 7-14 business days after order confirmation.';
+      setDefaultTerms(fallbackTerms);
+      setFormData(prev => ({
+        ...prev,
+        terms_conditions: fallbackTerms
+      }));
+    } finally {
+      setIsLoadingTerms(false);
+    }
+  };
+
   const addItem = () => {
     const newItem: QuotationItem = {
       id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       description: '',
       quantity: 1,
       unit_price: 0,
-      discount_percent: 0,
-      tax_percent: 18, // Default tax rate
       line_total: 0
     };
     setItems([...items, newItem]);
@@ -100,18 +125,11 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
         const updatedItem = { ...item, [field]: value };
         
         // Recalculate line total for numeric fields
-        if (field === 'quantity' || field === 'unit_price' || field === 'discount_percent' || field === 'tax_percent') {
+        if (field === 'quantity' || field === 'unit_price') {
           const quantity = Number(updatedItem.quantity);
           const unitPrice = Number(updatedItem.unit_price);
-          const discountPercent = Number(updatedItem.discount_percent);
-          const taxPercent = Number(updatedItem.tax_percent);
           
-          const lineTotal = quantity * unitPrice;
-          const discountAmount = lineTotal * (discountPercent / 100);
-          const taxableAmount = lineTotal - discountAmount;
-          const taxAmount = taxableAmount * (taxPercent / 100);
-          
-          updatedItem.line_total = taxableAmount + taxAmount;
+          updatedItem.line_total = quantity * unitPrice;
         }
         return updatedItem;
       }
@@ -125,27 +143,14 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
 
   const calculateTotals = () => {
     let subtotal = 0;
-    let discountAmount = 0;
-    let taxAmount = 0;
 
     items.forEach(item => {
-      const lineTotal = item.quantity * item.unit_price;
-      const discount = lineTotal * (item.discount_percent / 100);
-      const taxableAmount = lineTotal - discount;
-      const tax = taxableAmount * (item.tax_percent / 100);
-
-      subtotal += lineTotal;
-      discountAmount += discount;
-      taxAmount += tax;
+      subtotal += item.quantity * item.unit_price;
     });
-
-    const total = subtotal - discountAmount + taxAmount;
 
     return {
       subtotal,
-      discountAmount,
-      taxAmount,
-      total
+      total: subtotal
     };
   };
 
@@ -182,9 +187,7 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
           description: item.description.trim(),
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
-          ...(item.product_id && { product_id: item.product_id }),
-          ...(item.discount_percent > 0 && { discount_percent: Number(item.discount_percent) }),
-          ...(item.tax_percent > 0 && { tax_percent: Number(item.tax_percent) })
+          ...(item.product_id && { product_id: item.product_id })
         }))
       };
 
@@ -415,13 +418,25 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Terms & Conditions</label>
-              <textarea
-                value={formData.terms_conditions}
-                onChange={(e) => setFormData({ ...formData, terms_conditions: e.target.value })}
-                className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="Payment terms, delivery conditions..."
-                rows={3}
-              />
+              <div className="relative">
+                <textarea
+                  value={formData.terms_conditions}
+                  readOnly
+                  className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed"
+                  rows={6}
+                />
+                {isLoadingTerms && (
+                  <div className="absolute inset-0 bg-gray-50 bg-opacity-75 flex items-center justify-center rounded-lg">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                <svg className="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Terms are managed in Settings and cannot be edited here
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
@@ -430,7 +445,7 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="Additional notes..."
-                rows={3}
+                rows={6}
               />
             </div>
           </div>
@@ -456,18 +471,15 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="grid grid-cols-12 gap-3 items-center p-3 bg-gray-100 rounded-lg font-medium text-sm text-gray-700">
-                  <div className="col-span-4">Description</div>
+                <div className="grid grid-cols-10 gap-3 items-center p-3 bg-gray-100 rounded-lg font-medium text-sm text-gray-700">
+                  <div className="col-span-5">Description</div>
                   <div className="col-span-2">Quantity</div>
                   <div className="col-span-2">Unit Price</div>
-                  <div className="col-span-1">Discount %</div>
-                  <div className="col-span-1">Tax %</div>
-                  <div className="col-span-1">Total</div>
                   <div className="col-span-1">Action</div>
                 </div>
                 {items.map((item) => (
-                  <div key={item.id} className="grid grid-cols-12 gap-3 items-center p-3 bg-gray-50 rounded-lg">
-                    <div className="col-span-4">
+                  <div key={item.id} className="grid grid-cols-10 gap-3 items-center p-3 bg-gray-50 rounded-lg">
+                    <div className="col-span-5">
                       <input
                         type="text"
                         value={item.description}
@@ -475,6 +487,9 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
                         className="w-full px-3 py-2 text-black border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                         placeholder="Item description"
                       />
+                      <div className="mt-1 px-3 py-1 text-xs text-gray-600 bg-blue-50 rounded">
+                        Total: ${item.line_total.toFixed(2)}
+                      </div>
                     </div>
                     <div className="col-span-2">
                       <input
@@ -509,51 +524,6 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
                       />
                     </div>
                     <div className="col-span-1">
-                      <input
-                        type="number"
-                        value={item.discount_percent === 0 ? '' : item.discount_percent}
-                        onChange={(e) => {
-                          const value = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
-                          updateItem(item.id, 'discount_percent', value);
-                        }}
-                        onFocus={(e) => {
-                          if (e.target.value === '0') {
-                            e.target.select();
-                          }
-                        }}
-                        className="w-full px-3 py-2 text-black border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                        placeholder="0"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <input
-                        type="number"
-                        value={item.tax_percent === 0 ? '' : item.tax_percent}
-                        onChange={(e) => {
-                          const value = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
-                          updateItem(item.id, 'tax_percent', value);
-                        }}
-                        onFocus={(e) => {
-                          if (e.target.value === '0') {
-                            e.target.select();
-                          }
-                        }}
-                        className="w-full px-3 py-2 text-black border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                        placeholder="18"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <div className="px-3 py-2 text-black bg-white border border-gray-300 rounded text-sm">
-                        ${item.line_total.toFixed(2)}
-                      </div>
-                    </div>
-                    <div className="col-span-1">
                       <button
                         onClick={() => removeItem(item.id)}
                         className="text-red-600 hover:text-red-800 transition-colors duration-200 p-1"
@@ -571,26 +541,13 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
 
           {/* Totals */}
           {items.length > 0 && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Subtotal:</span>
-                    <span>${totals.subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Discount:</span>
-                    <span>-${totals.discountAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Tax:</span>
-                    <span>${totals.taxAmount.toFixed(2)}</span>
-                  </div>
+            <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+              <div className="flex justify-between items-center">
+                <div className="text-lg font-semibold text-gray-700">
+                  Subtotal: ${totals.subtotal.toFixed(2)}
                 </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-gray-900">
-                    Total: ${totals.total.toFixed(2)}
-                  </div>
+                <div className="text-2xl font-bold text-blue-600">
+                  Total: ${totals.total.toFixed(2)}
                 </div>
               </div>
             </div>
