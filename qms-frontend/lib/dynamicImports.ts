@@ -12,6 +12,27 @@ export const loadXLSX = async () => {
   return XLSX;
 };
 
+// PDF generation libraries - load when needed
+export const loadJsPDF = async () => {
+  try {
+    const jsPDF = await import('jspdf');
+    return jsPDF.default;
+  } catch (error) {
+    console.warn('jsPDF not available:', error);
+    return null;
+  }
+};
+
+export const loadHtml2Canvas = async () => {
+  try {
+    const html2canvas = await import('html2canvas');
+    return html2canvas.default;
+  } catch (error) {
+    console.warn('html2canvas not available:', error);
+    return null;
+  }
+};
+
 // Future libraries can be added here when needed
 // Example implementations for when these libraries are installed:
 

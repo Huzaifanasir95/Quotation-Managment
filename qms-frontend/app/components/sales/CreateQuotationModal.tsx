@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { apiClient, Customer } from '../../lib/api';
+import { generateQuotationPDF } from '../../../lib/pdfUtils';
 
 interface CreateQuotationModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [defaultTerms, setDefaultTerms] = useState<string>('');
   const [isLoadingTerms, setIsLoadingTerms] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   // Handle mounting for portal
   useEffect(() => {
@@ -208,6 +210,70 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!formData.customerId) {
+      alert('Please select a customer to generate PDF');
+      return;
+    }
+    
+    if (items.length === 0) {
+      alert('Please add at least one item to generate PDF');
+      return;
+    }
+
+    setIsGeneratingPDF(true);
+    
+    try {
+      // Find the selected customer
+      const selectedCustomer = customers.find(c => c.id === formData.customerId);
+      if (!selectedCustomer) {
+        throw new Error('Customer not found');
+      }
+
+      // Calculate totals
+      const subtotal = items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0);
+      const taxAmount = 0; // You can add tax calculation here if needed
+      const totalAmount = subtotal + taxAmount;
+
+      // Prepare quotation data for PDF
+      const quotationData = {
+        quotation_number: `QUOTE-${Date.now()}`,
+        customer: {
+          id: selectedCustomer.id,
+          name: selectedCustomer.name,
+          email: selectedCustomer.email || '',
+          phone: selectedCustomer.phone || '',
+          contact_person: selectedCustomer.contact_person || '',
+          address: selectedCustomer.address || 'Address not provided'
+        },
+        quotation_date: new Date().toISOString().split('T')[0],
+        valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        items: items.map(item => {
+          const product = products.find(p => p.id === item.productId);
+          return {
+            description: product?.name?.replace(/\s-\s\$[\d,.]+$/, '') || 'Unknown Product',
+            quantity: item.quantity,
+            unit_price: item.unitPrice,
+            line_total: item.quantity * item.unitPrice
+          };
+        }),
+        subtotal: subtotal,
+        tax_amount: taxAmount,
+        total_amount: totalAmount,
+        terms_conditions: formData.termsConditions || 'Standard terms and conditions apply.',
+        notes: formData.notes !== 'NULL' ? formData.notes : ''
+      };
+
+      await generateQuotationPDF(quotationData);
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Please try again.'}`);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -564,12 +630,38 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           {activeTab === 'preview' && (
             <div className="max-w-3xl mx-auto">
               <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                  <svg className="w-6 h-6 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Review & Create Quotation
-                </h3>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <svg className="w-6 h-6 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Review & Create Quotation
+                  </h3>
+                  
+                  {/* PDF Download Button */}
+                  <button
+                    onClick={handleDownloadPDF}
+                    disabled={isGeneratingPDF || !formData.customerId || items.length === 0}
+                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
+                  >
+                    {isGeneratingPDF ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Download PDF
+                      </>
+                    )}
+                  </button>
+                </div>
                 
                 {/* Summary */}
                 <div className="space-y-4">
@@ -638,28 +730,52 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                 Cancel
               </button>
               {activeTab === 'preview' ? (
-                <button
-                  onClick={handleSubmit}
-                  disabled={isLoading || !formData.customerId || items.length === 0}
-                  className="px-8 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
-                >
-                  {isLoading ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Creating...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Create Quotation
-                    </>
-                  )}
-                </button>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={handleDownloadPDF}
+                    disabled={isGeneratingPDF || !formData.customerId || items.length === 0}
+                    className="px-6 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
+                  >
+                    {isGeneratingPDF ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Download PDF
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={isLoading || !formData.customerId || items.length === 0}
+                    className="px-8 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
+                  >
+                    {isLoading ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Create Quotation
+                      </>
+                    )}
+                  </button>
+                </div>
               ) : (
                 <button
                   onClick={() => {
