@@ -1024,11 +1024,11 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           )}
 
           {activeTab === 'preview' && (
-            <div className="max-w-3xl mx-auto">
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="max-w-6xl mx-auto">
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-                    <svg className="w-6 h-6 mr-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     Review & Create Quotation
@@ -1038,7 +1038,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                   <button
                     onClick={handleDownloadPDF}
                     disabled={isGeneratingPDF || !formData.customerId || items.length === 0}
-                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
                   >
                     {isGeneratingPDF ? (
                       <>
@@ -1059,53 +1059,113 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                   </button>
                 </div>
                 
-                {/* Summary */}
-                <div className="space-y-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">Customer</h4>
-                    <p className="text-gray-600">
-                      {customers.find(c => c.id === formData.customerId)?.name || 'No customer selected'}
-                    </p>
+                {/* Two Column Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Left Column */}
+                  <div className="space-y-4">
+                    {/* Customer Info */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                        <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        Customer
+                      </h4>
+                      <p className="text-gray-700 font-medium">
+                        {customers.find(c => c.id === formData.customerId)?.name || 'No customer selected'}
+                      </p>
+                      {formData.customerId && (
+                        <div className="mt-2 text-sm text-gray-500">
+                          {customers.find(c => c.id === formData.customerId)?.email && (
+                            <p>📧 {customers.find(c => c.id === formData.customerId)?.email}</p>
+                          )}
+                          {customers.find(c => c.id === formData.customerId)?.phone && (
+                            <p>📞 {customers.find(c => c.id === formData.customerId)?.phone}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Items */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                        <svg className="w-4 h-4 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                        Items ({items.length})
+                      </h4>
+                      {items.length > 0 ? (
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {items.map((item, index) => (
+                            <div key={item.id} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 truncate">
+                                  {products.find(p => p.id === item.productId)?.name || 'Product'}
+                                </p>
+                                <p className="text-gray-500">Qty: {item.quantity} × ${item.unitPrice}</p>
+                              </div>
+                              <span className="font-medium text-gray-900">${(item.quantity * item.unitPrice).toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-sm">No items added</p>
+                      )}
+                    </div>
                   </div>
                   
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">Items ({items.length})</h4>
-                    {items.length > 0 ? (
-                      <div className="space-y-2">
-                        {items.map((item, index) => (
-                          <div key={item.id} className="flex justify-between text-sm">
-                            <span>{products.find(p => p.id === item.productId)?.name} x {item.quantity}</span>
-                            <span>${(item.quantity * item.unitPrice).toFixed(2)}</span>
-                          </div>
-                        ))}
+                  {/* Right Column */}
+                  <div className="space-y-4">
+                    {/* Attachments */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                        <svg className="w-4 h-4 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                        </svg>
+                        Attachments ({attachments.length})
+                      </h4>
+                      {attachments.length > 0 ? (
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {attachments.map((file, index) => (
+                            <div key={index} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 truncate">{file.name}</p>
+                                <p className="text-gray-500">{formatFileSize(file.size)}</p>
+                              </div>
+                              <div className="flex-shrink-0">
+                                {file.type.startsWith('image/') ? (
+                                  <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                ) : file.type === 'application/pdf' ? (
+                                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 text-sm">No files attached</p>
+                      )}
+                    </div>
+                    
+                    {/* Total Summary */}
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-lg font-medium text-gray-900">Total Amount:</span>
+                        <span className="text-2xl font-bold text-green-600">
+                          ${items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0).toFixed(2)}
+                        </span>
                       </div>
-                    ) : (
-                      <p className="text-gray-600">No items added</p>
-                    )}
-                  </div>
-                  
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">Attachments ({attachments.length})</h4>
-                    {attachments.length > 0 ? (
-                      <div className="space-y-1">
-                        {attachments.map((file, index) => (
-                          <div key={index} className="flex justify-between text-sm">
-                            <span className="truncate">{file.name}</span>
-                            <span className="text-gray-500">{formatFileSize(file.size)}</span>
-                          </div>
-                        ))}
+                      <div className="mt-2 text-sm text-green-700">
+                        {items.length} item{items.length !== 1 ? 's' : ''} • {attachments.length} attachment{attachments.length !== 1 ? 's' : ''}
                       </div>
-                    ) : (
-                      <p className="text-gray-600">No files attached</p>
-                    )}
-                  </div>
-                  
-                  <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg border-2 border-green-200">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-semibold text-gray-900">Total:</span>
-                      <span className="text-2xl font-bold text-green-600">
-                        ${items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0).toFixed(2)}
-                      </span>
                     </div>
                   </div>
                 </div>
