@@ -34,6 +34,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [itemsViewMode, setItemsViewMode] = useState<'grid' | 'list'>('grid'); // Default to grid view
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle mounting for portal
@@ -56,6 +57,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     setAttachments([]);
     setIsUploading(false);
     setDragActive(false);
+    setItemsViewMode('grid'); // Reset to grid view
     setError(null);
   };
 
@@ -537,180 +539,359 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         <div className="flex-1 overflow-y-auto bg-gray-50">
           <div className="p-8">
           {activeTab === 'customer' && (
-            <div className="max-w-2xl mx-auto space-y-6">
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                  <svg className="w-6 h-6 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  Customer Information
-                </h3>
+            <div className="max-w-6xl mx-auto">
+              <h3 className="text-lg font-medium text-gray-900 mb-6">Customer Information</h3>
+              
+              {/* Grid Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Customer Selection - Takes 2 columns */}
+                <div className="lg:col-span-2">
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Select Customer *</label>
+                        <select
+                          value={formData.customerId}
+                          onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
+                          className="w-full text-black p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                        >
+                          <option value="">Choose a customer...</option>
+                          {customers.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Valid Until</label>
+                        <input
+                          type="date"
+                          value={formData.validUntil}
+                          onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
+                          className="w-full text-black p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                          placeholder="Valid until"
+                        />
+                        <p className="text-sm text-gray-500 mt-1">If not specified, default is 30 days from today</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Customer *</label>
-                    <select
-                      value={formData.customerId}
-                      onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-                      className="w-full text-black p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    >
-                      <option value="">Choose a customer...</option>
-                      {customers.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Valid Until</label>
-                    <input
-                      type="date"
-                      value={formData.validUntil}
-                      onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
-                      className="w-full text-black p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                      placeholder="Valid until"
-                    />
-                    <p className="text-sm text-gray-500 mt-1">If not specified, default is 30 days from today</p>
-                  </div>
+                {/* Customer Preview Card - Takes 1 column */}
+                <div className="lg:col-span-1">
+                  {formData.customerId ? (
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <h4 className="text-sm font-medium text-gray-900 mb-4">Customer Preview</h4>
+                      {(() => {
+                        const selectedCustomer = customers.find(c => c.id === formData.customerId);
+                        return selectedCustomer ? (
+                          <div className="space-y-3">
+                            <div>
+                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Name</span>
+                              <p className="text-sm text-gray-900 mt-1">{selectedCustomer.name}</p>
+                            </div>
+                            {selectedCustomer.email && (
+                              <div>
+                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Email</span>
+                                <p className="text-sm text-gray-900 mt-1">{selectedCustomer.email}</p>
+                              </div>
+                            )}
+                            {selectedCustomer.phone && (
+                              <div>
+                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Phone</span>
+                                <p className="text-sm text-gray-900 mt-1">{selectedCustomer.phone}</p>
+                              </div>
+                            )}
+                            {selectedCustomer.address && (
+                              <div>
+                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Address</span>
+                                <p className="text-sm text-gray-900 mt-1">{selectedCustomer.address}</p>
+                              </div>
+                            )}
+                          </div>
+                        ) : null;
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                      <div className="text-center">
+                        <div className="text-gray-400 mb-3">
+                          <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                        <p className="text-sm text-gray-500">Select a customer to see their details</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           )}
 
           {activeTab === 'items' && (
-            <div className="max-w-4xl mx-auto space-y-6">
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-semibold text-gray-900 flex items-center">
-                    <svg className="w-6 h-6 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
-                    Quotation Items
-                  </h3>
+            <div className="max-w-6xl mx-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-medium text-gray-900">Quotation Items</h3>
+                
+                <div className="flex items-center space-x-4">
+                  {/* View Mode Toggle */}
+                  <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => setItemsViewMode('grid')}
+                      className={`px-3 py-2 text-sm ${
+                        itemsViewMode === 'grid'
+                          ? 'bg-gray-800 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setItemsViewMode('list')}
+                      className={`px-3 py-2 text-sm ${
+                        itemsViewMode === 'list'
+                          ? 'bg-gray-800 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                      </svg>
+                    </button>
+                  </div>
+                  
                   <button 
                     onClick={addItem} 
-                    className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
+                    className="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900"
                   >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
                     Add Item
                   </button>
                 </div>
-                
-                {items.length === 0 ? (
-                  <div className="text-center py-12">
-                    <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              </div>
+              
+              {items.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div className="text-gray-400 mb-4">
+                    <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
-                    <p className="text-gray-500 text-lg">No items added yet</p>
-                    <p className="text-gray-400 text-sm">Click "Add Item" to get started</p>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {items.map((item, index) => (
-                      <div key={item.id} className="border border-gray-200 rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors duration-200">
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-medium text-gray-900">Item #{index + 1}</h4>
-                          <button
-                            onClick={() => removeItem(index)}
-                            className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors duration-200"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
-                            <select
-                              value={item.productId}
-                              onChange={(e) => {
-                                const product = products.find(p => p.id === e.target.value);
-                                const newItems = [...items];
-                                newItems[index] = { ...item, productId: e.target.value, unitPrice: product?.price || 0 };
-                                setItems(newItems);
-                              }}
-                              className="w-full text-black p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  <p className="text-gray-500 text-lg">No items added yet</p>
+                  <p className="text-gray-400 text-sm">Click "Add Item" to get started</p>
+                </div>
+              ) : (
+                <>
+                  {itemsViewMode === 'grid' ? (
+                    /* Grid View */
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {items.map((item, index) => (
+                        <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium text-gray-900">Item #{index + 1}</h4>
+                            <button
+                              onClick={() => removeItem(index)}
+                              className="text-red-500 hover:text-red-700 p-1 rounded"
                             >
-                              <option value="">Select product...</option>
-                              {products.map(p => (
-                                <option key={p.id} value={p.id}>{p.name} - ${p.price}</option>
-                              ))}
-                            </select>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={(e) => {
-                                const newItems = [...items];
-                                newItems[index] = { ...item, quantity: Number(e.target.value) };
-                                setItems(newItems);
-                              }}
-                              className="w-full text-black p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="Quantity"
-                            />
+                          
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">Product</label>
+                              <select
+                                value={item.productId}
+                                onChange={(e) => {
+                                  const product = products.find(p => p.id === e.target.value);
+                                  const newItems = [...items];
+                                  newItems[index] = { ...item, productId: e.target.value, unitPrice: product?.price || 0 };
+                                  setItems(newItems);
+                                }}
+                                className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                              >
+                                <option value="">Select product...</option>
+                                {products.map(p => (
+                                  <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                              </select>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.quantity}
+                                  onChange={(e) => {
+                                    const newItems = [...items];
+                                    newItems[index] = { ...item, quantity: Number(e.target.value) };
+                                    setItems(newItems);
+                                  }}
+                                  className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                  placeholder="Qty"
+                                />
+                              </div>
+                              
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Price</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={item.unitPrice}
+                                  onChange={(e) => {
+                                    const newItems = [...items];
+                                    newItems[index] = { ...item, unitPrice: Number(e.target.value) };
+                                    setItems(newItems);
+                                  }}
+                                  className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                  placeholder="Price"
+                                />
+                              </div>
+                            </div>
+                            
+                            {item.productId && (
+                              <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
+                                <p className="text-sm text-gray-900">
+                                  <span className="font-medium">Total:</span> ${(item.quantity * item.unitPrice).toFixed(2)}
+                                </p>
+                              </div>
+                            )}
                           </div>
                         </div>
-                        {item.productId && (
-                          <div className="mt-3 p-3 bg-blue-50 rounded-md">
-                            <p className="text-sm text-blue-800">
-                              <span className="font-medium">Subtotal:</span> ${(item.quantity * item.unitPrice).toFixed(2)}
-                            </p>
+                      ))}
+                    </div>
+                  ) : (
+                    /* List View */
+                    <div className="space-y-4">
+                      {items.map((item, index) => (
+                        <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium text-gray-900">Item #{index + 1}</h4>
+                            <button
+                              onClick={() => removeItem(index)}
+                              className="text-red-500 hover:text-red-700 p-1 rounded"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
                           </div>
-                        )}
-                      </div>
-                    ))}
-                    
-                    <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg border border-green-200">
-                      <div className="flex justify-between items-center">
-                        <span className="text-lg font-semibold text-gray-900">Total Amount:</span>
-                        <span className="text-2xl font-bold text-green-600">
-                          ${items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0).toFixed(2)}
-                        </span>
-                      </div>
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
+                              <select
+                                value={item.productId}
+                                onChange={(e) => {
+                                  const product = products.find(p => p.id === e.target.value);
+                                  const newItems = [...items];
+                                  newItems[index] = { ...item, productId: e.target.value, unitPrice: product?.price || 0 };
+                                  setItems(newItems);
+                                }}
+                                className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                              >
+                                <option value="">Select product...</option>
+                                {products.map(p => (
+                                  <option key={p.id} value={p.id}>{p.name} - ${p.price}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => {
+                                  const newItems = [...items];
+                                  newItems[index] = { ...item, quantity: Number(e.target.value) };
+                                  setItems(newItems);
+                                }}
+                                className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                placeholder="Quantity"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={item.unitPrice}
+                                onChange={(e) => {
+                                  const newItems = [...items];
+                                  newItems[index] = { ...item, unitPrice: Number(e.target.value) };
+                                  setItems(newItems);
+                                }}
+                                className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                placeholder="Price"
+                              />
+                            </div>
+                          </div>
+                          {item.productId && (
+                            <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                              <p className="text-sm text-gray-900">
+                                <span className="font-medium">Subtotal:</span> ${(item.quantity * item.unitPrice).toFixed(2)}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Total Summary */}
+                  <div className="mt-6 bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-lg font-medium text-gray-900">Total Amount:</span>
+                      <span className="text-xl font-bold text-gray-900">
+                        ${items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0).toFixed(2)}
+                      </span>
                     </div>
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           )}
 
           {activeTab === 'terms' && (
-            <div className="max-w-2xl mx-auto">
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                  <svg className="w-6 h-6 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="max-w-6xl mx-auto">
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   Terms & Conditions
                 </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Terms & Conditions</label>
-                    <div className="relative">
-                      <textarea
-                        value={formData.termsConditions}
-                        readOnly
-                        className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed"
-                        rows={8}
-                      />
-                      {isLoadingTerms && (
-                        <div className="absolute inset-0 bg-gray-50 bg-opacity-75 flex items-center justify-center rounded-lg">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Terms Display */}
+                  <div className="lg:col-span-2">
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 h-64 overflow-y-auto">
+                      {isLoadingTerms ? (
+                        <div className="flex items-center justify-center h-full">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
+                          <span className="ml-2 text-gray-600">Loading terms...</span>
+                        </div>
+                      ) : (
+                        <div className="prose prose-sm max-w-none">
+                          <div className="whitespace-pre-wrap text-gray-800 leading-relaxed text-sm">
+                            {formData.termsConditions || 'No terms and conditions available.'}
+                          </div>
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      <svg className="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    
+                    <div className="mt-3 flex items-center text-xs text-gray-500">
+                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                       </svg>
                       Terms are managed in Settings and cannot be edited here
-                    </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -718,10 +899,10 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           )}
 
           {activeTab === 'attachments' && (
-            <div className="max-w-2xl mx-auto">
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                  <svg className="w-6 h-6 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                   </svg>
                   File Attachments
@@ -729,9 +910,9 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                 
                 {/* File Upload Area */}
                 <div
-                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors duration-200 cursor-pointer ${
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors duration-200 cursor-pointer ${
                     dragActive 
-                      ? 'border-blue-500 bg-blue-50' 
+                      ? 'border-gray-500 bg-gray-50' 
                       : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
                   }`}
                   onDragEnter={handleDrag}
@@ -752,23 +933,20 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                     accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx,.txt"
                   />
                   
-                  <div className="space-y-4">
-                    <svg className="w-16 h-16 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="space-y-3">
+                    <svg className="w-12 h-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                     
                     <div>
-                      <p className="text-lg font-medium text-gray-900">
+                      <p className="text-base font-medium text-gray-900">
                         {dragActive ? 'Drop files here' : 'File Upload'}
                       </p>
-                      <p className="text-gray-500 mt-1">
+                      <p className="text-gray-500 text-sm">
                         Drag and drop files or click to upload attachments
                       </p>
-                      <p className="text-sm text-gray-400 mt-2">
-                        Supports: PDF, Images (JPG, PNG, GIF), Word, Excel, Text files
-                      </p>
-                      <p className="text-sm text-gray-400">
-                        Maximum file size: 10MB
+                      <p className="text-xs text-gray-400 mt-2">
+                        Supports: PDF, Images (JPG, PNG, GIF), Word, Excel, Text files • Max: 10MB
                       </p>
                     </div>
                   </div>
@@ -782,9 +960,9 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                       console.log('Choose Files button clicked');
                       fileInputRef.current?.click();
                     }}
-                    className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-md hover:shadow-lg"
+                    className="inline-flex items-center px-4 py-2 bg-gray-800 text-white font-medium rounded-lg hover:bg-gray-900 transition-colors"
                   >
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     Choose Files
@@ -794,27 +972,27 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                 {/* Uploaded Files List */}
                 {attachments.length > 0 && (
                   <div className="mt-6">
-                    <h4 className="text-lg font-medium text-gray-900 mb-4">
+                    <h4 className="text-base font-medium text-gray-900 mb-3">
                       Attached Files ({attachments.length})
                     </h4>
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {attachments.map((file, index) => (
                         <div
                           key={index}
                           className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
                         >
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-3 flex-1 min-w-0">
                             <div className="flex-shrink-0">
                               {file.type.startsWith('image/') ? (
-                                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                               ) : file.type === 'application/pdf' ? (
-                                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                               ) : (
-                                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                 </svg>
                               )}
@@ -823,28 +1001,22 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                               <p className="text-sm font-medium text-gray-900 truncate">
                                 {file.name}
                               </p>
-                              <p className="text-sm text-gray-500">
+                              <p className="text-xs text-gray-500">
                                 {formatFileSize(file.size)}
                               </p>
                             </div>
                           </div>
                           <button
                             onClick={() => removeAttachment(index)}
-                            className="flex-shrink-0 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors duration-200"
+                            className="flex-shrink-0 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
                           >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                           </button>
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-                
-                {attachments.length === 0 && (
-                  <div className="mt-6 text-center py-4">
-                    <p className="text-gray-500">No files attached yet</p>
                   </div>
                 )}
               </div>
