@@ -152,10 +152,7 @@ router.post('/upload', authenticateToken, authorize(['admin', 'sales', 'procurem
     .from('document_attachments')
     .insert(documentData)
     .select(`
-      *,
-      customers (id, name, email),
-      vendors (id, name, email),
-      business_entities (id, name, legal_name)
+      *
     `)
     .single();
 
@@ -208,24 +205,14 @@ router.get('/:entityType/:entityId', authenticateToken, authorize(['admin', 'sal
   const { data: documents, error } = await supabaseAdmin
     .from('document_attachments')
     .select(`
-      *,
-      customers (id, name, email, gst_number),
-      vendors (id, name, email, gst_number),
-      business_entities (id, name, legal_name, country),
-      ocr_results (
-        id,
-        extracted_text,
-        confidence_score,
-        processing_status,
-        processed_at,
-        language
-      )
+      *
     `)
     .eq('reference_type', entityType)
     .eq('reference_id', entityId)
     .order('uploaded_at', { ascending: false });
 
   if (error) {
+    console.error('Error fetching documents:', error);
     return res.status(400).json({
       error: 'Failed to fetch documents',
       code: 'FETCH_FAILED',
@@ -258,18 +245,7 @@ router.get('/', authenticateToken, authorize(['admin', 'sales', 'procurement', '
   let query = supabaseAdmin
     .from('document_attachments')
     .select(`
-      *,
-      customers (id, name, email, gst_number),
-      vendors (id, name, email, gst_number),
-      business_entities (id, name, legal_name, country),
-      ocr_results (
-        id,
-        extracted_text,
-        confidence_score,
-        processing_status,
-        processed_at,
-        language
-      )
+      *
     `)
     .order('uploaded_at', { ascending: false })
     .range(offset, offset + limit - 1);
@@ -561,10 +537,7 @@ router.patch('/:id/compliance', authenticateToken, authorize(['admin', 'finance'
     })
     .eq('id', id)
     .select(`
-      *,
-      customers (id, name, email),
-      vendors (id, name, email),
-      business_entities (id, name, legal_name)
+      *
     `)
     .single();
 

@@ -41,6 +41,8 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
   const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(false);
   const [editingQuotationId, setEditingQuotationId] = useState<string | null>(null);
+  const [quotationAttachments, setQuotationAttachments] = useState<any[]>([]);
+  const [isLoadingAttachments, setIsLoadingAttachments] = useState(false);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -61,6 +63,8 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
     setSelectedQuotation(null);
     setIsFiltersCollapsed(false);
     setEditingQuotationId(null);
+    setQuotationAttachments([]);
+    setIsLoadingAttachments(false);
   };
 
   const loadQuotations = async () => {
@@ -193,8 +197,22 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
     return new Date(validUntil) < new Date();
   };
 
-  const handleViewQuotation = (quotation: Quotation) => {
+  const handleViewQuotation = async (quotation: Quotation) => {
     setSelectedQuotation(quotation);
+    
+    // Load attachments for the selected quotation
+    setIsLoadingAttachments(true);
+    try {
+      const response = await apiClient.getDocuments('quotation', quotation.id);
+      if (response.success) {
+        setQuotationAttachments(response.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to load quotation attachments:', error);
+      setQuotationAttachments([]);
+    } finally {
+      setIsLoadingAttachments(false);
+    }
   };
 
   const handleEditQuotation = (quotation: Quotation) => {
@@ -223,6 +241,38 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
   const handleQuotationUpdated = () => {
     // Refresh the quotations list
     loadQuotations();
+  };
+
+  const handleDownloadAttachment = async (attachment: any) => {
+    try {
+      // For Supabase Storage URLs, open in new tab
+      if (attachment.file_path && attachment.file_path.includes('supabase')) {
+        window.open(attachment.file_path, '_blank');
+        return;
+      }
+
+      // For older local files, use the download endpoint
+      const blob = await apiClient.downloadDocument(attachment.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = attachment.file_name || 'document';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download attachment:', error);
+      alert('Failed to download file. Please try again.');
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const handleExportQuotations = () => {
@@ -820,6 +870,92 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                       </tfoot>
                     </table>
                   </div>
+                </div>
+
+                {/* Attachments Section */}
+                <div className="mt-6">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                    Attachments
+                  </h4>
+                  
+                  {isLoadingAttachments ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-3 text-gray-600">Loading attachments...</span>
+                    </div>
+                  ) : quotationAttachments.length === 0 ? (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg">
+                      <svg className="w-12 h-12 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      </svg>
+                      <p className="text-gray-500">No attachments found for this quotation</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {quotationAttachments.map((attachment, index) => (
+                        <div
+                          key={attachment.id || index}
+                          className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all duration-200"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3 flex-1">
+                              <div className="flex-shrink-0">
+                                {attachment.mime_type?.startsWith('image/') ? (
+                                  <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                ) : attachment.mime_type === 'application/pdf' ? (
+                                  <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">
+                                  {attachment.file_name || 'Unknown File'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {attachment.file_size ? formatFileSize(attachment.file_size) : 'Unknown size'}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  Uploaded: {attachment.uploaded_at ? new Date(attachment.uploaded_at).toLocaleDateString() : 'Unknown date'}
+                                </p>
+                                {attachment.document_type && (
+                                  <span className="inline-block mt-1 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                                    {attachment.document_type.replace(/_/g, ' ')}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex-shrink-0 ml-3">
+                              <button
+                                onClick={() => handleDownloadAttachment(attachment)}
+                                className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                                title="Download file"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {attachment.notes && (
+                            <div className="mt-2 pt-2 border-t border-gray-100">
+                              <p className="text-xs text-gray-600 italic">"{attachment.notes}"</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
