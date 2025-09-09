@@ -35,6 +35,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [itemsViewMode, setItemsViewMode] = useState<'grid' | 'list'>('grid'); // Default to grid view
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle mounting for portal
@@ -280,6 +282,41 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
 
   const removeAttachment = (index: number) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const previewAttachment = (file: File) => {
+    setPreviewFile(file);
+    
+    // Create URL for preview
+    if (file.type.startsWith('image/')) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    } else if (file.type === 'application/pdf') {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    } else {
+      // For other file types, we'll show file info
+      setPreviewUrl(null);
+    }
+  };
+
+  const closePreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewFile(null);
+    setPreviewUrl(null);
+  };
+
+  const downloadAttachment = (file: File) => {
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1006,14 +1043,41 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                               </p>
                             </div>
                           </div>
-                          <button
-                            onClick={() => removeAttachment(index)}
-                            className="flex-shrink-0 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          <div className="flex items-center space-x-1">
+                            {/* View/Preview Button */}
+                            <button
+                              onClick={() => previewAttachment(file)}
+                              className="flex-shrink-0 p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                              title="View file"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                            </button>
+                            
+                            {/* Download Button */}
+                            <button
+                              onClick={() => downloadAttachment(file)}
+                              className="flex-shrink-0 p-1 text-green-500 hover:text-green-700 hover:bg-green-50 rounded transition-colors"
+                              title="Download file"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </button>
+                            
+                            {/* Remove Button */}
+                            <button
+                              onClick={() => removeAttachment(index)}
+                              className="flex-shrink-0 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                              title="Remove file"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1267,6 +1331,86 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
             </div>
           </div>
         </div>
+        
+        {/* File Preview Modal */}
+        {previewFile && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] w-full overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <h3 className="text-lg font-medium text-gray-900 truncate">
+                  {previewFile.name}
+                </h3>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => downloadAttachment(previewFile)}
+                    className="p-2 text-green-500 hover:text-green-700 hover:bg-green-50 rounded transition-colors"
+                    title="Download file"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={closePreview}
+                    className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              
+              {/* Content */}
+              <div className="p-4 overflow-auto max-h-[calc(90vh-120px)]">
+                {previewFile.type.startsWith('image/') && previewUrl ? (
+                  <div className="flex justify-center">
+                    <img
+                      src={previewUrl}
+                      alt={previewFile.name}
+                      className="max-w-full max-h-full object-contain rounded"
+                    />
+                  </div>
+                ) : previewFile.type === 'application/pdf' && previewUrl ? (
+                  <iframe
+                    src={previewUrl}
+                    className="w-full h-[600px] border-0 rounded"
+                    title={previewFile.name}
+                  />
+                ) : previewFile.type.startsWith('text/') ? (
+                  <div className="bg-gray-50 p-4 rounded">
+                    <p className="text-sm text-gray-600 mb-2">Text File Preview:</p>
+                    <div className="bg-white p-4 rounded border max-h-96 overflow-auto">
+                      <pre className="text-sm whitespace-pre-wrap">
+                        {/* Text content would be loaded here */}
+                        <span className="text-gray-500">Text file content preview not available. Click download to view the full file.</span>
+                      </pre>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-gray-400 mb-4">
+                      <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-2">{previewFile.name}</h4>
+                    <p className="text-gray-500 mb-4">File type: {previewFile.type || 'Unknown'}</p>
+                    <p className="text-gray-500 mb-4">Size: {formatFileSize(previewFile.size)}</p>
+                    <p className="text-gray-600">Preview not available for this file type.</p>
+                    <button
+                      onClick={() => downloadAttachment(previewFile)}
+                      className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                    >
+                      Download File
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
