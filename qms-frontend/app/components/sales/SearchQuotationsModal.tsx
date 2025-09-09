@@ -37,9 +37,9 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
   const [isLoading, setIsLoading] = useState(false);
   const [sortBy, setSortBy] = useState<'date' | 'amount' | 'customer' | 'status'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const [selectedQuotation, setSelectedQuotation] = useState<Quotation | null>(null);
-  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(false);
+  const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(true);
   const [editingQuotationId, setEditingQuotationId] = useState<string | null>(null);
   const [quotationAttachments, setQuotationAttachments] = useState<any[]>([]);
   const [isLoadingAttachments, setIsLoadingAttachments] = useState(false);
@@ -61,7 +61,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
     setSortBy('date');
     setSortOrder('desc');
     setSelectedQuotation(null);
-    setIsFiltersCollapsed(false);
+    setIsFiltersCollapsed(true);
     setEditingQuotationId(null);
     setQuotationAttachments([]);
     setIsLoadingAttachments(false);
