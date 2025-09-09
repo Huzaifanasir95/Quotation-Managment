@@ -507,31 +507,31 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-50 to-gray-50 px-8 py-6 border-b border-gray-200 flex-shrink-0">
+        <div className="bg-white px-6 py-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">Create New Quotation</h2>
-              <p className="text-gray-600 mt-1">Step {currentTabIndex + 1} of {tabs.length}</p>
+              <h2 className="text-xl font-semibold text-gray-900">Create New Quotation</h2>
+              <p className="text-gray-500 text-sm">Step {currentTabIndex + 1} of {tabs.length}</p>
             </div>
             <button 
               onClick={handleClose} 
-              className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors duration-200"
+              className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded transition-colors"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
           
           {/* Progress Bar */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Progress</span>
-              <span className="text-sm font-medium text-gray-700">{Math.round(progress)}%</span>
+          <div className="mt-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-gray-600">Progress</span>
+              <span className="text-xs font-medium text-gray-600">{Math.round(progress)}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 rounded-full h-1.5">
               <div 
-                className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500 ease-out"
+                className="bg-blue-500 h-1.5 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
@@ -896,40 +896,35 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           )}
 
           {activeTab === 'terms' && (
-            <div className="max-w-6xl mx-auto">
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-6 flex items-center">
-                  <svg className="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white rounded-lg border border-gray-200 p-4">
+                <h3 className="text-base font-medium text-gray-900 mb-3 flex items-center">
+                  <svg className="w-4 h-4 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   Terms & Conditions
                 </h3>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Terms Display */}
-                  <div className="lg:col-span-2">
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 h-64 overflow-y-auto">
-                      {isLoadingTerms ? (
-                        <div className="flex items-center justify-center h-full">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
-                          <span className="ml-2 text-gray-600">Loading terms...</span>
-                        </div>
-                      ) : (
-                        <div className="prose prose-sm max-w-none">
-                          <div className="whitespace-pre-wrap text-gray-800 leading-relaxed text-sm">
-                            {formData.termsConditions || 'No terms and conditions available.'}
-                          </div>
-                        </div>
-                      )}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 h-48 overflow-y-auto">
+                  {isLoadingTerms ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-600"></div>
+                      <span className="ml-2 text-gray-600 text-sm">Loading terms...</span>
                     </div>
-                    
-                    <div className="mt-3 flex items-center text-xs text-gray-500">
-                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                      Terms are managed in Settings and cannot be edited here
+                  ) : (
+                    <div className="prose prose-sm max-w-none">
+                      <div className="whitespace-pre-wrap text-gray-800 leading-relaxed text-sm">
+                        {formData.termsConditions || 'No terms and conditions available.'}
+                      </div>
                     </div>
-                  </div>
+                  )}
+                </div>
+                
+                <div className="mt-2 flex items-center text-xs text-gray-500">
+                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Terms are managed in Settings and cannot be edited here
                 </div>
               </div>
             </div>
@@ -1240,7 +1235,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         </div>
 
         {/* Footer Actions */}
-        <div className="bg-white border-t border-gray-200 px-8 py-6 flex-shrink-0">
+        <div className="bg-white border-t border-gray-200 px-6 py-3 flex-shrink-0">
           <div className="flex justify-between items-center">
             <button
               onClick={() => {
@@ -1250,27 +1245,27 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                 }
               }}
               disabled={activeTab === 'customer'}
-              className="px-6 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center"
+              className="px-4 py-1.5 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center text-sm"
             >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Previous
             </button>
 
-            <div className="flex space-x-3">
+            <div className="flex space-x-2">
               <button 
                 onClick={handleClose} 
-                className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                className="px-4 py-1.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
               >
                 Cancel
               </button>
               {activeTab === 'preview' ? (
-                <div className="flex space-x-3">
+                <div className="flex space-x-2">
                   <button
                     onClick={handleDownloadPDF}
                     disabled={isGeneratingPDF || !formData.customerId || items.length === 0}
-                    className="px-6 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
+                    className="px-4 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center text-sm"
                   >
                     {isGeneratingPDF ? (
                       <>
@@ -1292,11 +1287,11 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                   <button
                     onClick={handleSubmit}
                     disabled={isLoading || isUploading || !formData.customerId || items.length === 0}
-                    className="px-8 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
+                    className="px-4 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center text-sm"
                   >
                     {isLoading || isUploading ? (
                       <>
-                        <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
@@ -1320,7 +1315,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                       setActiveTab(tabs[currentIndex + 1].id as TabType);
                     }
                   }}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
+                  className="px-4 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center text-sm"
                 >
                   Next
                   <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
