@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
 import CreateQuotationModal from '../components/sales/CreateQuotationModal';
-import AddCustomerModal from '../components/sales/AddCustomerModal';
+import AddCustomerModal from '../components/sales/AddCustomerModalMultiStep';
 import ConvertQuoteModal from '../components/sales/ConvertQuoteModal';
 import SearchQuotationsModal from '../components/sales/SearchQuotationsModal';
 import EditCustomerModal from '../components/sales/EditCustomerModal';
