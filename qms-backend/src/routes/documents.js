@@ -8,25 +8,9 @@ const { asyncHandler } = require('../middleware/errorHandler');
 
 const router = express.Router();
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: async (req, file, cb) => {
-    const uploadDir = path.join(process.cwd(), 'uploads');
-    try {
-      await fs.mkdir(uploadDir, { recursive: true });
-      cb(null, uploadDir);
-    } catch (error) {
-      cb(error);
-    }
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
+// Configure multer for memory storage (for Supabase uploads)
 const upload = multer({
-  storage: storage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
@@ -36,7 +20,7 @@ const upload = multer({
       return cb(null, true);
     }
     
-    const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx/;
+    const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|txt/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
 
@@ -64,14 +48,13 @@ const handleOptionalUpload = (req, res, next) => {
 
 // Upload document
 router.post('/upload', authenticateToken, authorize(['admin', 'sales', 'procurement', 'finance']), handleOptionalUpload, asyncHandler(async (req, res) => {
-  // File upload is now optional - documents can be created without files
   console.log('📝 Document upload request received');
   console.log('📁 File:', req.file ? 'Present' : 'Not present');
   console.log('📋 Body:', req.body);
 
   const { 
-    entity_type, 
-    entity_id, 
+    reference_type, 
+    reference_id, 
     document_type,
     linked_reference_type,
     linked_reference_number,
@@ -88,40 +71,66 @@ router.post('/upload', authenticateToken, authorize(['admin', 'sales', 'procurem
     description 
   } = req.body;
 
-  // Validate required fields for trade documents
-  console.log('🔍 Validating fields...');
-  console.log('document_type:', document_type);
-  console.log('linked_reference_type:', linked_reference_type);
-  console.log('linked_reference_number:', linked_reference_number);
-  
-  if (!document_type) {
-    console.log('❌ Missing document_type');
-    return res.status(400).json({
-      error: 'Document type is required',
-      code: 'MISSING_DOCUMENT_TYPE'
-    });
-  }
+  let fileUrl = null;
+  let fileName = null;
+  let fileSize = null;
+  let mimeType = null;
 
-  if (!linked_reference_type || !linked_reference_number) {
-    console.log('❌ Missing linked reference info');
-    return res.status(400).json({
-      error: 'Linked reference information is required',
-      code: 'MISSING_LINKED_REFERENCE'
-    });
+  // Handle file upload to Supabase Storage if file is present
+  if (req.file) {
+    try {
+      const fileExt = path.extname(req.file.originalname);
+      const uniqueFileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExt}`;
+      const filePath = `attachments/${uniqueFileName}`;
+
+      console.log('📤 Uploading file to Supabase Storage...');
+      const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
+        .from('documents')
+        .upload(filePath, req.file.buffer, {
+          contentType: req.file.mimetype,
+          duplex: 'half'
+        });
+
+      if (uploadError) {
+        console.error('❌ Upload error:', uploadError);
+        return res.status(400).json({
+          error: 'Failed to upload file',
+          code: 'UPLOAD_FAILED',
+          details: uploadError.message
+        });
+      }
+
+      // Get public URL
+      const { data: urlData } = supabaseAdmin.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+
+      fileUrl = urlData.publicUrl;
+      fileName = req.file.originalname;
+      fileSize = req.file.size;
+      mimeType = req.file.mimetype;
+
+      console.log('✅ File uploaded successfully:', fileUrl);
+    } catch (error) {
+      console.error('❌ File upload error:', error);
+      return res.status(500).json({
+        error: 'File upload failed',
+        code: 'UPLOAD_ERROR',
+        details: error.message
+      });
+    }
   }
-  
-  console.log('✅ Validation passed, creating document data...');
 
   const documentData = {
-    reference_type: entity_type || 'trade_document',
-    reference_id: entity_id,
-    file_name: req.file ? req.file.originalname : null,
-    file_path: req.file ? req.file.path : null,
-    file_size: req.file ? req.file.size : null,
-    mime_type: req.file ? req.file.mimetype : null,
-    document_type,
-    linked_reference_type,
-    linked_reference_number,
+    reference_type: reference_type || 'quotation',
+    reference_id: reference_id,
+    file_name: fileName,
+    file_path: fileUrl,
+    file_size: fileSize,
+    mime_type: mimeType,
+    document_type: document_type || 'quotation_attachment',
+    linked_reference_type: linked_reference_type || null,
+    linked_reference_number: linked_reference_number || null,
     linked_reference_id: linked_reference_id || null,
     customer_id: customer_id || null,
     vendor_id: vendor_id || null,
@@ -152,12 +161,16 @@ router.post('/upload', authenticateToken, authorize(['admin', 'sales', 'procurem
 
   if (error) {
     console.log('❌ Database error:', error);
+    
     // Clean up uploaded file on database error (only if file was uploaded)
-    if (req.file) {
+    if (fileUrl && req.file) {
       try {
-        await fs.unlink(req.file.path);
-      } catch (unlinkError) {
-        console.error('Failed to clean up file:', unlinkError);
+        const filePath = fileUrl.split('/').pop();
+        await supabaseAdmin.storage
+          .from('documents')
+          .remove([`attachments/${filePath}`]);
+      } catch (cleanupError) {
+        console.error('Failed to clean up file:', cleanupError);
       }
     }
 
@@ -183,7 +196,7 @@ router.post('/upload', authenticateToken, authorize(['admin', 'sales', 'procurem
 
   res.status(201).json({
     success: true,
-    message: 'Trade document uploaded successfully',
+    message: 'Document uploaded successfully',
     data: { document }
   });
 }));
@@ -323,18 +336,30 @@ router.get('/download/:id', authenticateToken, authorize(['admin', 'sales', 'pro
     });
   }
 
+  if (!document.file_path) {
+    return res.status(404).json({
+      error: 'No file associated with this document',
+      code: 'NO_FILE'
+    });
+  }
+
   try {
-    const filePath = document.file_path;
-    await fs.access(filePath); // Check if file exists
+    // For Supabase Storage URLs, redirect to the public URL
+    if (document.file_path.includes('supabase')) {
+      return res.redirect(document.file_path);
+    }
+
+    // For local files (backward compatibility)
+    await fs.access(document.file_path); // Check if file exists
 
     res.setHeader('Content-Disposition', `attachment; filename="${document.file_name}"`);
     res.setHeader('Content-Type', document.mime_type);
     
-    const fileStream = require('fs').createReadStream(filePath);
+    const fileStream = require('fs').createReadStream(document.file_path);
     fileStream.pipe(res);
   } catch (fileError) {
     return res.status(404).json({
-      error: 'File not found on disk',
+      error: 'File not found',
       code: 'FILE_NOT_FOUND'
     });
   }
@@ -371,12 +396,26 @@ router.delete('/:id', authenticateToken, authorize(['admin']), asyncHandler(asyn
     });
   }
 
-  // Delete file from disk
-  try {
-    await fs.unlink(document.file_path);
-  } catch (fileError) {
-    console.error('Failed to delete file from disk:', fileError);
-    // Continue anyway since database record is deleted
+  // Delete file from Supabase Storage or local disk
+  if (document.file_path) {
+    try {
+      if (document.file_path.includes('supabase')) {
+        // Extract file path from Supabase URL
+        const urlParts = document.file_path.split('/');
+        const fileName = urlParts[urlParts.length - 1];
+        const filePath = `attachments/${fileName}`;
+        
+        await supabaseAdmin.storage
+          .from('documents')
+          .remove([filePath]);
+      } else {
+        // Local file (backward compatibility)
+        await fs.unlink(document.file_path);
+      }
+    } catch (fileError) {
+      console.error('Failed to delete file:', fileError);
+      // Continue anyway since database record is deleted
+    }
   }
 
   res.json({

@@ -31,6 +31,10 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [isLoadingTerms, setIsLoadingTerms] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle mounting for portal
   useEffect(() => {
@@ -49,6 +53,10 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     });
     setItems([]);
     setIsLoading(false);
+    setAttachments([]);
+    setIsUploading(false);
+    setDragActive(false);
+    setError(null);
   };
 
   // Load customers and products when modal opens, and reset state
@@ -212,6 +220,81 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     setItems(items.filter((_, i) => i !== index));
   };
 
+  // File handling functions
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const handleFiles = (files: File[]) => {
+    console.log('Handling files:', files);
+    const validFiles = files.filter(file => {
+      // Check file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`File ${file.name} is too large. Maximum size is 10MB.`);
+        return false;
+      }
+      
+      // Check file type
+      const allowedTypes = [
+        'application/pdf',
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/gif',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/plain'
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        alert(`File ${file.name} is not supported. Please upload PDF, images, Word, Excel, or text files.`);
+        return false;
+      }
+      
+      return true;
+    });
+
+    console.log('Valid files:', validFiles);
+    setAttachments(prev => [...prev, ...validFiles]);
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('File input changed:', e.target.files);
+    if (e.target.files) {
+      handleFiles(Array.from(e.target.files));
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   const handleDownloadPDF = async () => {
     if (!formData.customerId) {
       alert('Please select a customer to generate PDF');
@@ -306,6 +389,32 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       const response = await apiClient.createQuotation(quotationData);
       
       if (response.success) {
+        const quotationId = response.data.quotation.id;
+        
+        // Upload attachments if any
+        if (attachments.length > 0) {
+          setIsUploading(true);
+          
+          for (const file of attachments) {
+            try {
+              const formData = new FormData();
+              formData.append('file', file);
+              formData.append('reference_type', 'quotation');
+              formData.append('reference_id', quotationId);
+              formData.append('document_type', 'quotation_attachment');
+              
+              const uploadResponse = await apiClient.uploadDocument(formData);
+              console.log('File uploaded successfully:', uploadResponse);
+            } catch (uploadError) {
+              console.error(`Failed to upload ${file.name}:`, uploadError);
+              // Continue with other files even if one fails
+              alert(`Warning: Failed to upload ${file.name}. The quotation was created successfully, but you may need to upload this file later.`);
+            }
+          }
+          
+          setIsUploading(false);
+        }
+        
         alert('Quotation created successfully!');
         
         // Call callback to refresh quotation list
@@ -323,6 +432,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       alert(`Failed to create quotation: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally {
       setIsLoading(false);
+      setIsUploading(false);
     }
   };
 
@@ -616,13 +726,127 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                   </svg>
                   File Attachments
                 </h3>
-                <div className="text-center py-12">
-                  <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  <p className="text-gray-500 text-lg">File Upload</p>
-                  <p className="text-gray-400 text-sm">Drag and drop files or click to upload attachments</p>
+                
+                {/* File Upload Area */}
+                <div
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors duration-200 cursor-pointer ${
+                    dragActive 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  onClick={() => {
+                    console.log('Upload area clicked');
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    onChange={handleFileInputChange}
+                    className="hidden"
+                    accept=".pdf,.jpg,.jpeg,.png,.gif,.doc,.docx,.xls,.xlsx,.txt"
+                  />
+                  
+                  <div className="space-y-4">
+                    <svg className="w-16 h-16 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    
+                    <div>
+                      <p className="text-lg font-medium text-gray-900">
+                        {dragActive ? 'Drop files here' : 'File Upload'}
+                      </p>
+                      <p className="text-gray-500 mt-1">
+                        Drag and drop files or click to upload attachments
+                      </p>
+                      <p className="text-sm text-gray-400 mt-2">
+                        Supports: PDF, Images (JPG, PNG, GIF), Word, Excel, Text files
+                      </p>
+                      <p className="text-sm text-gray-400">
+                        Maximum file size: 10MB
+                      </p>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Separate Choose Files Button */}
+                <div className="mt-4 text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      console.log('Choose Files button clicked');
+                      fileInputRef.current?.click();
+                    }}
+                    className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-md hover:shadow-lg"
+                  >
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Choose Files
+                  </button>
+                </div>
+                
+                {/* Uploaded Files List */}
+                {attachments.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="text-lg font-medium text-gray-900 mb-4">
+                      Attached Files ({attachments.length})
+                    </h4>
+                    <div className="space-y-3">
+                      {attachments.map((file, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="flex-shrink-0">
+                              {file.type.startsWith('image/') ? (
+                                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                              ) : file.type === 'application/pdf' ? (
+                                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                              ) : (
+                                <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {file.name}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {formatFileSize(file.size)}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => removeAttachment(index)}
+                            className="flex-shrink-0 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors duration-200"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {attachments.length === 0 && (
+                  <div className="mt-6 text-center py-4">
+                    <p className="text-gray-500">No files attached yet</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -685,6 +909,22 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                       </div>
                     ) : (
                       <p className="text-gray-600">No items added</p>
+                    )}
+                  </div>
+                  
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">Attachments ({attachments.length})</h4>
+                    {attachments.length > 0 ? (
+                      <div className="space-y-1">
+                        {attachments.map((file, index) => (
+                          <div key={index} className="flex justify-between text-sm">
+                            <span className="truncate">{file.name}</span>
+                            <span className="text-gray-500">{formatFileSize(file.size)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-600">No files attached</p>
                     )}
                   </div>
                   
@@ -755,16 +995,16 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                   </button>
                   <button
                     onClick={handleSubmit}
-                    disabled={isLoading || !formData.customerId || items.length === 0}
+                    disabled={isLoading || isUploading || !formData.customerId || items.length === 0}
                     className="px-8 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
                   >
-                    {isLoading ? (
+                    {isLoading || isUploading ? (
                       <>
                         <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Creating...
+                        {isLoading ? 'Creating...' : 'Uploading Files...'}
                       </>
                     ) : (
                       <>
