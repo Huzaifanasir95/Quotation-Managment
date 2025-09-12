@@ -85,7 +85,13 @@ export default function ReportsPage() {
     lowStockItems: number;
     outOfStock: number;
     totalValue: number;
-    criticalItems: Array<{ sku: string; name: string; current: number; reorder: number; status: string }>;
+    criticalItems: Array<{
+      sku: string;
+      name: string;
+      current: number;
+      reorder: number;
+      status: string;
+    }>;
   }>({
     totalItems: 0,
     lowStockItems: 0,
@@ -93,6 +99,10 @@ export default function ReportsPage() {
     totalValue: 0,
     criticalItems: []
   });
+
+  // State for receivables and payables data
+  const [receivableInvoices, setReceivableInvoices] = useState<any[]>([]);
+  const [payableInvoices, setPayableInvoices] = useState<any[]>([]);
 
   // Fetch all data on component mount
   useEffect(() => {
@@ -107,20 +117,20 @@ export default function ReportsPage() {
 
         const [
           quotationsResponse,
-          invoicesResponse,
+          receivableInvoicesResponse,
           productsResponse,
           customersResponse,
           vendorsResponse,
-          vendorBillsResponse,
+          payableInvoicesResponse,
           purchaseOrdersResponse,
           salesOrdersResponse
         ] = await Promise.all([
           apiClient.getQuotations({ limit: 1000 }),
-          apiClient.getInvoices({ limit: 1000 }),
+          apiClient.getReceivableInvoices({ limit: 1000 }), // Sales receivableInvoices - money coming IN
           apiClient.getProducts({ limit: 1000 }),
           apiClient.getCustomers({ limit: 1000 }),
           apiClient.getVendors({ limit: 1000 }),
-          apiClient.getVendorBills({ limit: 1000 }),
+          apiClient.getPayableInvoices({ limit: 1000 }), // Vendor bills - money going OUT
           apiClient.getPurchaseOrders({ limit: 1000 }),
           apiClient.getOrders({ limit: 1000 }).catch(() => ({ data: [] }))
         ]);
@@ -130,9 +140,9 @@ export default function ReportsPage() {
                           Array.isArray(quotationsResponse?.data?.quotations) ? quotationsResponse.data.quotations :
                           Array.isArray(quotationsResponse) ? quotationsResponse : [];
         
-        const invoices = Array.isArray(invoicesResponse?.data) ? invoicesResponse.data : 
-                        Array.isArray(invoicesResponse?.data?.invoices) ? invoicesResponse.data.invoices :
-                        Array.isArray(invoicesResponse) ? invoicesResponse : [];
+        const receivableInvoicesData = Array.isArray(receivableInvoicesResponse?.data) ? receivableInvoicesResponse.data : 
+                                      Array.isArray(receivableInvoicesResponse?.data?.receivableInvoices) ? receivableInvoicesResponse.data.receivableInvoices :
+                                      Array.isArray(receivableInvoicesResponse) ? receivableInvoicesResponse : [];
         
         const products = Array.isArray(productsResponse?.data) ? productsResponse.data : 
                         Array.isArray(productsResponse?.data?.products) ? productsResponse.data.products :
@@ -146,9 +156,13 @@ export default function ReportsPage() {
                        Array.isArray(vendorsResponse?.data?.vendors) ? vendorsResponse.data.vendors :
                        Array.isArray(vendorsResponse) ? vendorsResponse : [];
         
-        const vendorBills = Array.isArray(vendorBillsResponse?.data) ? vendorBillsResponse.data : 
-                           Array.isArray(vendorBillsResponse?.data?.bills) ? vendorBillsResponse.data.bills :
-                           Array.isArray(vendorBillsResponse) ? vendorBillsResponse : [];
+        const payableInvoicesData = Array.isArray(payableInvoicesResponse?.data) ? payableInvoicesResponse.data : 
+                                   Array.isArray(payableInvoicesResponse?.data?.bills) ? payableInvoicesResponse.data.bills :
+                                   Array.isArray(payableInvoicesResponse) ? payableInvoicesResponse : [];
+
+        // Set state variables for use in JSX
+        setReceivableInvoices(receivableInvoicesData);
+        setPayableInvoices(payableInvoicesData);
         
         const purchaseOrders = Array.isArray(purchaseOrdersResponse?.data) ? purchaseOrdersResponse.data : 
                               Array.isArray(purchaseOrdersResponse?.data?.orders) ? purchaseOrdersResponse.data.orders :
@@ -158,13 +172,13 @@ export default function ReportsPage() {
                            Array.isArray(salesOrdersResponse?.data) ? salesOrdersResponse.data : 
                            Array.isArray(salesOrdersResponse) ? salesOrdersResponse : [];
 
-        console.log('Data arrays:', { 
+        console.log('Data fetched:', {
           quotations: quotations.length, 
-          invoices: invoices.length, 
+          receivableInvoices: receivableInvoicesData.length, 
           products: products.length, 
           customers: customers.length, 
           vendors: vendors.length, 
-          vendorBills: vendorBills.length, 
+          payableInvoices: payableInvoicesData.length, 
           purchaseOrders: purchaseOrders.length,
           salesOrders: salesOrders.length
         });
@@ -172,7 +186,7 @@ export default function ReportsPage() {
         // Calculate KPIs
         const pendingQuotations = quotations.filter((q: any) => q.status === 'draft' || q.status === 'sent').length;
         const totalOrders = salesOrders.length; // Use sales orders as "orders"
-        const totalInvoices = invoices.length;
+        const totalInvoices = receivableInvoicesData.length;
         const lowStockProducts = products.filter((p: any) => {
           const currentStock = p.current_stock || 0;
           const reorderPoint = p.reorder_point || 5;
@@ -182,13 +196,13 @@ export default function ReportsPage() {
         
         const totalRevenue = salesOrders.length > 0 
           ? salesOrders.reduce((sum: number, order: any) => sum + (order.total_amount || 0), 0)
-          : invoices.reduce((sum: number, inv: any) => sum + (inv.total_amount || 0), 0);
+          : receivableInvoicesData.reduce((sum: number, inv: any) => sum + (inv.total_amount || 0), 0);
         
         const totalCOGS = purchaseOrders.length > 0
           ? purchaseOrders.reduce((sum: number, po: any) => sum + (po.total_amount || 0), 0)
-          : vendorBills.reduce((sum: number, bill: any) => sum + (bill.total_amount || 0), 0);
+          : payableInvoicesData.reduce((sum: number, bill: any) => sum + (bill.total_amount || 0), 0);
         
-        const pendingInvoiceAmount = invoices
+        const pendingInvoiceAmount = receivableInvoicesData
           .filter((inv: any) => inv.status === 'draft' || inv.status === 'sent')
           .reduce((sum: number, inv: any) => sum + (inv.total_amount || 0), 0);
 
@@ -207,7 +221,7 @@ export default function ReportsPage() {
         const grossProfit = totalRevenue - totalCOGS;
         const netProfit = grossProfit; // Simplified - would need expense data
 
-        const pendingInvoicesData = invoices
+        const pendingInvoicesData = receivableInvoicesData
           .filter((inv: any) => inv.status === 'draft' || inv.status === 'sent')
           .map((inv: any) => ({
             id: inv.id,
@@ -243,9 +257,9 @@ export default function ReportsPage() {
           monthData.orders += 1;
         });
 
-        // If no sales orders, fallback to invoices
+        // If no sales orders, fallback to receivableInvoicesData
         if (salesOrders.length === 0) {
-          invoices.forEach((inv: any) => {
+          receivableInvoicesData.forEach((inv: any) => {
             const date = new Date(inv.invoice_date || inv.created_at);
             const month = date.toLocaleString('default', { month: 'short' });
             if (!monthlySalesMap.has(month)) {
@@ -278,9 +292,9 @@ export default function ReportsPage() {
           customerData.orders += 1;
         });
 
-        // If no sales orders, fallback to invoices
+        // If no sales orders, fallback to receivableInvoicesData
         if (salesOrders.length === 0) {
-          invoices.forEach((inv: any) => {
+          receivableInvoicesData.forEach((inv: any) => {
             const customerName = inv.customers?.name || 'Unknown Customer';
             if (!customerTotals.has(customerName)) {
               customerTotals.set(customerName, { name: customerName, amount: 0, orders: 0 });
@@ -315,9 +329,9 @@ export default function ReportsPage() {
           monthData.orders += 1;
         });
 
-        // If no purchase orders, fallback to vendor bills
+        // If no purchase orders, fallback to payable invoices
         if (purchaseOrders.length === 0) {
-          vendorBills.forEach((bill: any) => {
+          payableInvoicesData.forEach((bill: any) => {
             const date = new Date(bill.bill_date || bill.created_at);
             const month = date.toLocaleString('default', { month: 'short' });
             if (!monthlyPurchasesMap.has(month)) {
@@ -350,9 +364,9 @@ export default function ReportsPage() {
           vendorData.orders += 1;
         });
 
-        // If no purchase orders, fallback to vendor bills
+        // If no purchase orders, fallback to payable invoices
         if (purchaseOrders.length === 0) {
-          vendorBills.forEach((bill: any) => {
+          payableInvoicesData.forEach((bill: any) => {
             const vendorName = bill.vendors?.name || 'Unknown Vendor';
             if (!vendorTotals.has(vendorName)) {
               vendorTotals.set(vendorName, { name: vendorName, amount: 0, orders: 0 });
@@ -617,6 +631,98 @@ export default function ReportsPage() {
                   name="Estimated Profit"
                 />
               </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Receivables vs Payables Analysis */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Accounts Receivable Summary */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <span className="w-3 h-3 bg-green-500 rounded-full mr-2"></span>
+                Accounts Receivable (Money Coming In)
+              </h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Total Receivable Invoices</span>
+                  <span className="font-semibold text-green-600">{receivableInvoices.length}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Total Amount Due</span>
+                  <span className="font-bold text-green-600">
+                    ${receivableInvoices.reduce((sum: number, inv: any) => sum + (inv.total_amount || 0), 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Pending Invoices</span>
+                  <span className="font-semibold text-yellow-600">
+                    {receivableInvoices.filter((inv: any) => inv.status === 'draft' || inv.status === 'sent').length}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Paid Invoices</span>
+                  <span className="font-semibold text-blue-600">
+                    {receivableInvoices.filter((inv: any) => inv.status === 'paid').length}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Accounts Payable Summary */}
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <span className="w-3 h-3 bg-red-500 rounded-full mr-2"></span>
+                Accounts Payable (Money Going Out)
+              </h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Total Payable Invoices</span>
+                  <span className="font-semibold text-red-600">{payableInvoices.length}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Total Amount Owed</span>
+                  <span className="font-bold text-red-600">
+                    ${payableInvoices.reduce((sum: number, bill: any) => sum + (bill.total_amount || 0), 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Pending Bills</span>
+                  <span className="font-semibold text-yellow-600">
+                    {payableInvoices.filter((bill: any) => bill.status === 'draft' || bill.status === 'sent').length}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Paid Bills</span>
+                  <span className="font-semibold text-blue-600">
+                    {payableInvoices.filter((bill: any) => bill.status === 'paid').length}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Cash Flow Analysis */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Cash Flow Analysis</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={[
+                {
+                  name: 'Receivables vs Payables',
+                  'Money Coming In': receivableInvoices.reduce((sum: number, inv: any) => sum + (inv.total_amount || 0), 0),
+                  'Money Going Out': payableInvoices.reduce((sum: number, bill: any) => sum + (bill.total_amount || 0), 0),
+                  'Net Cash Flow': receivableInvoices.reduce((sum: number, inv: any) => sum + (inv.total_amount || 0), 0) - 
+                                  payableInvoices.reduce((sum: number, bill: any) => sum + (bill.total_amount || 0), 0)
+                }
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip formatter={(value, name) => [`$${Number(value).toLocaleString()}`, name]} />
+                <Legend />
+                <Bar dataKey="Money Coming In" fill="#10B981" name="Receivables (Money In)" />
+                <Bar dataKey="Money Going Out" fill="#EF4444" name="Payables (Money Out)" />
+                <Bar dataKey="Net Cash Flow" fill="#3B82F6" name="Net Cash Flow" />
+              </BarChart>
             </ResponsiveContainer>
           </div>
 

@@ -241,7 +241,6 @@ export default function RoleBasedDashboard() {
         isOpen={showNewQuotation} 
         onClose={() => setShowNewQuotation(false)}
         onQuotationCreated={() => {
-          console.log('Quotation created successfully');
         }}
       />
       <UploadInquiryModal isOpen={showUploadInquiry} onClose={() => setShowUploadInquiry(false)} />
@@ -249,7 +248,6 @@ export default function RoleBasedDashboard() {
         isOpen={showConvertQuote} 
         onClose={() => setShowConvertQuote(false)}
         onOrderCreated={() => {
-          console.log('Order created successfully from dashboard');
         }}
       />
       <CreateInvoiceModal isOpen={showCreateInvoice} onClose={() => setShowCreateInvoice(false)} />

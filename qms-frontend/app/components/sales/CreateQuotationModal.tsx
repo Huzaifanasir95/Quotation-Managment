@@ -246,7 +246,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   };
 
   const handleFiles = (files: File[]) => {
-    console.log('Handling files:', files);
     const validFiles = files.filter(file => {
       // Check file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
@@ -276,7 +275,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       return true;
     });
 
-    console.log('Valid files:', validFiles);
     setAttachments(prev => [...prev, ...validFiles]);
   };
 
@@ -320,7 +318,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('File input changed:', e.target.files);
     if (e.target.files) {
       handleFiles(Array.from(e.target.files));
     }
@@ -443,7 +440,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
               formData.append('document_type', 'quotation_attachment');
               
               const uploadResponse = await apiClient.uploadDocument(formData);
-              console.log('File uploaded successfully:', uploadResponse);
             } catch (uploadError) {
               console.error(`Failed to upload ${file.name}:`, uploadError);
               // Continue with other files even if one fails
@@ -952,7 +948,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
                   onClick={() => {
-                    console.log('Upload area clicked');
                     fileInputRef.current?.click();
                   }}
                 >
@@ -989,7 +984,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                   <button
                     type="button"
                     onClick={() => {
-                      console.log('Choose Files button clicked');
                       fileInputRef.current?.click();
                     }}
                     className="inline-flex items-center px-4 py-2 bg-gray-800 text-white font-medium rounded-lg hover:bg-gray-900 transition-colors"

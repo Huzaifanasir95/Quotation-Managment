@@ -36,14 +36,12 @@ export default function HomePage() {
 
   const onSubmit = async (data: AuthFormData) => {
     setError('');
-    console.log('🚀 Form submitted, starting login process...');
     const startTime = Date.now();
     
     try {
       // Login using the auth context
       await login(data.email, data.password);
       const totalTime = Date.now() - startTime;
-      console.log(`✅ Login successful in ${totalTime}ms`);
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (err: any) {

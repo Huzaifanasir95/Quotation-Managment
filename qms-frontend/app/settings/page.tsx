@@ -142,7 +142,6 @@ export default function SettingsPage() {
           } else if (Array.isArray(response.data)) {
             setVendors(response.data);
           } else {
-            console.log('No vendors found, initializing empty array');
             setVendors([]);
           }
         } else {

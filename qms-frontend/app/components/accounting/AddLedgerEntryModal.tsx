@@ -33,7 +33,6 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
     { value: 'closing', label: 'Closing Entry', icon: '🔒' }
   ];
 
-
   // Fetch chart of accounts
   useEffect(() => {
     const fetchAccounts = async () => {
@@ -56,7 +55,6 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
     
     fetchAccounts();
   }, [isOpen]);
-
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
@@ -185,7 +183,6 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
       }));
     }
   };
-
 
   const getAccountTypeColor = (type: string) => {
     switch (type) {

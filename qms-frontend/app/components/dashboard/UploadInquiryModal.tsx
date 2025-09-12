@@ -93,7 +93,6 @@ export default function UploadInquiryModal({ isOpen, onClose }: UploadInquiryMod
       //   body: formData
       // });
       
-      console.log('File processed successfully:', mockParsedData);
     } catch (err) {
       setError('Failed to process file. Please try again.');
     } finally {
@@ -103,7 +102,6 @@ export default function UploadInquiryModal({ isOpen, onClose }: UploadInquiryMod
 
   const createQuotationFromParsed = () => {
     if (parsedData) {
-      console.log('Creating quotation from parsed data:', parsedData);
       // Here you would navigate to quotation creation with pre-filled data
       onClose();
     }

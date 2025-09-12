@@ -304,8 +304,8 @@ class ApiClient {
     });
   }
 
-  // Vendor Bills methods
-  async getVendorBills(params?: { page?: number; limit?: number; search?: string; status?: string; vendor_id?: string; purchase_order_id?: string }) {
+  // Accounts Payable (Vendor Bills) - Money you owe to suppliers
+  async getPayableInvoices(params?: { page?: number; limit?: number; search?: string; status?: string; vendor_id?: string; purchase_order_id?: string }) {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
@@ -316,6 +316,11 @@ class ApiClient {
 
     const endpoint = `/vendor-bills${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return this.request(endpoint);
+  }
+
+  // Backward compatibility - alias for getPayableInvoices
+  async getVendorBills(params?: { page?: number; limit?: number; search?: string; status?: string; vendor_id?: string; purchase_order_id?: string }) {
+    return this.getPayableInvoices(params);
   }
 
   async getVendorBillById(id: string) {
@@ -485,8 +490,8 @@ class ApiClient {
     return this.request(endpoint);
   }
 
-  // Invoice methods
-  async getInvoices(params?: { 
+  // Accounts Receivable (Sales Invoices) - Money customers owe you
+  async getReceivableInvoices(params?: { 
     page?: number; 
     limit?: number; 
     search?: string; 
@@ -504,6 +509,18 @@ class ApiClient {
     
     const endpoint = `/invoices${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
     return this.request(endpoint);
+  }
+
+  // Backward compatibility - alias for getReceivableInvoices
+  async getInvoices(params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string; 
+    status?: string; 
+    customer_id?: string; 
+    fbr_sync_status?: string 
+  }) {
+    return this.getReceivableInvoices(params);
   }
 
   async getInvoiceById(id: string) {

@@ -216,7 +216,6 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
   };
 
   const handleEditQuotation = (quotation: Quotation) => {
-    console.log('Editing quotation:', quotation);
     setEditingQuotationId(quotation.id);
   };
 

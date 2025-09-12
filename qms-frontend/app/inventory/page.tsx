@@ -191,7 +191,6 @@ export default function InventoryPage() {
       
       if (createdCategories.length > 0) {
         setCategories(createdCategories);
-        console.log('Created default categories:', createdCategories);
       }
     } catch (error) {
       console.error('Failed to create default categories:', error);

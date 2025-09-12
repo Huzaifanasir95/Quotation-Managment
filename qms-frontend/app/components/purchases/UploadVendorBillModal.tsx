@@ -460,9 +460,7 @@ export default function UploadVendorBillModal({ isOpen, onClose, selectedPO, onB
           path: `/uploads/vendor_bills/${selectedPO!.id}/${file.name}`
         }))
       };
-      
-      console.log('Submitting vendor bill data:', vendorBillData);
-      
+
       const response = await apiClient.createVendorBill(vendorBillData);
       
       if (response.success) {

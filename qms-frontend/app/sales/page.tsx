@@ -42,18 +42,15 @@ export default function SalesPage() {
     const fetchInitialData = async () => {
       try {
         setError(null);
-        console.log('🚀 Starting sales page data fetch...');
         const startTime = Date.now();
         
         // Load customers first (most important for user interaction)
         const fetchCustomers = async () => {
           try {
-            console.log('📋 Fetching customers...');
             const customersResponse = await apiClient.getSalesCustomers({ limit: 50 });
             
             if (customersResponse.success) {
               setCustomers(customersResponse.data.customers);
-              console.log(`✅ Customers loaded (${Date.now() - startTime}ms)`);
             }
           } catch (err) {
             console.error('❌ Failed to fetch customers:', err);
@@ -65,12 +62,10 @@ export default function SalesPage() {
         // Load dashboard data (for stats)
         const fetchDashboard = async () => {
           try {
-            console.log('📊 Fetching dashboard data...');
             const dashboardResponse = await apiClient.getSalesDashboard();
             
             if (dashboardResponse.success) {
               setSalesData(dashboardResponse.data);
-              console.log(`✅ Dashboard data loaded (${Date.now() - startTime}ms)`);
             }
           } catch (err) {
             console.error('❌ Failed to fetch dashboard data:', err);
@@ -82,12 +77,10 @@ export default function SalesPage() {
         // Load trends data (least critical)
         const fetchTrends = async () => {
           try {
-            console.log('📈 Fetching trends data...');
             const trendsResponse = await apiClient.getQuotationTrends();
             
             if (trendsResponse.success) {
               setQuotationTrends(trendsResponse.data.trends);
-              console.log(`✅ Trends loaded (${Date.now() - startTime}ms)`);
             }
           } catch (err) {
             console.error('❌ Failed to fetch trends:', err);
@@ -102,7 +95,6 @@ export default function SalesPage() {
           fetchDashboard(),
           fetchTrends()
         ]).then(() => {
-          console.log(`🎉 All sales data loaded in ${Date.now() - startTime}ms`);
         });
         
       } catch (err) {
@@ -653,7 +645,6 @@ export default function SalesPage() {
           isOpen={showAddCustomer}
           onClose={() => setShowAddCustomer(false)}
           onCustomerAdded={() => {
-            console.log('Customer added successfully');
             refreshCustomers();
           }}
         />
@@ -663,7 +654,6 @@ export default function SalesPage() {
         isOpen={showCreateQuotation} 
         onClose={() => setShowCreateQuotation(false)}
         onQuotationCreated={() => {
-          console.log('Quotation created successfully');
           refreshDashboardData();
           refreshCustomers();
         }}
@@ -673,7 +663,6 @@ export default function SalesPage() {
         isOpen={showConvertQuote} 
         onClose={() => setShowConvertQuote(false)}
         onOrderCreated={() => {
-          console.log('Order created successfully');
         }}
       />
       

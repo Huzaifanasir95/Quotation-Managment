@@ -186,7 +186,6 @@ export default function AddCustomerModalMultiStep({ isOpen, onClose, onCustomerA
         status: 'active'
       };
 
-      console.log('Sending customer data:', customerData);
       const response = await apiClient.createCustomer(customerData);
       
       if (response.success) {

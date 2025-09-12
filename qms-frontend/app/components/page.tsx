@@ -457,7 +457,6 @@ export default function SalesPage() {
           isOpen={showAddCustomer}
           onClose={() => setShowAddCustomer(false)}
           onCustomerAdded={() => {
-            console.log('Customer added successfully');
             refreshCustomers();
           }}
         />
@@ -467,7 +466,6 @@ export default function SalesPage() {
         isOpen={showCreateQuotation} 
         onClose={() => setShowCreateQuotation(false)}
         onQuotationCreated={() => {
-          console.log('Quotation created successfully');
           refreshDashboardData();
           refreshCustomers();
         }}
@@ -477,7 +475,6 @@ export default function SalesPage() {
         isOpen={showConvertQuote} 
         onClose={() => setShowConvertQuote(false)}
         onOrderCreated={() => {
-          console.log('Order created successfully');
         }}
       />
       

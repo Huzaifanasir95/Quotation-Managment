@@ -22,7 +22,7 @@ export default function UploadTradeDocumentModal({
 }: UploadTradeDocumentModalProps) {
   
   // Debug logging
-  console.log('Modal Props:', { 
+  console.log('UploadTradeDocumentModal props:', {
     businessEntities: businessEntities.length, 
     customers: customers.length, 
     vendors: vendors.length,
@@ -30,6 +30,7 @@ export default function UploadTradeDocumentModal({
     customersData: customers,
     vendorsData: vendors
   });
+  
   const [uploadData, setUploadData] = useState({
     businessEntity: '',
     documentType: '',

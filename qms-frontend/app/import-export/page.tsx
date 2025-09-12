@@ -43,8 +43,7 @@ export default function ImportExportPage() {
           apiClient.getBusinessEntities({ limit: 1000 })
         ]);
 
-        console.log('API Responses:', { customersResponse, vendorsResponse, businessEntitiesResponse });
-        console.log('Business Entities Response Details:', {
+        console.log('Business entities response:', {
           response: businessEntitiesResponse,
           hasData: !!businessEntitiesResponse?.data,
           dataType: typeof businessEntitiesResponse?.data,
@@ -64,13 +63,11 @@ export default function ImportExportPage() {
                                     Array.isArray(businessEntitiesResponse?.data?.entities) ? businessEntitiesResponse.data.entities :
                                     Array.isArray(businessEntitiesResponse) ? businessEntitiesResponse : [];
 
-        console.log('Processed Data:', { customersData, vendorsData, businessEntitiesData });
-        
         setCustomers(customersData);
         setVendors(vendorsData);
         setBusinessEntities(businessEntitiesData);
         
-        console.log('Final state set:', {
+        console.log('Data counts:', {
           customersCount: customersData.length,
           vendorsCount: vendorsData.length,
           businessEntitiesCount: businessEntitiesData.length

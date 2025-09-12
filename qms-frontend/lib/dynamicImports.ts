@@ -18,7 +18,6 @@ export const loadJsPDF = async () => {
     const jsPDF = await import('jspdf');
     return jsPDF.default;
   } catch (error) {
-    console.warn('jsPDF not available:', error);
     return null;
   }
 };
@@ -28,7 +27,6 @@ export const loadHtml2Canvas = async () => {
     const html2canvas = await import('html2canvas');
     return html2canvas.default;
   } catch (error) {
-    console.warn('html2canvas not available:', error);
     return null;
   }
 };
@@ -42,7 +40,6 @@ export const loadHtml2Canvas = async () => {
 //     const Chart = await import('chart.js/auto');
 //     return Chart.default;
 //   } catch (error) {
-//     console.warn('Chart.js not available:', error);
 //     return null;
 //   }
 // };
@@ -53,7 +50,6 @@ export const loadHtml2Canvas = async () => {
 //     const pdfjs = await import('pdfjs-dist');
 //     return pdfjs;
 //   } catch (error) {
-//     console.warn('PDF.js not available:', error);
 //     return null;
 //   }
 // };
@@ -64,7 +60,6 @@ export const loadHtml2Canvas = async () => {
 //     const dateFns = await import('date-fns');
 //     return dateFns;
 //   } catch (error) {
-//     console.warn('date-fns not available:', error);
 //     return null;
 //   }
 // };

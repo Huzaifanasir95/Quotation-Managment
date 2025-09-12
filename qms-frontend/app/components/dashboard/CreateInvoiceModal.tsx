@@ -93,12 +93,7 @@ export default function CreateInvoiceModal({ isOpen, onClose }: CreateInvoiceMod
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      console.log('Creating invoice:', {
-        orderId: selectedOrder.id,
-        invoiceDetails,
-        order: selectedOrder
-      });
+
       
       // Here you would make the actual API call to POST /api/invoices
       // const response = await fetch('/api/invoices', {
@@ -123,9 +118,7 @@ export default function CreateInvoiceModal({ isOpen, onClose }: CreateInvoiceMod
     try {
       // Simulate FBR sync
       await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      console.log('Syncing with FBR...');
-      
+
       // Here you would make the actual API call to POST /api/invoices/:id/sync-fbr
       // const response = await fetch(`/api/invoices/${invoiceDetails.invoiceNumber}/sync-fbr`, {
       //   method: 'POST',

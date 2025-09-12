@@ -202,20 +202,15 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
         cleanedData.notes = formData.notes.trim();
       }
 
-      console.log('Sending quotation data:', cleanedData);
-
       const response = await apiClient.createQuotation(cleanedData);
       
       if (response.success) {
-        console.log('Quotation created successfully:', response.data);
         
         // After successful creation, update status if needed
         if (status === 'sent' && response.data?.id) {
           try {
-            console.log('Updating quotation status to sent for ID:', response.data.id);
             await apiClient.updateQuotationStatus(response.data.id, 'sent');
           } catch (statusError) {
-            console.warn('Failed to update quotation status to sent:', statusError);
             // Don't throw error here since the quotation was created successfully
           }
         }

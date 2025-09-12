@@ -230,12 +230,9 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
         cleanedData.notes = formData.notes.trim();
       }
 
-      console.log('Updating quotation data:', cleanedData);
-
       const response = await apiClient.updateQuotation(quotationId, cleanedData);
       
       if (response.success) {
-        console.log('Quotation updated successfully:', response.data);
         onQuotationUpdated?.();
         onClose();
       } else {

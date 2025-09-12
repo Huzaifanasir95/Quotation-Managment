@@ -14,8 +14,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
     name: '',
     email: '',
     phone: '',
-    alternatePhone: '',
-    gst: '',
+    fax: '',
     panNumber: '',
     contactPerson: '',
     designation: '',
@@ -46,8 +45,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
       name: '',
       email: '',
       phone: '',
-      alternatePhone: '',
-      gst: '',
+      fax: '',
       panNumber: '',
       contactPerson: '',
       designation: '',
@@ -85,11 +83,6 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
       newErrors.phone = 'Invalid phone number format';
     }
 
-    // GST validation (Indian format)
-    if (formData.gst && !/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/.test(formData.gst)) {
-      newErrors.gst = 'Invalid GST format (e.g., 22AAAAA0000A1Z5)';
-    }
-
     // PAN validation (Indian format)
     if (formData.panNumber && !/^[A-Z]{5}\d{4}[A-Z]{1}$/.test(formData.panNumber)) {
       newErrors.panNumber = 'Invalid PAN format (e.g., ABCDE1234F)';
@@ -121,8 +114,6 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
-        gst_number: formData.gst.trim() || null,
-        tax_id: formData.panNumber.trim() || null,
         contact_person: formData.contactPerson.trim(),
         address: formData.address.trim() || null,
         city: formData.city.trim() || null,
@@ -134,7 +125,6 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
         status: 'active'
       };
 
-      console.log('Sending customer data:', customerData);
       const response = await apiClient.createCustomer(customerData);
       
       if (response.success) {
@@ -328,14 +318,14 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Alternate Phone
+                    FAX
                   </label>
                   <input
                     type="tel"
-                    value={formData.alternatePhone}
-                    onChange={(e) => handleInputChange('alternatePhone', e.target.value)}
+                    value={formData.fax}
+                    onChange={(e) => handleInputChange('fax', e.target.value)}
                     className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-all duration-200"
-                    placeholder="+92 300 1234567"
+                    placeholder="123-456-7890"
                   />
                 </div>
 
@@ -399,29 +389,6 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
                 Tax & Business Information
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tax Registration Number
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.gst}
-                    onChange={(e) => handleInputChange('gst', e.target.value)}
-                    className={`w-full text-black px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                      errors.gst ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                    placeholder="NTN/GST/VAT Registration Number"
-                  />
-                  {errors.gst && (
-                    <p className="mt-1 text-sm text-red-600 flex items-center">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
-                      {errors.gst}
-                    </p>
-                  )}
-                  <p className="mt-1 text-xs text-gray-500">Tax registration number (GST/NTN/VAT)</p>
-                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

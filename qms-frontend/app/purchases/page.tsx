@@ -45,7 +45,6 @@ export default function PurchasesPage() {
   // Fetch data from backend
   const loadPurchaseOrders = async () => {
     try {
-      console.log('Starting purchase data fetch...');
       const startTime = Date.now();
       
       setLoading(true);
@@ -55,12 +54,10 @@ export default function PurchasesPage() {
       // Fetch purchase orders and vendors in parallel
       const [poResponse, vendorsResponse] = await Promise.all([
         apiClient.getPurchaseOrders({ limit: 100 }).then(response => {
-          console.log('Purchase orders loaded:', Date.now() - startTime + 'ms');
           setDataLoading(prev => ({ ...prev, purchaseOrders: false }));
           return response;
         }),
         apiClient.getVendors({ limit: 100 }).then(response => {
-          console.log('Vendors loaded:', Date.now() - startTime + 'ms');
           setDataLoading(prev => ({ ...prev, vendors: false }));
           return response;
         })
@@ -74,7 +71,6 @@ export default function PurchasesPage() {
         setVendors(vendorsResponse.data.vendors || []);
       }
       
-      console.log('All purchase data loaded:', Date.now() - startTime + 'ms');
     } catch (error) {
       console.error('Failed to fetch data:', error);
       setError('Failed to load purchase orders. Please try again.');

@@ -69,22 +69,17 @@ export default function ConvertQuoteModal({ isOpen, onClose }: ConvertQuoteModal
       const response = await apiClient.getQuotations({ 
         limit: 50 
       });
-      
-      console.log('Raw quotations response:', response);
-      
+
       if (response.success) {
-        console.log('Quotations data:', response.data.quotations);
         
         // Filter for quotes that can be converted (not converted and not expired)
         const convertibleQuotes = response.data.quotations.filter(
           (quote: QuoteData) => {
-            console.log('Processing quote:', quote, 'ID:', quote.id);
             const isConvertible = ['draft', 'sent', 'approved'].includes(quote.status);
             const isNotConverted = quote.status !== 'converted';
             return isConvertible && isNotConverted;
           }
         );
-        console.log('Convertible quotes:', convertibleQuotes);
         setAvailableQuotes(convertibleQuotes);
       }
     } catch (error) {
@@ -101,10 +96,6 @@ export default function ConvertQuoteModal({ isOpen, onClose }: ConvertQuoteModal
 
   const handleConvert = async () => {
     if (!selectedQuote) return;
-
-    console.log('Converting quote:', selectedQuote);
-    console.log('Selected quote ID:', selectedQuote.id);
-    console.log('Selected quote object keys:', Object.keys(selectedQuote));
 
     setIsConverting(true);
     
@@ -130,8 +121,6 @@ export default function ConvertQuoteModal({ isOpen, onClose }: ConvertQuoteModal
         status: 'pending'
       };
 
-      console.log('Converting quote to order:', conversionData);
-      
       const response = await apiClient.convertQuoteToOrder(conversionData);
       
       if (response.success) {

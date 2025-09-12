@@ -45,7 +45,6 @@ const rateLimiterMiddleware = async (req, res, next) => {
     await rateLimiter.consume(req.ip);
     next();
   } catch (rejRes) {
-    console.warn(`Rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
       error: 'Too many requests',
       code: 'RATE_LIMIT_EXCEEDED',

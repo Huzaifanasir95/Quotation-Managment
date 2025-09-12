@@ -134,7 +134,6 @@ router.post('/convert-quote', authenticateToken, authorize(['admin', 'sales']), 
     .eq('id', quotation_id);
 
   if (updateError) {
-    console.warn('Failed to update quotation status:', updateError.message);
     // Don't fail the request, just log the warning
   }
 
