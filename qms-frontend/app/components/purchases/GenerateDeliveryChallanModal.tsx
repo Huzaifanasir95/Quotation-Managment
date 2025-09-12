@@ -159,7 +159,7 @@ export default function GenerateDeliveryChallanModal({ isOpen, onClose, selected
                     </div>
                     <div className="bg-white rounded-lg p-4 border border-blue-100">
                       <span className="text-sm text-blue-600 font-medium">Total Amount</span>
-                      <p className="text-lg font-bold text-green-600">${(selectedPO.total_amount || 0).toLocaleString()}</p>
+                      <p className="text-lg font-bold text-green-600">Rs. {(selectedPO.total_amount || 0).toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
@@ -307,7 +307,7 @@ export default function GenerateDeliveryChallanModal({ isOpen, onClose, selected
                   </div>
                   <div>
                     <span className="text-gray-500">Total Amount:</span>
-                    <span className="ml-2 font-medium">${generatedChallan.totalAmount.toLocaleString()}</span>
+                    <span className="ml-2 font-medium">Rs. {generatedChallan.totalAmount.toLocaleString()}</span>
                   </div>
                 </div>
               </div>

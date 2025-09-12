@@ -184,7 +184,7 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
             </div>
             <div className="bg-white rounded-lg p-4 border border-blue-100">
               <p className="text-sm text-blue-600 font-medium">Total Amount</p>
-              <p className="text-lg font-bold text-green-600">${currentPO.total_amount?.toLocaleString() || '0'}</p>
+              <p className="text-lg font-bold text-green-600">Rs. {currentPO.total_amount?.toLocaleString() || '0'}</p>
             </div>
             <div className="bg-white rounded-lg p-4 border border-blue-100">
               <p className="text-sm text-blue-600 font-medium">Status</p>
@@ -340,19 +340,19 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="bg-white rounded-lg p-4 border border-purple-100">
                     <span className="text-sm text-purple-600 font-medium">Subtotal</span>
-                    <p className="text-lg font-bold text-purple-900">${(currentPO.subtotal || 0).toFixed(2)}</p>
+                    <p className="text-lg font-bold text-purple-900">Rs. {(currentPO.subtotal || 0).toFixed(2)}</p>
                   </div>
                   <div className="bg-white rounded-lg p-4 border border-purple-100">
                     <span className="text-sm text-purple-600 font-medium">Tax Amount</span>
-                    <p className="text-lg font-bold text-purple-900">${(currentPO.tax_amount || 0).toFixed(2)}</p>
+                    <p className="text-lg font-bold text-purple-900">Rs. {(currentPO.tax_amount || 0).toFixed(2)}</p>
                   </div>
                   <div className="bg-white rounded-lg p-4 border border-purple-100">
                     <span className="text-sm text-purple-600 font-medium">Discount</span>
-                    <p className="text-lg font-bold text-purple-900">${(currentPO.discount_amount || 0).toFixed(2)}</p>
+                    <p className="text-lg font-bold text-purple-900">Rs. {(currentPO.discount_amount || 0).toFixed(2)}</p>
                   </div>
                   <div className="bg-white rounded-lg p-4 border border-purple-100">
                     <span className="text-sm text-purple-600 font-medium">Total Amount</span>
-                    <p className="text-xl font-bold text-green-600">${(currentPO.total_amount || 0).toFixed(2)}</p>
+                    <p className="text-xl font-bold text-green-600">Rs. {(currentPO.total_amount || 0).toFixed(2)}</p>
                   </div>
                 </div>
               </div>
@@ -413,10 +413,10 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
                               )}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900">{item.quantity}</td>
-                            <td className="px-6 py-4 text-sm text-gray-900">${item.unit_price?.toFixed(2) || '0.00'}</td>
+                            <td className="px-6 py-4 text-sm text-gray-900">Rs. {item.unit_price?.toFixed(2) || '0.00'}</td>
                             <td className="px-6 py-4 text-sm text-gray-900">{item.discount_percent || 0}%</td>
                             <td className="px-6 py-4 text-sm text-gray-900">{item.tax_percent || 0}%</td>
-                            <td className="px-6 py-4 text-sm font-medium text-gray-900">${item.line_total?.toFixed(2) || '0.00'}</td>
+                            <td className="px-6 py-4 text-sm font-medium text-gray-900">Rs. {item.line_total?.toFixed(2) || '0.00'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -424,7 +424,7 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
                         <tr>
                           <td colSpan={5} className="px-6 py-4 text-sm font-medium text-gray-900 text-right">Total Amount:</td>
                           <td className="px-6 py-4 text-sm font-bold text-blue-600">
-                            ${currentPO.total_amount?.toFixed(2) || '0.00'}
+                            Rs. {currentPO.total_amount?.toFixed(2) || '0.00'}
                           </td>
                         </tr>
                       </tfoot>
@@ -490,7 +490,7 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
                         <div className="bg-gray-50 rounded-lg p-3">
                           <div className="flex justify-between items-center">
                             <span className="text-sm font-medium text-gray-700">Total Amount</span>
-                            <span className="text-lg font-bold text-green-600">${bill.total_amount?.toFixed(2) || '0.00'}</span>
+                            <span className="text-lg font-bold text-green-600">Rs. {bill.total_amount?.toFixed(2) || '0.00'}</span>
                           </div>
                         </div>
                       </div>
@@ -712,7 +712,7 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
                       </div>
                       <div className="mt-2 p-3 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-700">
-                          Purchase order was created with {currentPO.purchase_order_items?.length || 0} item{(currentPO.purchase_order_items?.length || 0) !== 1 ? 's' : ''} for a total of ${(currentPO.total_amount || 0).toFixed(2)}.
+                          Purchase order was created with {currentPO.purchase_order_items?.length || 0} item{(currentPO.purchase_order_items?.length || 0) !== 1 ? 's' : ''} for a total of Rs. {(currentPO.total_amount || 0).toFixed(2)}.
                         </p>
                       </div>
                     </div>

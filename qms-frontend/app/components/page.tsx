@@ -211,7 +211,7 @@ export default function SalesPage() {
               <div>
                 <p className="text-md font-medium text-gray-600">Sales This Month</p>
                 <p className="text-4xl font-bold text-gray-900">
-                  {salesData?.salesThisMonth ? `$${salesData.salesThisMonth.toLocaleString()}` : (
+                  {salesData?.salesThisMonth ? `Rs. ${salesData.salesThisMonth.toLocaleString()}` : (
                     <span className="inline-block w-16 h-8 bg-gray-200 rounded animate-pulse"></span>
                   )}
                 </p>
@@ -412,7 +412,7 @@ export default function SalesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">${customer.totalQuotes.toLocaleString()}</p>
+                        <p className="text-sm font-medium text-gray-900">Rs. {customer.totalQuotes.toLocaleString()}</p>
                         <p className="text-xs text-gray-500">{customer.quotesCount} quotes</p>
                       </div>
                     </td>

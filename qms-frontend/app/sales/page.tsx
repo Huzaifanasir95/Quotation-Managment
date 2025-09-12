@@ -436,7 +436,7 @@ export default function SalesPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <p className="text-sm font-medium text-gray-900">${(customer.totalQuotes || 0).toLocaleString()}</p>
+                            <p className="text-sm font-medium text-gray-900">Rs. {(customer.totalQuotes || 0).toLocaleString()}</p>
                             <p className="text-xs text-gray-500">{customer.quotesCount || 0} quotes</p>
                           </div>
                         </td>
@@ -558,7 +558,7 @@ export default function SalesPage() {
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500">Total Quotes:</span>
-                          <span className="text-gray-900 font-medium">${(customer.totalQuotes || 0).toLocaleString()}</span>
+                          <span className="text-gray-900 font-medium">Rs. {(customer.totalQuotes || 0).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500">Quotes Count:</span>

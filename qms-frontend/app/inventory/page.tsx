@@ -420,7 +420,7 @@ export default function InventoryPage() {
                 {initialLoading ? (
                   <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
                 ) : (
-                  <p className="text-2xl font-bold text-gray-900">${kpis.totalInventoryValue.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900">Rs. {kpis.totalInventoryValue.toLocaleString()}</p>
                 )}
               </div>
             </div>
@@ -726,10 +726,10 @@ export default function InventoryPage() {
                           <div className="text-sm text-gray-900">{item.unitOfMeasure}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">${item.lastPurchasePrice.toFixed(2)}</div>
+                          <div className="text-sm text-gray-900">Rs. {item.lastPurchasePrice.toFixed(2)}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">${item.averageCost.toFixed(2)}</div>
+                          <div className="text-sm text-gray-900">Rs. {item.averageCost.toFixed(2)}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(item.status)}`}>
@@ -829,15 +829,15 @@ export default function InventoryPage() {
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500">Last Price:</span>
-                          <span className="text-gray-900 font-medium">${item.lastPurchasePrice.toFixed(2)}</span>
+                          <span className="text-gray-900 font-medium">Rs. {item.lastPurchasePrice.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500">Avg Cost:</span>
-                          <span className="text-gray-900 font-medium">${item.averageCost.toFixed(2)}</span>
+                          <span className="text-gray-900 font-medium">Rs. {item.averageCost.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500">Total Value:</span>
-                          <span className="text-gray-900 font-medium">${item.totalValue.toFixed(2)}</span>
+                          <span className="text-gray-900 font-medium">Rs. {item.totalValue.toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500">Vendor:</span>

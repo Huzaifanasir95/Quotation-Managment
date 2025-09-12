@@ -5,12 +5,7 @@ import { useForm } from 'react-hook-form';
 import AppLayout from '../components/AppLayout';
 import { apiClient } from '../lib/api';
 
-interface CompanySettings {
-  name: string;
-  address: string;
-  gstId: string;
-  logo: string;
-}
+
 
 interface UserData {
   id: number;
@@ -41,14 +36,7 @@ interface IntegrationSettings {
   twilioAuthToken: string;
 }
 
-interface SystemPreferences {
-  defaultCurrency: string;
-  defaultTaxRate: number;
-  quotationNumberFormat: string;
-  invoiceNumberFormat: string;
-  emailNotifications: boolean;
-  smsNotifications: boolean;
-}
+
 
 interface TermsConditionsSettings {
   defaultTerms: string;
@@ -58,7 +46,7 @@ interface TermsConditionsSettings {
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('company');
+  const [activeTab, setActiveTab] = useState('users');
   const [showAddUser, setShowAddUser] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [showAddVendor, setShowAddVendor] = useState(false);
@@ -67,12 +55,7 @@ export default function SettingsPage() {
   const [vendorsLoading, setVendorsLoading] = useState(false);
 
   // Mock data
-  const [companySettings, setCompanySettings] = useState<CompanySettings>({
-    name: 'QMS Solutions Ltd',
-    address: '123 Business Street, Karachi, Pakistan',
-    gstId: 'GST-123456789',
-    logo: ''
-  });
+
 
   const [users, setUsers] = useState<UserData[]>([
     { id: 1, name: 'Admin User', email: 'admin@qms.com', role: 'Admin', status: 'active' },
@@ -93,25 +76,16 @@ export default function SettingsPage() {
     twilioAuthToken: ''
   });
 
-  const [systemPrefs, setSystemPrefs] = useState<SystemPreferences>({
-    defaultCurrency: 'PKR',
-    defaultTaxRate: 17,
-    quotationNumberFormat: 'Q-YYYY-###',
-    invoiceNumberFormat: 'INV-YYYY-###',
-    emailNotifications: true,
-    smsNotifications: false
-  });
+
 
   const [termsSettings, setTermsSettings] = useState<TermsConditionsSettings>({
-    defaultTerms: '1. Payment is due within 30 days of invoice date.\n2. All prices are in USD and exclude shipping.\n3. Products are subject to availability.\n4. Returns accepted within 14 days with original packaging.\n5. Late payments may incur additional charges.\n6. Delivery terms as per agreement.',
-    quotationTerms: '1. This quotation is valid for 30 days from the date of issue.\n2. Prices are subject to change without notice.\n3. Payment terms: 50% advance, 50% on delivery.\n4. Delivery time: 7-14 business days after order confirmation.',
-    invoiceTerms: '1. Payment is due within 30 days of invoice date.\n2. Late payment charges: 2% per month.\n3. All disputes must be raised within 7 days of invoice date.\n4. Goods once sold cannot be returned without prior approval.',
+  defaultTerms: '1. Payment is due within 30 days of invoice date.\n2. All prices are in PKR and exclude shipping.\n3. Products are subject to availability.\n4. Returns accepted within 14 days with original packaging.\n5. Late payments may incur additional charges.\n6. Delivery terms as per agreement.',
+  quotationTerms: '1. This quotation is valid for 30 days from the date of issue.\n2. Prices are in PKR and subject to change without notice.\n3. Payment terms: 50% advance, 50% on delivery.\n4. Delivery time: 7-14 business days after order confirmation.',
+  invoiceTerms: '1. Payment is due within 30 days of invoice date.\n2. Late payment charges: 2% per month.\n3. All disputes must be raised within 7 days of invoice date.\n4. Goods once sold cannot be returned without prior approval.\n5. All amounts are in PKR.',
     purchaseOrderTerms: '1. Delivery as per agreed schedule.\n2. Quality as per specifications.\n3. Payment terms as agreed.\n4. Penalties for delayed delivery may apply.'
   });
 
-  const { register: registerCompany, handleSubmit: handleCompanySubmit } = useForm<CompanySettings>({
-    defaultValues: companySettings
-  });
+
 
   const { register: registerUser, handleSubmit: handleUserSubmit, reset: resetUser } = useForm<Omit<UserData, 'id' | 'status'>>();
 
@@ -121,9 +95,7 @@ export default function SettingsPage() {
     defaultValues: integrations
   });
 
-  const { register: registerPrefs, handleSubmit: handlePrefsSubmit } = useForm<SystemPreferences>({
-    defaultValues: systemPrefs
-  });
+
 
   const { register: registerTerms, handleSubmit: handleTermsSubmit } = useForm<TermsConditionsSettings>({
     defaultValues: termsSettings
@@ -161,20 +133,15 @@ export default function SettingsPage() {
   }, []);
 
   const tabs = [
-    { id: 'company', name: 'Company Settings', icon: '🏢' },
     { id: 'users', name: 'User Management', icon: '👥' },
     { id: 'vendors', name: 'Vendor Management', icon: '🏪' },
     { id: 'terms', name: 'Terms & Conditions', icon: '📋' },
-    { id: 'integrations', name: 'Integrations', icon: '🔗' },
-    { id: 'preferences', name: 'System Preferences', icon: '⚙️' }
+    { id: 'integrations', name: 'Integrations', icon: '🔗' }
   ];
 
   const roles = ['Admin', 'Sales', 'Procurement', 'Finance', 'Auditor'];
 
-  const onCompanySubmit = (data: CompanySettings) => {
-    setCompanySettings(data);
-    alert('Company settings saved successfully!');
-  };
+
 
   const onUserSubmit = (data: Omit<UserData, 'id' | 'status'>) => {
     if (editingUser) {
@@ -251,11 +218,6 @@ export default function SettingsPage() {
   const onIntegrationsSubmit = (data: IntegrationSettings) => {
     setIntegrations(data);
     alert('Integration settings saved successfully!');
-  };
-
-  const onPrefsSubmit = (data: SystemPreferences) => {
-    setSystemPrefs(data);
-    alert('System preferences saved successfully!');
   };
 
   const onTermsSubmit = (data: TermsConditionsSettings) => {
@@ -345,95 +307,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="p-6">
-            {/* Company Settings Tab */}
-            {activeTab === 'company' && (
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Company / Business Entity Settings</h2>
-                <form onSubmit={handleCompanySubmit(onCompanySubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Company Name
-                      </label>
-                      <input
-                        {...registerCompany('name', { required: 'Company name is required' })}
-                        type="text"
-                        className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        placeholder="Enter company name"
-                      />
-                    </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        GST/Tax ID
-                      </label>
-                      <input
-                        {...registerCompany('gstId')}
-                        type="text"
-                        className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        placeholder="GST-123456789"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Company Address
-                    </label>
-                    <textarea
-                      {...registerCompany('address')}
-                      rows={3}
-                      className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      placeholder="Enter complete address"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Company Logo
-                    </label>
-                    <div className="flex items-center space-x-4">
-                      <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                        <span className="text-gray-500 text-xs">Logo</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="px-4 py-2 text-black border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                      >
-                        Upload Logo
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-gray-200 pt-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Multiple Business Entities</h3>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="font-medium text-gray-900">Primary Entity: {companySettings.name}</span>
-                        <button
-                          type="button"
-                          className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200"
-                        >
-                          Add Entity
-                        </button>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        Add multiple business entities for import/export operations and multi-company management.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200"
-                    >
-                      Save Company Settings
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
 
             {/* User Management Tab */}
             {activeTab === 'users' && (
@@ -978,109 +852,7 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* System Preferences Tab */}
-            {activeTab === 'preferences' && (
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">System Preferences</h2>
-                <form onSubmit={handlePrefsSubmit(onPrefsSubmit)} className="space-y-8">
-                  {/* Currency & Tax */}
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Currency & Tax Settings</h3>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Default Currency</label>
-                        <select
-                          {...registerPrefs('defaultCurrency')}
-                          className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        >
-                          <option value="PKR">Pakistani Rupee (PKR)</option>
-                          <option value="USD">US Dollar (USD)</option>
-                          <option value="EUR">Euro (EUR)</option>
-                          <option value="GBP">British Pound (GBP)</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Default Tax Rate (%)</label>
-                        <input
-                          {...registerPrefs('defaultTaxRate')}
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max="100"
-                          className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          placeholder="17.00"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Document Numbering */}
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Document Numbering Format</h3>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Quotation Format</label>
-                        <input
-                          {...registerPrefs('quotationNumberFormat')}
-                          type="text"
-                          className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          placeholder="Q-YYYY-###"
-                        />
-                        <p className="text-sm text-gray-500 mt-1">Use YYYY for year, ### for sequential number</p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Invoice Format</label>
-                        <input
-                          {...registerPrefs('invoiceNumberFormat')}
-                          type="text"
-                          className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          placeholder="INV-YYYY-###"
-                        />
-                        <p className="text-sm text-gray-500 mt-1">Use YYYY for year, ### for sequential number</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Notification Settings */}
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Notification Settings</h3>
-                    <div className="space-y-4">
-                      <label className="flex items-center">
-                        <input
-                          {...registerPrefs('emailNotifications')}
-                          type="checkbox"
-                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span className="ml-3 text-sm text-gray-700">
-                          Enable Email Notifications
-                          <span className="block text-gray-500">Send email alerts for quotations, orders, and low stock</span>
-                        </span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          {...registerPrefs('smsNotifications')}
-                          type="checkbox"
-                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                        />
-                        <span className="ml-3 text-sm text-gray-700">
-                          Enable SMS Notifications
-                          <span className="block text-gray-500">Send SMS alerts for urgent notifications</span>
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200"
-                    >
-                      Save System Preferences
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
+            // ...existing code...
           </div>
         </div>
       </div>

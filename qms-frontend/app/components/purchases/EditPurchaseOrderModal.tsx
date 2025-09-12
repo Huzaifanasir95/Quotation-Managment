@@ -399,7 +399,7 @@ export default function EditPurchaseOrderModal({ isOpen, onClose, purchaseOrder,
                               const price = product.last_purchase_price || product.selling_price || 0;
                               return (
                                 <option key={product.id} value={product.id}>
-                                  {product.name} - ${price.toFixed(2)} (Stock: {product.current_stock})
+                                  {product.name} - Rs. {price.toFixed(2)} (Stock: {product.current_stock})
                                 </option>
                               );
                             })
@@ -436,7 +436,7 @@ export default function EditPurchaseOrderModal({ isOpen, onClose, purchaseOrder,
 
                       <div className="col-span-2">
                         <div className="px-3 text-black py-2 bg-gray-50 border border-gray-300 rounded-lg">
-                          ${item.subtotal.toFixed(2)}
+                          Rs. {item.subtotal.toFixed(2)}
                         </div>
                       </div>
 
@@ -464,19 +464,19 @@ export default function EditPurchaseOrderModal({ isOpen, onClose, purchaseOrder,
               <div className="space-y-3">
                 <div className="flex justify-between items-center py-2 border-b border-green-200">
                   <span className="text-green-700 font-medium">Subtotal:</span>
-                  <span className="font-semibold text-green-900">${calculateTotals().subtotal.toFixed(2)}</span>
+                  <span className="font-semibold text-green-900">Rs. {calculateTotals().subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-green-200">
                   <span className="text-green-700 font-medium">Total Discount:</span>
-                  <span className="font-semibold text-red-600">-${calculateTotals().totalDiscount.toFixed(2)}</span>
+                  <span className="font-semibold text-red-600">-Rs. {calculateTotals().totalDiscount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-green-200">
                   <span className="text-green-700 font-medium">Total Tax:</span>
-                  <span className="font-semibold text-green-600">+${calculateTotals().totalTax.toFixed(2)}</span>
+                  <span className="font-semibold text-green-600">+Rs. {calculateTotals().totalTax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-t-2 border-green-300 bg-green-100 px-4 rounded-lg">
                   <span className="text-green-900 font-bold text-lg">Grand Total:</span>
-                  <span className="font-bold text-xl text-green-900">${calculateTotals().total.toFixed(2)}</span>
+                  <span className="font-bold text-xl text-green-900">Rs. {calculateTotals().total.toFixed(2)}</span>
                 </div>
               </div>
             </div>

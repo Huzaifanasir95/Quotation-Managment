@@ -265,7 +265,7 @@ export default function UploadInquiryModal({ isOpen, onClose }: UploadInquiryMod
                     <div className="space-y-2">
                       <div>
                         <span className="text-sm text-gray-500">Total Amount:</span>
-                        <p className="text-xl font-bold text-gray-900">${parsedData.total.toLocaleString()}</p>
+                        <p className="text-xl font-bold text-gray-900">Rs. {parsedData.total.toLocaleString()}</p>
                       </div>
                       <div>
                         <span className="text-sm text-gray-500">Valid Until:</span>
@@ -282,7 +282,7 @@ export default function UploadInquiryModal({ isOpen, onClose }: UploadInquiryMod
                       <div key={index} className="flex justify-between py-2 border-b border-gray-200 last:border-b-0">
                         <span className="text-gray-900">{item.description}</span>
                         <span className="text-gray-600">
-                          {item.quantity} × ${item.unitPrice} = ${(item.quantity * item.unitPrice).toLocaleString()}
+                          {item.quantity} × Rs. {item.unitPrice} = Rs. {(item.quantity * item.unitPrice).toLocaleString()}
                         </span>
                       </div>
                     ))}

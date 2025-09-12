@@ -159,7 +159,7 @@ export default function VendorBillDetailsModal({ isOpen, onClose, billId }: Vend
                 </div>
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-3 border border-purple-100">
                   <p className="text-xs text-purple-600 font-medium">Total Amount</p>
-                  <p className="text-lg font-bold text-green-600">${bill.total_amount?.toFixed(2)}</p>
+                  <p className="text-lg font-bold text-green-600">Rs. {bill.total_amount?.toFixed(2)}</p>
                 </div>
               </div>
 
@@ -235,19 +235,19 @@ export default function VendorBillDetailsModal({ isOpen, onClose, billId }: Vend
                 <div className="grid grid-cols-2 gap-2">
                   <div className="text-center">
                     <span className="text-xs text-purple-600 font-medium block">Subtotal</span>
-                    <p className="text-sm font-bold text-purple-900">${bill.subtotal?.toFixed(2) || '0.00'}</p>
+                    <p className="text-sm font-bold text-purple-900">Rs. {bill.subtotal?.toFixed(2) || '0.00'}</p>
                   </div>
                   <div className="text-center">
                     <span className="text-xs text-purple-600 font-medium block">Tax</span>
-                    <p className="text-sm font-bold text-purple-900">${bill.tax_amount?.toFixed(2) || '0.00'}</p>
+                    <p className="text-sm font-bold text-purple-900">Rs. {bill.tax_amount?.toFixed(2) || '0.00'}</p>
                   </div>
                   <div className="text-center">
                     <span className="text-xs text-purple-600 font-medium block">Paid</span>
-                    <p className="text-sm font-bold text-green-600">${bill.paid_amount?.toFixed(2) || '0.00'}</p>
+                    <p className="text-sm font-bold text-green-600">Rs. {bill.paid_amount?.toFixed(2) || '0.00'}</p>
                   </div>
                   <div className="text-center">
                     <span className="text-xs text-purple-600 font-medium block">Outstanding</span>
-                    <p className="text-sm font-bold text-red-600">${(bill.total_amount - bill.paid_amount).toFixed(2)}</p>
+                    <p className="text-sm font-bold text-red-600">Rs. {(bill.total_amount - bill.paid_amount).toFixed(2)}</p>
                   </div>
                 </div>
               </div>

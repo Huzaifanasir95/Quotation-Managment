@@ -394,7 +394,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                           <div className="space-y-2 mb-4">
                             <div className="flex justify-between text-sm">
                               <span className="text-gray-500">Amount:</span>
-                              <span className="font-bold text-green-600">${quote.amount.toLocaleString()}</span>
+                              <span className="font-bold text-green-600">Rs. {quote.amount.toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                               <span className="text-gray-500">Items:</span>
@@ -439,7 +439,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                         <p className="text-sm text-gray-500">{selectedQuote.items.length} items</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-blue-600">${selectedQuote.amount.toLocaleString()}</p>
+                        <p className="text-2xl font-bold text-blue-600">Rs. {selectedQuote.amount.toLocaleString()}</p>
                         <p className="text-sm text-gray-500">Quote Total</p>
                       </div>
                     </div>
@@ -551,7 +551,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Shipping Cost ($)</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Shipping Cost (Rs.)</label>
                             <input
                               type="number"
                               min="0"
@@ -574,30 +574,30 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                               <div className="space-y-2">
                                 <div className="flex justify-between text-sm">
                                   <span className="text-gray-600">Subtotal:</span>
-                                  <span className="text-gray-900">${totals.subtotal.toFixed(2)}</span>
+                                  <span className="text-gray-900">Rs. {typeof totals === 'object' ? totals.subtotal.toFixed(2) : '0.00'}</span>
                                 </div>
-                                {totals.discount > 0 && (
+                                {typeof totals === 'object' && totals.discount > 0 && (
                                   <div className="flex justify-between text-sm">
                                     <span className="text-gray-600">Discount ({orderDetails.discountPercentage}%):</span>
-                                    <span className="text-red-600">-${totals.discount.toFixed(2)}</span>
+                                    <span className="text-red-600">-Rs. {totals.discount.toFixed(2)}</span>
                                   </div>
                                 )}
-                                {totals.tax > 0 && (
+                                {typeof totals === 'object' && totals.tax > 0 && (
                                   <div className="flex justify-between text-sm">
                                     <span className="text-gray-600">Tax ({orderDetails.taxPercentage}%):</span>
-                                    <span className="text-gray-900">${totals.tax.toFixed(2)}</span>
+                                    <span className="text-gray-900">Rs. {typeof totals === 'object' ? totals.tax.toFixed(2) : '0.00'}</span>
                                   </div>
                                 )}
-                                {totals.shipping > 0 && (
+                                {typeof totals === 'object' && totals.shipping > 0 && (
                                   <div className="flex justify-between text-sm">
                                     <span className="text-gray-600">Shipping:</span>
-                                    <span className="text-gray-900">${totals.shipping.toFixed(2)}</span>
+                                    <span className="text-gray-900">Rs. {totals.shipping.toFixed(2)}</span>
                                   </div>
                                 )}
                                 <div className="border-t border-gray-300 pt-2">
                                   <div className="flex justify-between">
                                     <span className="font-semibold text-gray-900">Total:</span>
-                                    <span className="font-bold text-green-600 text-lg">${totals.total.toFixed(2)}</span>
+                                    <span className="font-bold text-green-600 text-lg">Rs. {typeof totals === 'object' ? totals.total.toFixed(2) : '0.00'}</span>
                                   </div>
                                 </div>
                               </div>
@@ -670,11 +670,11 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                               <div className="flex-1 mr-4">
                                 <p className="font-medium text-gray-900">{item.description}</p>
                                 <p className="text-sm text-gray-600">
-                                  {item.quantity} × ${item.unitPrice.toFixed(2)}
+                                  {item.quantity} × Rs. {item.unitPrice.toFixed(2)}
                                 </p>
                               </div>
                               <div className="text-right">
-                                <p className="font-medium text-gray-900">${item.total.toFixed(2)}</p>
+                                <p className="font-medium text-gray-900">Rs. {item.total.toFixed(2)}</p>
                               </div>
                             </div>
                           ))}
@@ -692,30 +692,30 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                             <div className="space-y-3">
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Subtotal:</span>
-                                <span className="text-gray-900">${totals.subtotal.toFixed(2)}</span>
+                                <span className="text-gray-900">Rs. {typeof totals === 'object' ? totals.subtotal.toFixed(2) : '0.00'}</span>
                               </div>
-                              {totals.discount > 0 && (
+                              {typeof totals === 'object' && totals.discount > 0 && (
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Discount ({orderDetails.discountPercentage}%):</span>
-                                  <span className="text-red-600">-${totals.discount.toFixed(2)}</span>
+                                  <span className="text-red-600">-Rs. {totals.discount.toFixed(2)}</span>
                                 </div>
                               )}
-                              {totals.tax > 0 && (
+                              {typeof totals === 'object' && totals.tax > 0 && (
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Tax ({orderDetails.taxPercentage}%):</span>
-                                  <span className="text-gray-900">${totals.tax.toFixed(2)}</span>
+                                  <span className="text-gray-900">Rs. {totals.tax.toFixed(2)}</span>
                                 </div>
                               )}
-                              {totals.shipping > 0 && (
+                              {typeof totals === 'object' && totals.shipping > 0 && (
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Shipping:</span>
-                                  <span className="text-gray-900">${totals.shipping.toFixed(2)}</span>
+                                  <span className="text-gray-900">Rs. {totals.shipping.toFixed(2)}</span>
                                 </div>
                               )}
                               <div className="border-t border-gray-300 pt-3">
                                 <div className="flex justify-between">
                                   <span className="text-lg font-semibold text-gray-900">Total:</span>
-                                  <span className="text-2xl font-bold text-green-600">${totals.total.toFixed(2)}</span>
+                                  <span className="text-2xl font-bold text-green-600">Rs. {typeof totals === 'object' ? totals.total.toFixed(2) : '0.00'}</span>
                                 </div>
                               </div>
                             </div>

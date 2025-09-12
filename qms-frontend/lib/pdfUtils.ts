@@ -146,8 +146,8 @@ export const generateQuotationPDF = async (quotationData: QuotationData): Promis
 
       pdf.text(item.description, colPositions[0] + 2, yPosition);
       pdf.text(item.quantity.toString(), colPositions[1] + 2, yPosition);
-      pdf.text(`$${item.unit_price.toFixed(2)}`, colPositions[2] + 2, yPosition);
-      pdf.text(`$${itemTotal.toFixed(2)}`, colPositions[3] + 2, yPosition);
+  pdf.text(`Rs. ${item.unit_price.toFixed(2)}`, colPositions[2] + 2, yPosition);
+  pdf.text(`Rs. ${itemTotal.toFixed(2)}`, colPositions[3] + 2, yPosition);
       yPosition += lineHeight;
     });
 
@@ -157,18 +157,18 @@ export const generateQuotationPDF = async (quotationData: QuotationData): Promis
     
     pdf.setFont('helvetica', 'bold');
     pdf.text('Subtotal:', colPositions[2] + 2, yPosition);
-    pdf.text(`$${quotationData.subtotal.toFixed(2)}`, colPositions[3] + 2, yPosition);
+  pdf.text(`Rs. ${quotationData.subtotal.toFixed(2)}`, colPositions[3] + 2, yPosition);
     yPosition += lineHeight;
 
     if (quotationData.tax_amount && quotationData.tax_amount > 0) {
       pdf.text('Tax:', colPositions[2] + 2, yPosition);
-      pdf.text(`$${quotationData.tax_amount.toFixed(2)}`, colPositions[3] + 2, yPosition);
+  pdf.text(`Rs. ${quotationData.tax_amount.toFixed(2)}`, colPositions[3] + 2, yPosition);
       yPosition += lineHeight;
     }
 
     pdf.setFontSize(14);
     pdf.text('Total:', colPositions[2] + 2, yPosition);
-    pdf.text(`$${quotationData.total_amount.toFixed(2)}`, colPositions[3] + 2, yPosition);
+  pdf.text(`Rs. ${quotationData.total_amount.toFixed(2)}`, colPositions[3] + 2, yPosition);
     yPosition += 15;
 
     // Terms and Conditions

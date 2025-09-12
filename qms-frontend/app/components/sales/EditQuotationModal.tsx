@@ -565,7 +565,7 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                             </div>
                             <div className="col-span-1">
                               <div className="px-3 py-2 text-black bg-white border border-gray-300 rounded text-sm">
-                                ${item.line_total.toFixed(2)}
+                                Rs. {item.line_total.toFixed(2)}
                               </div>
                             </div>
                             <div className="col-span-1">
@@ -591,20 +591,20 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
                             <span>Subtotal:</span>
-                            <span>${totals.subtotal.toFixed(2)}</span>
+                            <span>Rs. {totals.subtotal.toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Discount:</span>
-                            <span>-${totals.discountAmount.toFixed(2)}</span>
+                            <span>-Rs. {totals.discountAmount.toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Tax:</span>
-                            <span>${totals.taxAmount.toFixed(2)}</span>
+                            <span>Rs. {totals.taxAmount.toFixed(2)}</span>
                           </div>
                         </div>
                         <div className="text-right">
                           <div className="text-2xl font-bold text-gray-900">
-                            Total: ${totals.total.toFixed(2)}
+                            Total: Rs. {totals.total.toFixed(2)}
                           </div>
                         </div>
                       </div>

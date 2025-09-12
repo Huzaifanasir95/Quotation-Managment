@@ -100,7 +100,7 @@ export default function TopCustomersModal({ isOpen, onClose, customers }: TopCus
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-gray-900">${totalQuotes.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-gray-900">Rs. {totalQuotes.toLocaleString()}</p>
                       <p className="text-sm text-gray-600">Total Value</p>
                     </div>
                   </div>

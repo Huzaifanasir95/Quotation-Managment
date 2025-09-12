@@ -27,7 +27,7 @@ const KPICard = memo(({ title, value, color, icon }: {
       <div className="ml-4">
         <p className="text-sm font-medium text-gray-600">{title}</p>
         <p className={`text-2xl font-bold ${color.replace('bg-', 'text-').replace('-100', '-600')}`}>
-          {typeof value === 'number' ? `$${value.toLocaleString()}` : value}
+          {typeof value === 'number' ? `Rs. ${value.toLocaleString()}` : value}
         </p>
       </div>
     </div>
@@ -406,7 +406,7 @@ const AccountingPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          ${Math.max(entry.total_debit || 0, entry.total_credit || 0).toLocaleString()}
+                          Rs. {Math.max(entry.total_debit || 0, entry.total_credit || 0).toLocaleString()}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

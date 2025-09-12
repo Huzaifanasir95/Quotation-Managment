@@ -97,7 +97,7 @@ export default function GeneratePLReportModal({ isOpen, onClose }: GeneratePLRep
     if (!reportData) return;
     
     // Simulate file download
-    const content = `Profit & Loss Report\nPeriod: ${reportData.period}\n\nRevenue: $${reportData.revenue.total.toLocaleString()}\nCosts: $${reportData.costs.total.toLocaleString()}\nExpenses: $${reportData.expenses.total.toLocaleString()}\nNet Profit: $${reportData.summary.netProfit.toLocaleString()}`;
+    const content = `Profit & Loss Report\nPeriod: ${reportData.period}\n\nRevenue: Rs. ${reportData.revenue.total.toLocaleString()}\nCosts: Rs. ${reportData.costs.total.toLocaleString()}\nExpenses: Rs. ${reportData.expenses.total.toLocaleString()}\nNet Profit: Rs. ${reportData.summary.netProfit.toLocaleString()}`;
     
     const blob = new Blob([content], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
@@ -231,15 +231,15 @@ export default function GeneratePLReportModal({ isOpen, onClose }: GeneratePLRep
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="text-green-700">Sales:</span>
-                    <span className="ml-2 font-medium">${reportData.revenue.sales.toLocaleString()}</span>
+                    <span className="ml-2 font-medium">Rs. {reportData.revenue.sales.toLocaleString()}</span>
                   </div>
                   <div>
                     <span className="text-green-700">Other Income:</span>
-                    <span className="ml-2 font-medium">${reportData.revenue.otherIncome.toLocaleString()}</span>
+                    <span className="ml-2 font-medium">Rs. {reportData.revenue.otherIncome.toLocaleString()}</span>
                   </div>
                   <div>
                     <span className="text-green-700">Total Revenue:</span>
-                    <span className="ml-2 font-medium text-lg">${reportData.revenue.total.toLocaleString()}</span>
+                    <span className="ml-2 font-medium text-lg">Rs. {reportData.revenue.total.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -250,15 +250,15 @@ export default function GeneratePLReportModal({ isOpen, onClose }: GeneratePLRep
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="text-red-700">Purchases:</span>
-                    <span className="ml-2 font-medium">${reportData.costs.purchases.toLocaleString()}</span>
+                    <span className="ml-2 font-medium">Rs. {reportData.costs.purchases.toLocaleString()}</span>
                   </div>
                   <div>
                     <span className="text-red-700">Direct Expenses:</span>
-                    <span className="ml-2 font-medium">${reportData.costs.directExpenses.toLocaleString()}</span>
+                    <span className="ml-2 font-medium">Rs. {reportData.costs.directExpenses.toLocaleString()}</span>
                   </div>
                   <div>
                     <span className="text-red-700">Total Costs:</span>
-                    <span className="ml-2 font-medium text-lg">${reportData.costs.total.toLocaleString()}</span>
+                    <span className="ml-2 font-medium text-lg">Rs. {reportData.costs.total.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -270,32 +270,32 @@ export default function GeneratePLReportModal({ isOpen, onClose }: GeneratePLRep
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-orange-700">Salaries:</span>
-                      <span className="ml-2 font-medium">${reportData.expenses.salaries.toLocaleString()}</span>
+                      <span className="ml-2 font-medium">Rs. {reportData.expenses.salaries.toLocaleString()}</span>
                     </div>
                     <div>
                       <span className="text-orange-700">Rent:</span>
-                      <span className="ml-2 font-medium">${reportData.expenses.rent.toLocaleString()}</span>
+                      <span className="ml-2 font-medium">Rs. {reportData.expenses.rent.toLocaleString()}</span>
                     </div>
                     <div>
                       <span className="text-orange-700">Utilities:</span>
-                      <span className="ml-2 font-medium">${reportData.expenses.utilities.toLocaleString()}</span>
+                      <span className="ml-2 font-medium">Rs. {reportData.expenses.utilities.toLocaleString()}</span>
                     </div>
                     <div>
                       <span className="text-orange-700">Office:</span>
-                      <span className="ml-2 font-medium">${reportData.expenses.office.toLocaleString()}</span>
+                      <span className="ml-2 font-medium">Rs. {reportData.expenses.office.toLocaleString()}</span>
                     </div>
                     <div>
                       <span className="text-orange-700">Marketing:</span>
-                      <span className="ml-2 font-medium">${reportData.expenses.marketing.toLocaleString()}</span>
+                      <span className="ml-2 font-medium">Rs. {reportData.expenses.marketing.toLocaleString()}</span>
                     </div>
                     <div>
                       <span className="text-orange-700">Other:</span>
-                      <span className="ml-2 font-medium">${reportData.expenses.other.toLocaleString()}</span>
+                      <span className="ml-2 font-medium">Rs. {reportData.expenses.other.toLocaleString()}</span>
                     </div>
                   </div>
                   <div className="mt-3 pt-3 border-t border-orange-200">
                     <span className="text-orange-700 font-medium">Total Expenses:</span>
-                    <span className="ml-2 font-medium text-lg">${reportData.expenses.total.toLocaleString()}</span>
+                    <span className="ml-2 font-medium text-lg">Rs. {reportData.expenses.total.toLocaleString()}</span>
                   </div>
                 </div>
               )}
@@ -306,17 +306,17 @@ export default function GeneratePLReportModal({ isOpen, onClose }: GeneratePLRep
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="text-gray-600">Gross Profit:</span>
-                    <span className="ml-2 font-medium text-green-600">${reportData.summary.grossProfit.toLocaleString()}</span>
+                    <span className="ml-2 font-medium text-green-600">Rs. {reportData.summary.grossProfit.toLocaleString()}</span>
                   </div>
                   <div>
                     <span className="text-gray-600">Net Profit:</span>
-                    <span className={`ml-2 font-medium text-lg ${reportData.summary.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ${reportData.summary.netProfit.toLocaleString()}
+                    <span className={`ml-2 font-medium text-lg Rs. {reportData.summary.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      Rs. {reportData.summary.netProfit.toLocaleString()}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-600">Profit Margin:</span>
-                    <span className={`ml-2 font-medium ${reportData.summary.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className={`ml-2 font-medium Rs. {reportData.summary.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {reportData.summary.margin}%
                     </span>
                   </div>

@@ -91,7 +91,7 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-gray-900">
-                ${Math.abs(entry.credit - entry.debit).toLocaleString()}
+                Rs. {Math.abs(entry.credit - entry.debit).toLocaleString()}
               </div>
               <div className="text-sm text-gray-600">
                 {entry.credit > entry.debit ? 'Credit' : 'Debit'}
@@ -162,25 +162,25 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
                     <div className="flex justify-between">
                       <span className="text-gray-600">Debit Amount:</span>
                       <span className={`font-medium ${entry.debit > 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                        {entry.debit > 0 ? `$${entry.debit.toLocaleString()}` : '-'}
+                        {entry.debit > 0 ? `Rs. ${entry.debit.toLocaleString()}` : '-'}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Credit Amount:</span>
                       <span className={`font-medium ${entry.credit > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                        {entry.credit > 0 ? `$${entry.credit.toLocaleString()}` : '-'}
+                        {entry.credit > 0 ? `Rs. ${entry.credit.toLocaleString()}` : '-'}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Net Amount:</span>
                       <span className={`font-medium text-lg ${entry.credit - entry.debit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        ${Math.abs(entry.credit - entry.debit).toLocaleString()}
+                        Rs. {Math.abs(entry.credit - entry.debit).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Balance:</span>
                       <span className={`font-medium ${entry.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        ${entry.balance.toLocaleString()}
+                        Rs. {entry.balance.toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -267,7 +267,7 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="text-sm font-medium text-gray-900">
-                                  ${mockTransaction.amount.toLocaleString()}
+                                  Rs. {mockTransaction.amount.toLocaleString()}
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -307,20 +307,20 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Subtotal:</span>
-                        <span className="font-medium">${(entry.taxBreakdown?.subtotal || 0).toLocaleString()}</span>
+                        <span className="font-medium">Rs. {(entry.taxBreakdown?.subtotal || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">GST:</span>
-                        <span className="font-medium text-green-600">${(entry.taxBreakdown?.gst || 0).toLocaleString()}</span>
+                        <span className="font-medium text-green-600">Rs. {(entry.taxBreakdown?.gst || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Other Taxes:</span>
-                        <span className="font-medium text-orange-600">$0.00</span>
+                        <span className="font-medium text-orange-600">Rs. 0.00</span>
                       </div>
                       <div className="border-t pt-3">
                         <div className="flex justify-between">
                           <span className="text-gray-900 font-medium">Total:</span>
-                          <span className="text-gray-900 font-bold text-lg">${(entry.taxBreakdown?.total || 0).toLocaleString()}</span>
+                          <span className="text-gray-900 font-bold text-lg">Rs. {(entry.taxBreakdown?.total || 0).toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
@@ -336,7 +336,7 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
                       <div className="bg-gray-50 rounded-lg p-3">
                         <div className="text-sm text-gray-600">Tax Calculation</div>
                         <div className="text-sm font-medium">
-                          ${(entry.taxBreakdown?.subtotal || 0).toLocaleString()} × 15% = ${(entry.taxBreakdown?.gst || 0).toLocaleString()}
+                          Rs. {(entry.taxBreakdown?.subtotal || 0).toLocaleString()} × 15% = Rs. {(entry.taxBreakdown?.gst || 0).toLocaleString()}
                         </div>
                       </div>
                       <div className="bg-gray-50 rounded-lg p-3">

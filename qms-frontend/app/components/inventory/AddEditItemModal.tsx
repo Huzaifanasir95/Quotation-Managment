@@ -395,7 +395,7 @@ export default function AddEditItemModal({ isOpen, onClose, editingItem, onItemS
               <div>
                 <span className="text-gray-600">Estimated Value:</span>
                 <span className="ml-2 font-medium text-green-600">
-                  ${(formData.current_stock * formData.last_purchase_price).toFixed(2)}
+                  Rs. {(formData.current_stock * formData.last_purchase_price).toFixed(2)}
                 </span>
               </div>
               <div>

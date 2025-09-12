@@ -83,10 +83,7 @@ export default function ViewCustomerQuotesModal({ isOpen, onClose, customer }: V
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+    return `Rs. ${amount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   if (!isOpen || !customer) return null;

@@ -376,13 +376,13 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
                     <div>
                       <p className="text-sm text-gray-600">Total Debits</p>
                       <p className="text-lg font-semibold text-red-600">
-                        ${entryData.lines.reduce((sum, line) => sum + line.debitAmount, 0).toFixed(2)}
+                        Rs. {entryData.lines.reduce((sum, line) => sum + line.debitAmount, 0).toFixed(2)}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Total Credits</p>
                       <p className="text-lg font-semibold text-green-600">
-                        ${entryData.lines.reduce((sum, line) => sum + line.creditAmount, 0).toFixed(2)}
+                        Rs. {entryData.lines.reduce((sum, line) => sum + line.creditAmount, 0).toFixed(2)}
                       </p>
                     </div>
                     <div>
@@ -392,7 +392,7 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
                                  entryData.lines.reduce((sum, line) => sum + line.creditAmount, 0)) < 0.01 
                           ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        ${Math.abs(entryData.lines.reduce((sum, line) => sum + line.debitAmount, 0) - 
+                        Rs. {Math.abs(entryData.lines.reduce((sum, line) => sum + line.debitAmount, 0) - 
                                    entryData.lines.reduce((sum, line) => sum + line.creditAmount, 0)).toFixed(2)}
                       </p>
                     </div>

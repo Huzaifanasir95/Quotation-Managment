@@ -203,11 +203,11 @@ export default function AdjustStockModal({ isOpen, onClose, item, onStockAdjuste
               </div>
               <div>
                 <span className="text-gray-300">Unit Cost:</span>
-                <span className="ml-2 font-medium text-white">${(item?.last_purchase_price || 0).toFixed(2)}</span>
+                <span className="ml-2 font-medium text-white">Rs. {(item?.last_purchase_price || 0).toFixed(2)}</span>
               </div>
               <div>
                 <span className="text-gray-300">Total Value:</span>
-                <span className="ml-2 font-medium text-white">${((item?.current_stock || 0) * (item?.last_purchase_price || 0)).toLocaleString()}</span>
+                <span className="ml-2 font-medium text-white">Rs. {((item?.current_stock || 0) * (item?.last_purchase_price || 0)).toLocaleString()}</span>
               </div>
             </div>
           </div>

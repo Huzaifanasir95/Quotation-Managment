@@ -445,7 +445,7 @@ export default function PurchasesPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">${po.total_amount.toLocaleString()}</div>
+                          <div className="text-sm font-medium text-gray-900">Rs. {po.total_amount.toLocaleString()}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
@@ -557,7 +557,7 @@ export default function PurchasesPage() {
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Amount:</span>
-                        <span className="text-gray-900 font-medium">${po.total_amount.toLocaleString()}</span>
+                        <span className="text-gray-900 font-medium">Rs. {po.total_amount.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-500">Bills:</span>

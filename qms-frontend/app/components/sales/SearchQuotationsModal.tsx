@@ -335,7 +335,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                   {quotations.length > 0 && (
                     <span className="ml-2">
                       • Total: <span className="font-medium text-green-600">
-                        ${filteredQuotations.reduce((sum, q) => sum + q.amount, 0).toLocaleString()}
+                        Rs. {filteredQuotations.reduce((sum, q) => sum + q.amount, 0).toLocaleString()}
                       </span>
                     </span>
                   )}
@@ -586,7 +586,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-blue-600">${quotation.amount.toLocaleString()}</p>
+                        <p className="text-2xl font-bold text-blue-600">Rs. {quotation.amount.toLocaleString()}</p>
                         <p className="text-sm text-gray-500">{new Date(quotation.date).toLocaleDateString()}</p>
                       </div>
                     </div>
@@ -603,7 +603,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                       <div>
                         <p className="text-sm font-medium text-gray-500">Average Item Value</p>
                         <p className="text-gray-900">
-                          ${quotation.items.length > 0 ? (quotation.amount / quotation.items.length).toFixed(2) : '0.00'}
+                          Rs. {quotation.items.length > 0 ? (quotation.amount / quotation.items.length).toFixed(2) : '0.00'}
                         </p>
                       </div>
                       <div>
@@ -693,7 +693,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                     </div>
 
                     <div className="mb-4">
-                      <p className="text-2xl font-bold text-blue-600">${quotation.amount.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-blue-600">Rs. {quotation.amount.toLocaleString()}</p>
                       <p className="text-sm text-gray-500">{quotation.items.length} items</p>
                     </div>
 
@@ -804,7 +804,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Total Amount:</span>
-                        <span className="text-2xl font-bold text-blue-600">${selectedQuotation.amount.toLocaleString()}</span>
+                        <span className="text-2xl font-bold text-blue-600">Rs. {selectedQuotation.amount.toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
@@ -852,9 +852,9 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                           <tr key={item.id}>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.description}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.quantity}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${item.unitPrice.toFixed(2)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Rs. {item.unitPrice.toFixed(2)}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              ${(item.quantity * item.unitPrice).toFixed(2)}
+                              Rs. {(item.quantity * item.unitPrice).toFixed(2)}
                             </td>
                           </tr>
                         ))}
@@ -863,7 +863,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                         <tr>
                           <td colSpan={3} className="px-6 py-4 text-right text-sm font-medium text-gray-900">Total:</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">
-                            ${selectedQuotation.amount.toFixed(2)}
+                            Rs. {selectedQuotation.amount.toFixed(2)}
                           </td>
                         </tr>
                       </tfoot>

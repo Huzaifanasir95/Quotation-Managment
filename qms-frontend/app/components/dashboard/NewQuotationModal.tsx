@@ -483,7 +483,7 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
                         placeholder="Item description"
                       />
                       <div className="mt-1 px-3 py-1 text-xs text-gray-600 bg-blue-50 rounded">
-                        Total: ${item.line_total.toFixed(2)}
+                        Total: Rs. {item.line_total.toFixed(2)}
                       </div>
                     </div>
                     <div className="col-span-2">
@@ -539,10 +539,10 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
             <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
               <div className="flex justify-between items-center">
                 <div className="text-lg font-semibold text-gray-700">
-                  Subtotal: ${totals.subtotal.toFixed(2)}
+                  Subtotal: Rs. {totals.subtotal.toFixed(2)}
                 </div>
                 <div className="text-2xl font-bold text-blue-600">
-                  Total: ${totals.total.toFixed(2)}
+                  Total: Rs. {totals.total.toFixed(2)}
                 </div>
               </div>
             </div>

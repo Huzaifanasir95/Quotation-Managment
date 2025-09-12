@@ -35,7 +35,7 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
   const [error, setError] = useState<string | null>(null);
 
   const statuses = ['All', 'pending', 'paid', 'overdue', 'cancelled'];
-  const amountRanges = ['All', 'Under $1000', '$1000-$5000', 'Over $5000'];
+  const amountRanges = ['All', 'Under Rs. 1000', 'Rs. 1000-Rs. 5000', 'Over Rs. 5000'];
 
   // Fetch invoices and customers data
   useEffect(() => {
@@ -104,9 +104,9 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
     const matchesStatus = filters.status === 'All' || invoice.status === filters.status;
     
     let matchesAmount = true;
-    if (filters.amountRange === 'Under $1000') matchesAmount = invoice.amount < 1000;
-    else if (filters.amountRange === '$1000-$5000') matchesAmount = invoice.amount >= 1000 && invoice.amount <= 5000;
-    else if (filters.amountRange === 'Over $5000') matchesAmount = invoice.amount > 5000;
+    if (filters.amountRange === 'Under Rs. 1000') matchesAmount = invoice.amount < 1000;
+    else if (filters.amountRange === 'Rs. 1000-Rs. 5000') matchesAmount = invoice.amount >= 1000 && invoice.amount <= 5000;
+    else if (filters.amountRange === 'Over Rs. 5000') matchesAmount = invoice.amount > 5000;
     
     return matchesDateFrom && matchesDateTo && matchesCustomer && matchesStatus && matchesAmount;
   });
@@ -215,11 +215,11 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
               <div className="text-sm text-red-800">Overdue</div>
             </div>
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-yellow-600">${totalPendingAmount.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-yellow-600">Rs. {totalPendingAmount.toLocaleString()}</div>
               <div className="text-sm text-yellow-800">Total Amount</div>
             </div>
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-orange-600">${totalOverdueAmount.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-orange-600">Rs. {totalOverdueAmount.toLocaleString()}</div>
               <div className="text-sm text-orange-800">Overdue Amount</div>
             </div>
           </div>
@@ -384,7 +384,7 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
                           <div className="text-sm text-gray-900">{invoice.customer}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">${invoice.amount.toLocaleString()}</div>
+                          <div className="text-sm font-medium text-gray-900">Rs. {invoice.amount.toLocaleString()}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{invoice.dueDate}</div>

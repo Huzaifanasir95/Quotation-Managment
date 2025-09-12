@@ -166,7 +166,7 @@ export default function DeliveryChallanDetailsModal({ isOpen, onClose, challanId
                 </div>
                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-3 border border-green-100">
                   <p className="text-xs text-green-600 font-medium">PO Amount</p>
-                  <p className="text-lg font-bold text-green-600">${challan.purchase_orders?.total_amount?.toFixed(2) || '0.00'}</p>
+                  <p className="text-lg font-bold text-green-600">Rs. {challan.purchase_orders?.total_amount?.toFixed(2) || '0.00'}</p>
                 </div>
               </div>
 
@@ -270,9 +270,9 @@ export default function DeliveryChallanDetailsModal({ isOpen, onClose, challanId
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <p className="text-xs font-medium text-gray-900">{item.description}</p>
-                            <p className="text-xs text-gray-500">Qty: {item.quantity} × ${item.unit_price?.toFixed(2)}</p>
+                            <p className="text-xs text-gray-500">Qty: {item.quantity} × Rs. {item.unit_price?.toFixed(2)}</p>
                           </div>
-                          <span className="text-xs font-bold text-orange-600">${item.line_total?.toFixed(2)}</span>
+                          <span className="text-xs font-bold text-orange-600">Rs. {item.line_total?.toFixed(2)}</span>
                         </div>
                       </div>
                     ))}

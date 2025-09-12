@@ -188,7 +188,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         // Transform the API response to match the expected format
         const transformedProducts = response.data.products?.map((product: any) => ({
           id: product.id.toString(),
-          name: `${product.name} - $${product.selling_price || product.price || 0}`,
+          name: `${product.name} - ${product.selling_price || product.price || 0}`,
           price: parseFloat(product.selling_price || product.price || 0),
           description: product.description || '',
           sku: product.sku || ''
@@ -198,20 +198,20 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         console.error('Failed to load products:', response);
         // Fallback to mock data if API fails
         setProducts([
-          { id: '1', name: 'Laptop Dell XPS 13 - $1200', price: 1200 },
-          { id: '2', name: 'Monitor 27" 4K - $800', price: 800 },
-          { id: '3', name: 'Wireless Mouse - $50', price: 50 },
-          { id: '4', name: 'USB-C Hub - $45', price: 45 }
+          { id: '1', name: 'Laptop Dell XPS 13 - Rs. 1200', price: 1200 },
+          { id: '2', name: 'Monitor 27" 4K - Rs. 800', price: 800 },
+          { id: '3', name: 'Wireless Mouse - Rs. 50', price: 50 },
+          { id: '4', name: 'USB-C Hub - Rs. 45', price: 45 }
         ]);
       }
     } catch (error) {
       console.error('Failed to load products:', error);
       // Fallback to mock data if API call fails
       setProducts([
-        { id: '1', name: 'Laptop Dell XPS 13 - $1200', price: 1200 },
-        { id: '2', name: 'Monitor 27" 4K - $800', price: 800 },
-        { id: '3', name: 'Wireless Mouse - $50', price: 50 },
-        { id: '4', name: 'USB-C Hub - $45', price: 45 }
+        { id: '1', name: 'Laptop Dell XPS 13 - Rs. 1200', price: 1200 },
+        { id: '2', name: 'Monitor 27" 4K - Rs. 800', price: 800 },
+        { id: '3', name: 'Wireless Mouse - Rs. 50', price: 50 },
+        { id: '4', name: 'USB-C Hub - Rs. 45', price: 45 }
       ]);
     }
   };
@@ -791,7 +791,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                             {item.productId && (
                               <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
                                 <p className="text-sm text-gray-900">
-                                  <span className="font-medium">Total:</span> ${(item.quantity * item.unitPrice).toFixed(2)}
+                                  <span className="font-medium">Total:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
                                 </p>
                               </div>
                             )}
@@ -830,7 +830,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                               >
                                 <option value="">Select product...</option>
                                 {products.map(p => (
-                                  <option key={p.id} value={p.id}>{p.name} - ${p.price}</option>
+                                  <option key={p.id} value={p.id}>{p.name} - Rs. {p.price}</option>
                                 ))}
                               </select>
                             </div>
@@ -868,7 +868,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                           {item.productId && (
                             <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
                               <p className="text-sm text-gray-900">
-                                <span className="font-medium">Subtotal:</span> ${(item.quantity * item.unitPrice).toFixed(2)}
+                                <span className="font-medium">Subtotal:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
                               </p>
                             </div>
                           )}
@@ -882,7 +882,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                     <div className="flex justify-between items-center">
                       <span className="text-lg font-medium text-gray-900">Total Amount:</span>
                       <span className="text-xl font-bold text-gray-900">
-                        ${items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0).toFixed(2)}
+                        Rs. {items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0).toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -1155,9 +1155,9 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                 <p className="font-medium text-gray-900 truncate">
                                   {products.find(p => p.id === item.productId)?.name || 'Product'}
                                 </p>
-                                <p className="text-gray-500">Qty: {item.quantity} × ${item.unitPrice}</p>
+                                <p className="text-gray-500">Qty: {item.quantity} × Rs. {item.unitPrice}</p>
                               </div>
-                              <span className="font-medium text-gray-900">${(item.quantity * item.unitPrice).toFixed(2)}</span>
+                              <span className="font-medium text-gray-900">Rs. {(item.quantity * item.unitPrice).toFixed(2)}</span>
                             </div>
                           ))}
                         </div>
@@ -1213,7 +1213,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                       <div className="flex justify-between items-center">
                         <span className="text-lg font-medium text-gray-900">Total Amount:</span>
                         <span className="text-2xl font-bold text-green-600">
-                          ${items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0).toFixed(2)}
+                          Rs. {items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0).toFixed(2)}
                         </span>
                       </div>
                       <div className="mt-2 text-sm text-green-700">

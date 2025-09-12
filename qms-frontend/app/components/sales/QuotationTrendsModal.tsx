@@ -71,7 +71,7 @@ export default function QuotationTrendsModal({ isOpen, onClose, trends }: Quotat
             </div>
             <div className="bg-white p-3 rounded-lg shadow-sm border">
               <p className="text-sm text-orange-600 font-medium">Total Revenue</p>
-              <p className="text-2xl font-bold text-orange-900">${(totalRevenue || 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-orange-900">Rs. {(totalRevenue || 0).toLocaleString()}</p>
             </div>
           </div>
 

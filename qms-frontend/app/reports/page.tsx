@@ -614,7 +614,7 @@ export default function ReportsPage() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip formatter={(value, name) => [`$${value.toLocaleString()}`, name]} />
+                <Tooltip formatter={(value, name) => [`Rs. ${value.toLocaleString()}`, name]} />
                 <Legend />
                 <Line 
                   type="monotone" 
@@ -650,7 +650,7 @@ export default function ReportsPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Total Amount Due</span>
                   <span className="font-bold text-green-600">
-                    ${receivableInvoices.reduce((sum: number, inv: any) => sum + (inv.total_amount || 0), 0).toLocaleString()}
+                    Rs. {receivableInvoices.reduce((sum: number, inv: any) => sum + (inv.total_amount || 0), 0).toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -682,7 +682,7 @@ export default function ReportsPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Total Amount Owed</span>
                   <span className="font-bold text-red-600">
-                    ${payableInvoices.reduce((sum: number, bill: any) => sum + (bill.total_amount || 0), 0).toLocaleString()}
+                    Rs. {payableInvoices.reduce((sum: number, bill: any) => sum + (bill.total_amount || 0), 0).toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -717,7 +717,7 @@ export default function ReportsPage() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
-                <Tooltip formatter={(value, name) => [`$${Number(value).toLocaleString()}`, name]} />
+                <Tooltip formatter={(value, name) => [`Rs. ${Number(value).toLocaleString()}`, name]} />
                 <Legend />
                 <Bar dataKey="Money Coming In" fill="#10B981" name="Receivables (Money In)" />
                 <Bar dataKey="Money Going Out" fill="#EF4444" name="Payables (Money Out)" />
@@ -787,7 +787,7 @@ export default function ReportsPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip formatter={(value, name) => [`$${value.toLocaleString()}`, name]} />
+                  <Tooltip formatter={(value, name) => [`Rs. ${value.toLocaleString()}`, name]} />
                   <Legend />
                   <Bar dataKey="amount" fill={CHART_COLORS.primary} name="Revenue" />
                   <Bar dataKey="orders" fill={CHART_COLORS.accent} name="Orders" />
@@ -803,7 +803,7 @@ export default function ReportsPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip formatter={(value, name) => [`$${value.toLocaleString()}`, name]} />
+                  <Tooltip formatter={(value, name) => [`Rs. ${value.toLocaleString()}`, name]} />
                   <Legend />
                   <Bar dataKey="revenue" fill={CHART_COLORS.secondary} name="Sales Revenue" />
                   <Bar dataKey="orders" fill={CHART_COLORS.purple} name="Order Count" />
@@ -830,7 +830,7 @@ export default function ReportsPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip formatter={(value) => [`$${Math.abs(Number(value) || 0).toLocaleString()}`, '']} />
+                  <Tooltip formatter={(value) => [`Rs. ${Math.abs(Number(value) || 0).toLocaleString()}`, '']} />
                   <Bar dataKey="amount" fill={CHART_COLORS.primary} />
                 </BarChart>
               </ResponsiveContainer>
@@ -847,7 +847,7 @@ export default function ReportsPage() {
                       <p className="text-sm text-gray-600">Due: {invoice.dueDate}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-gray-900">${invoice.amount.toLocaleString()}</p>
+                      <p className="font-semibold text-gray-900">Rs. {invoice.amount.toLocaleString()}</p>
                       <span className={`text-xs px-2 py-1 rounded-full ${
                         invoice.overdue ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
                       }`}>
@@ -860,7 +860,7 @@ export default function ReportsPage() {
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex justify-between items-center">
                   <span className="font-semibold text-gray-900">Total Pending</span>
-                  <span className="font-bold text-orange-600">${kpiData.pendingInvoiceAmount.toLocaleString()}</span>
+                  <span className="font-bold text-orange-600">Rs. {kpiData.pendingInvoiceAmount.toLocaleString()}</span>
                 </div>
               </div>
             </div>
@@ -879,7 +879,7 @@ export default function ReportsPage() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip formatter={(value, name) => [`$${value.toLocaleString()}`, name]} />
+                <Tooltip formatter={(value, name) => [`Rs. ${value.toLocaleString()}`, name]} />
                 <Legend />
                 <Area 
                   type="monotone" 
@@ -915,7 +915,7 @@ export default function ReportsPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip formatter={(value, name) => [`$${value.toLocaleString()}`, name]} />
+                  <Tooltip formatter={(value, name) => [`Rs. ${value.toLocaleString()}`, name]} />
                   <Legend />
                   <Bar dataKey="amount" fill={CHART_COLORS.teal} name="Purchase Amount" />
                   <Bar dataKey="orders" fill={CHART_COLORS.purple} name="Order Count" />
@@ -962,7 +962,7 @@ export default function ReportsPage() {
                 </div>
                 <div className="flex justify-between items-center pt-4 border-t border-gray-200">
                   <span className="font-medium text-gray-900">Total Value</span>
-                  <span className="font-bold text-green-600">${inventoryData.totalValue.toLocaleString()}</span>
+                  <span className="font-bold text-green-600">Rs. {inventoryData.totalValue.toLocaleString()}</span>
                 </div>
               </div>
             </div>

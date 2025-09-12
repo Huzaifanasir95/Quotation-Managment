@@ -498,11 +498,11 @@ export default function ImportInventoryModal({ isOpen, onClose, onImportComplete
                         <td className="py-2 px-2">{row.sku}</td>
                         <td className="py-2 px-2">{row.name}</td>
                         <td className="py-2 px-2">{row.category}</td>
-                        <td className="py-2 px-2">{row.vendor}</td>
+                        <td className="py-2 px-2">{row.description}</td>
                         <td className="py-2 px-2">{row.unitOfMeasure}</td>
-                        <td className="py-2 px-2">${row.lastPurchasePrice}</td>
+                        <td className="py-2 px-2">Rs. {row.lastPurchasePrice}</td>
                         <td className="py-2 px-2">{row.reorderPoint}</td>
-                        <td className="py-2 px-2">{row.initialStock}</td>
+                        <td className="py-2 px-2">{row.maxStockLevel}</td>
                       </tr>
                     ))}
                   </tbody>

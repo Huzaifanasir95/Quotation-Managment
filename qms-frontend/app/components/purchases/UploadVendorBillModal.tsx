@@ -191,7 +191,8 @@ export default function UploadVendorBillModal({ isOpen, onClose, selectedPO, onB
           }
         } catch (fileError) {
           console.error(`Error processing ${file.name}:`, fileError);
-          allExtractedText += `\n--- ${file.name} ---\n[Error processing file: ${fileError.message}]\n`;
+          const errorMessage = fileError instanceof Error ? fileError.message : 'Unknown error';
+          allExtractedText += `\n--- ${file.name} ---\n[Error processing file: ${errorMessage}]\n`;
         }
       }
 
@@ -543,7 +544,7 @@ export default function UploadVendorBillModal({ isOpen, onClose, selectedPO, onB
                 </div>
                 <div className="bg-white rounded-lg p-4 border border-blue-100">
                   <span className="text-sm text-blue-600 font-medium">PO Amount</span>
-                  <p className="text-lg font-bold text-green-600">${(selectedPO.total_amount || 0).toLocaleString()}</p>
+                  <p className="text-lg font-bold text-green-600">Rs. {(selectedPO.total_amount || 0).toLocaleString()}</p>
                 </div>
                 <div className="bg-white rounded-lg p-4 border border-blue-100">
                   <span className="text-sm text-blue-600 font-medium">Status</span>
@@ -733,11 +734,11 @@ export default function UploadVendorBillModal({ isOpen, onClose, selectedPO, onB
                 </div>
                 <div className="bg-white rounded-lg p-3 border border-green-100">
                   <span className="text-sm text-green-600 font-medium">Subtotal</span>
-                  <p className="font-bold text-green-900">${ocrResults.subtotal.toFixed(2)}</p>
+                  <p className="font-bold text-green-900">Rs. {ocrResults.subtotal.toFixed(2)}</p>
                 </div>
                 <div className="bg-white rounded-lg p-3 border border-green-100">
                   <span className="text-sm text-green-600 font-medium">Total</span>
-                  <p className="font-bold text-green-900">${ocrResults.totalAmount.toFixed(2)}</p>
+                  <p className="font-bold text-green-900">Rs. {ocrResults.totalAmount.toFixed(2)}</p>
                 </div>
               </div>
               <div className="mt-4 p-3 bg-white rounded-lg border border-green-100">
@@ -796,7 +797,7 @@ export default function UploadVendorBillModal({ isOpen, onClose, selectedPO, onB
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Subtotal Amount</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-3 text-gray-500">$</span>
+                  <span className="absolute left-3 top-3 text-gray-500">Rs. </span>
                   <input
                     type="number"
                     value={billData.subtotal}
@@ -812,7 +813,7 @@ export default function UploadVendorBillModal({ isOpen, onClose, selectedPO, onB
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Tax Amount</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-3 text-gray-500">$</span>
+                  <span className="absolute left-3 top-3 text-gray-500">Rs. </span>
                   <input
                     type="number"
                     value={billData.taxAmount}
@@ -830,7 +831,7 @@ export default function UploadVendorBillModal({ isOpen, onClose, selectedPO, onB
                   Total Amount <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-3 text-gray-500">$</span>
+                  <span className="absolute left-3 top-3 text-gray-500">Rs. </span>
                   <input
                     type="number"
                     value={billData.totalAmount}
@@ -866,19 +867,19 @@ export default function UploadVendorBillModal({ isOpen, onClose, selectedPO, onB
               <div className="space-y-3">
                 <div className="flex justify-between items-center py-2 border-b border-gray-200">
                   <span className="text-gray-600">Subtotal:</span>
-                  <span className="font-semibold text-gray-900">${billData.subtotal.toFixed(2)}</span>
+                  <span className="font-semibold text-gray-900">Rs. {billData.subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-gray-200">
                   <span className="text-gray-600">Tax Amount:</span>
-                  <span className="font-semibold text-gray-900">${billData.taxAmount.toFixed(2)}</span>
+                  <span className="font-semibold text-gray-900">Rs. {billData.taxAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-gray-200">
                   <span className="text-gray-600">Calculated Total:</span>
-                  <span className="font-semibold text-blue-600">${calculateTotal().toFixed(2)}</span>
+                  <span className="font-semibold text-blue-600">Rs. {calculateTotal().toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 bg-white rounded-lg px-4 border border-blue-200">
                   <span className="font-bold text-gray-900">Entered Total:</span>
-                  <span className="font-bold text-lg text-blue-900">${billData.totalAmount.toFixed(2)}</span>
+                  <span className="font-bold text-lg text-blue-900">Rs. {billData.totalAmount.toFixed(2)}</span>
                 </div>
                 {Math.abs(calculateTotal() - billData.totalAmount) > 0.01 && (
                   <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
@@ -886,7 +887,7 @@ export default function UploadVendorBillModal({ isOpen, onClose, selectedPO, onB
                       <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                       </svg>
-                      The entered total (${billData.totalAmount.toFixed(2)}) differs from the calculated total (${calculateTotal().toFixed(2)}).
+                      The entered total (Rs. {billData.totalAmount.toFixed(2)}) differs from the calculated total (Rs. {calculateTotal().toFixed(2)}).
                     </p>
                   </div>
                 )}
