@@ -1185,6 +1185,127 @@ app.get('/api/v1/dashboard', async (req, res) => {
   }
 });
 
+// Dashboard stats endpoint (specific stats for dashboard page)
+app.get('/api/v1/dashboard/stats', async (req, res) => {
+  try {
+    console.log('Dashboard stats endpoint called');
+    
+    // Get comprehensive stats from different tables
+    const [
+      { data: quotations, error: quotationsError },
+      { data: customers, error: customersError },
+      { data: products, error: productsError },
+      { data: purchaseOrders, error: poError },
+      { data: invoices, error: invoicesError },
+      { data: vendorBills, error: vendorBillsError }
+    ] = await Promise.all([
+      supabase.from('quotations').select('status, total_amount, created_at'),
+      supabase.from('customers').select('id, name, created_at'),
+      supabase.from('products').select('current_stock, reorder_point, last_purchase_price'),
+      supabase.from('purchase_orders').select('status, total_amount'),
+      supabase.from('invoices').select('status, total_amount'),
+      supabase.from('vendor_bills').select('status, total_amount')
+    ]);
+
+    if (quotationsError || customersError || productsError || poError) {
+      console.error('Dashboard stats fetch error:', { quotationsError, customersError, productsError, poError });
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch dashboard stats'
+      });
+    }
+
+    // Calculate comprehensive stats
+    const totalQuotations = quotations?.length || 0;
+    const totalCustomers = customers?.length || 0;
+    const totalProducts = products?.length || 0;
+    const totalPurchaseOrders = purchaseOrders?.length || 0;
+    
+    const pendingQuotations = quotations?.filter(q => q.status === 'pending' || q.status === 'draft').length || 0;
+    const convertedQuotations = quotations?.filter(q => q.status === 'converted' || q.status === 'accepted').length || 0;
+    
+    const totalRevenue = quotations?.filter(q => q.status === 'converted' || q.status === 'accepted')
+      .reduce((sum, q) => sum + (parseFloat(q.total_amount) || 0), 0) || 0;
+    
+    // Product stats
+    const lowStockItems = products?.filter(p => p.current_stock <= p.reorder_point).length || 0;
+    const outOfStockItems = products?.filter(p => p.current_stock === 0).length || 0;
+    const totalInventoryValue = products?.reduce((sum, p) => sum + (p.current_stock * (p.last_purchase_price || 0)), 0) || 0;
+    
+    // Purchase order stats
+    const pendingPOs = purchaseOrders?.filter(po => po.status === 'pending').length || 0;
+    const totalPurchaseValue = purchaseOrders?.reduce((sum, po) => sum + (parseFloat(po.total_amount) || 0), 0) || 0;
+    
+    // Invoice stats
+    const totalInvoices = invoices?.length || 0;
+    const pendingInvoices = invoices?.filter(inv => inv.status === 'pending' || inv.status === 'draft').length || 0;
+    const paidInvoices = invoices?.filter(inv => inv.status === 'paid').length || 0;
+    
+    // Vendor bills stats
+    const totalVendorBills = vendorBills?.length || 0;
+    const pendingVendorBills = vendorBills?.filter(bill => bill.status === 'pending').length || 0;
+
+    // Recent activity (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentQuotations = quotations?.filter(q => new Date(q.created_at) >= thirtyDaysAgo).length || 0;
+    const recentCustomers = customers?.filter(c => new Date(c.created_at) >= thirtyDaysAgo).length || 0;
+
+    const stats = {
+      // Core metrics
+      totalQuotations,
+      totalCustomers,
+      totalProducts,
+      totalPurchaseOrders,
+      totalInvoices,
+      totalVendorBills,
+      
+      // Status-based metrics
+      pendingQuotations,
+      convertedQuotations,
+      pendingPOs,
+      pendingInvoices,
+      paidInvoices,
+      pendingVendorBills,
+      
+      // Financial metrics
+      totalRevenue: parseFloat(totalRevenue.toFixed(2)),
+      totalPurchaseValue: parseFloat(totalPurchaseValue.toFixed(2)),
+      totalInventoryValue: parseFloat(totalInventoryValue.toFixed(2)),
+      
+      // Inventory metrics
+      lowStockItems,
+      outOfStockItems,
+      
+      // Conversion rates
+      conversionRate: totalQuotations > 0 ? parseFloat(((convertedQuotations / totalQuotations) * 100).toFixed(1)) : 0,
+      
+      // Recent activity
+      recentQuotations,
+      recentCustomers,
+      
+      // Additional calculated metrics
+      averageQuoteValue: totalQuotations > 0 ? parseFloat((totalRevenue / totalQuotations).toFixed(2)) : 0,
+      invoiceCollectionRate: totalInvoices > 0 ? parseFloat(((paidInvoices / totalInvoices) * 100).toFixed(1)) : 0
+    };
+
+    console.log('Dashboard stats calculated successfully:', stats);
+
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Dashboard stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
 // Invoices endpoint
 app.get('/api/v1/invoices', async (req, res) => {
   try {
