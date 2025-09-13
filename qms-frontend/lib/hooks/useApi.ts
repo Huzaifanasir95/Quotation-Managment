@@ -72,6 +72,14 @@ export function useFinancialMetrics(params?: { date_from?: string; date_to?: str
   });
 }
 
+export function useAccountingMetrics() {
+  return useQuery({
+    queryKey: ['accounting-metrics'],
+    queryFn: () => apiClient.getAccountingMetrics(),
+    staleTime: 2 * 60 * 1000, // 2 minutes - should be fresh for accounting data
+  });
+}
+
 export function useChartOfAccounts() {
   return useQuery({
     queryKey: queryKeys.chartOfAccounts,

@@ -357,4 +357,143 @@ router.get('/metrics/summary', authenticateToken, authorize(['admin', 'finance',
   });
 }));
 
+// Get comprehensive accounting metrics
+router.get('/metrics/accounting', authenticateToken, authorize(['admin', 'finance', 'auditor']), asyncHandler(async (req, res) => {
+  try {
+    // Get pending receivable invoices (customers owe money)
+    const { data: pendingInvoices, error: invoicesError } = await supabaseAdmin
+      .from('invoices')
+      .select(`
+        id,
+        invoice_number,
+        total_amount,
+        paid_amount,
+        due_date,
+        status,
+        customers(name)
+      `)
+      .neq('status', 'paid')
+      .neq('status', 'cancelled');
+
+    if (invoicesError) {
+      throw new Error(`Failed to fetch pending invoices: ${invoicesError.message}`);
+    }
+
+    // Get pending payable vendor bills (we owe money to vendors)
+    const { data: pendingVendorBills, error: vendorBillsError } = await supabaseAdmin
+      .from('vendor_bills')
+      .select(`
+        id,
+        bill_number,
+        total_amount,
+        paid_amount,
+        due_date,
+        status,
+        vendors(name)
+      `)
+      .neq('status', 'paid');
+
+    if (vendorBillsError) {
+      throw new Error(`Failed to fetch vendor bills: ${vendorBillsError.message}`);
+    }
+
+    // Calculate metrics
+    const receivables = {
+      count: pendingInvoices?.length || 0,
+      totalAmount: pendingInvoices?.reduce((sum, inv) => sum + ((inv.total_amount || 0) - (inv.paid_amount || 0)), 0) || 0,
+      overdueCount: 0,
+      overdueAmount: 0
+    };
+
+    const payables = {
+      count: pendingVendorBills?.length || 0,
+      totalAmount: pendingVendorBills?.reduce((sum, bill) => sum + ((bill.total_amount || 0) - (bill.paid_amount || 0)), 0) || 0,
+      overdueCount: 0,
+      overdueAmount: 0
+    };
+
+    // Calculate overdue items
+    const today = new Date();
+    
+    if (pendingInvoices) {
+      pendingInvoices.forEach(invoice => {
+        if (invoice.due_date && new Date(invoice.due_date) < today) {
+          receivables.overdueCount++;
+          receivables.overdueAmount += (invoice.total_amount || 0) - (invoice.paid_amount || 0);
+        }
+      });
+    }
+
+    if (pendingVendorBills) {
+      pendingVendorBills.forEach(bill => {
+        if (bill.due_date && new Date(bill.due_date) < today) {
+          payables.overdueCount++;
+          payables.overdueAmount += (bill.total_amount || 0) - (bill.paid_amount || 0);
+        }
+      });
+    }
+
+    // Get ledger-based metrics for P&L
+    const { data: entries } = await supabaseAdmin
+      .from('ledger_entries')
+      .select(`
+        reference_type,
+        total_debit,
+        total_credit,
+        ledger_entry_lines (
+          debit_amount,
+          credit_amount,
+          chart_of_accounts (
+            account_type
+          )
+        )
+      `);
+
+    const pnlMetrics = {
+      totalSales: 0,
+      totalPurchases: 0,
+      expenses: 0,
+      netProfit: 0
+    };
+
+    entries?.forEach(entry => {
+      entry.ledger_entry_lines?.forEach(line => {
+        const accountType = line.chart_of_accounts?.account_type;
+        if (accountType === 'revenue') {
+          pnlMetrics.totalSales += line.credit_amount || 0;
+        } else if (accountType === 'expense') {
+          pnlMetrics.expenses += line.debit_amount || 0;
+        }
+      });
+      
+      if (entry.reference_type === 'purchase_order') {
+        pnlMetrics.totalPurchases += entry.total_debit || 0;
+      }
+    });
+    
+    pnlMetrics.netProfit = pnlMetrics.totalSales - pnlMetrics.totalPurchases - pnlMetrics.expenses;
+
+    res.json({
+      success: true,
+      data: {
+        receivables,
+        payables,
+        pnl: pnlMetrics,
+        summary: {
+          totalOutstanding: receivables.totalAmount + payables.totalAmount,
+          netReceivables: receivables.totalAmount - payables.totalAmount,
+          totalOverdue: receivables.overdueAmount + payables.overdueAmount
+        }
+      }
+    });
+
+  } catch (error) {
+    res.status(400).json({
+      error: 'Failed to fetch accounting metrics',
+      code: 'ACCOUNTING_METRICS_FAILED',
+      details: error.message
+    });
+  }
+}));
+
 module.exports = router;

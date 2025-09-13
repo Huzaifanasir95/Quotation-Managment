@@ -10,7 +10,7 @@ import {
   LazyLedgerEntryDetailsModal
 } from '../components/LazyComponents';
 import { LedgerEntry, FinancialMetrics } from '../lib/api';
-import { useLedgerEntries, useFinancialMetrics } from '../../lib/hooks/useApi';
+import { useLedgerEntries, useFinancialMetrics, useAccountingMetrics } from '../../lib/hooks/useApi';
 
 // Memoized KPI Card component to prevent unnecessary re-renders
 const KPICard = memo(({ title, value, color, icon }: {
@@ -93,6 +93,12 @@ const AccountingPage = () => {
     error: metricsError 
   } = useFinancialMetrics(metricsParams);
 
+  const { 
+    data: accountingMetricsResponse, 
+    isLoading: accountingMetricsLoading, 
+    error: accountingMetricsError 
+  } = useAccountingMetrics();
+
   // Extract data with fallbacks
   const ledgerEntries = ledgerResponse?.data?.entries || [];
   const financialMetrics = metricsResponse?.data?.metrics || {
@@ -104,8 +110,15 @@ const AccountingPage = () => {
     pendingAmount: 0
   };
 
-  const loading = ledgerLoading || metricsLoading;
-  const error = ledgerError?.message || metricsError?.message || null;
+  const accountingMetrics = accountingMetricsResponse?.data || {
+    receivables: { count: 0, totalAmount: 0, overdueCount: 0, overdueAmount: 0 },
+    payables: { count: 0, totalAmount: 0, overdueCount: 0, overdueAmount: 0 },
+    pnl: { totalSales: 0, totalPurchases: 0, expenses: 0, netProfit: 0 },
+    summary: { totalOutstanding: 0, netReceivables: 0, totalOverdue: 0 }
+  };
+
+  const loading = ledgerLoading || metricsLoading || accountingMetricsLoading;
+  const error = ledgerError?.message || metricsError?.message || accountingMetricsError?.message || null;
 
   // Memoized filtered entries to prevent unnecessary recalculations
   const entriesWithBalance = useMemo(() => {
@@ -163,7 +176,54 @@ const AccountingPage = () => {
     <AppLayout>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8"></div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Accounting Dashboard</h1>
+          <p className="mt-2 text-gray-600">Monitor your financial metrics, pending invoices, and accounting entries</p>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <KPICard
+            title="Accounts Receivable"
+            value={accountingMetrics.receivables.totalAmount}
+            color="bg-blue-100"
+            icon={
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+            }
+          />
+          <KPICard
+            title="Accounts Payable"
+            value={accountingMetrics.payables.totalAmount}
+            color="bg-red-100"
+            icon={
+              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            }
+          />
+          <KPICard
+            title="Pending Invoices"
+            value={`${accountingMetrics.receivables.count} invoices`}
+            color="bg-yellow-100"
+            icon={
+              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            }
+          />
+          <KPICard
+            title="Net Receivables"
+            value={accountingMetrics.summary.netReceivables}
+            color="bg-green-100"
+            icon={
+              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            }
+          />
+        </div>
 
 
         {/* Quick Actions */}

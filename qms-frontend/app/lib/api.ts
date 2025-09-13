@@ -490,6 +490,11 @@ class ApiClient {
     return this.request(endpoint);
   }
 
+  // Get comprehensive accounting metrics (receivables, payables, P&L)
+  async getAccountingMetrics() {
+    return this.request('/ledger/metrics/accounting');
+  }
+
   // Accounts Receivable (Sales Invoices) - Money customers owe you
   async getReceivableInvoices(params?: { 
     page?: number; 

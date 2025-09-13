@@ -57,35 +57,60 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
     try {
       let response;
       if (activeTab === 'receivable') {
-        response = await apiClient.getReceivableInvoices({ limit: 100, status: 'pending' });
+        // Fetch customer invoices (money owed by customers)
+        response = await apiClient.getReceivableInvoices({ 
+          limit: 100, 
+          status: undefined // Don't filter by status initially, we'll handle all non-paid invoices
+        });
       } else {
-        response = await apiClient.getPayableInvoices({ limit: 100, status: 'pending' });
+        // Fetch vendor bills (money we owe to vendors)  
+        response = await apiClient.getPayableInvoices({ 
+          limit: 100, 
+          status: undefined // Don't filter by status initially, we'll handle all non-paid bills
+        });
       }
+      
       if (response.success) {
-        const transformedInvoices: TransformedInvoice[] = response.data.invoices?.map((invoice: any) => {
+        const invoicesData = activeTab === 'receivable' ? 
+          response.data.invoices : response.data.vendorBills;
+        
+        const transformedInvoices: TransformedInvoice[] = invoicesData?.map((invoice: any) => {
           const today = new Date();
           const dueDate = new Date(invoice.due_date);
           const daysOverdue = Math.max(0, Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)));
+          
+          // Determine status based on payment and due date
           let status = 'Due Soon';
-          if (daysOverdue > 0) {
-            status = 'Overdue';
-          } else if (invoice.status === 'paid') {
+          if (invoice.status === 'paid') {
             status = 'Paid';
+          } else if (daysOverdue > 0) {
+            status = 'Overdue';
+          } else if (invoice.status === 'cancelled') {
+            status = 'Cancelled';
           }
+
+          // Calculate remaining amount
+          const remainingAmount = (invoice.total_amount || 0) - (invoice.paid_amount || 0);
+          
           return {
-            id: invoice.invoice_number || invoice.id,
-            party: activeTab === 'receivable' ? (invoice.customers?.name || 'Unknown Customer') : (invoice.vendors?.name || 'Unknown Vendor'),
-            amount: invoice.total_amount || 0,
+            id: invoice.invoice_number || invoice.bill_number || invoice.id,
+            party: activeTab === 'receivable' ? 
+              (invoice.customers?.name || 'Unknown Customer') : 
+              (invoice.vendors?.name || 'Unknown Vendor'),
+            amount: remainingAmount,
             dueDate: invoice.due_date,
             status: status,
             daysOverdue: daysOverdue,
             fbrSync: invoice.fbr_sync_status === 'synced' ? 'Synced' : 
-                     invoice.fbr_sync_status === 'pending' ? 'Pending' : 'Failed',
+                     invoice.fbr_sync_status === 'pending' ? 'Pending' : 
+                     invoice.fbr_sync_status === 'failed' ? 'Failed' : 'N/A',
             lastReminder: invoice.last_reminder_date || 'N/A',
             notes: invoice.notes || 'No notes'
           };
-        }) || [];
+        })?.filter((inv: TransformedInvoice) => inv.status !== 'Paid' && inv.status !== 'Cancelled' && inv.amount > 0) || [];
+        
         setInvoices(transformedInvoices);
+        
         // Extract unique parties
         const uniqueParties = Array.from(new Set(transformedInvoices.map(inv => inv.party)));
         setParties(['All', ...uniqueParties]);
