@@ -220,7 +220,7 @@ const AccountingPage = () => {
         {/* Quick Actions */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <button
               onClick={() => setShowPLReport(true)}
               className="flex items-center justify-center p-4 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors duration-200"
@@ -252,6 +252,16 @@ const AccountingPage = () => {
             </button>
 
             <button
+              onClick={() => window.open('/invoices', '_blank')}
+              className="flex items-center justify-center p-4 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 border border-purple-200 transition-colors duration-200"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Manage Invoices
+            </button>
+
+            <button
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center justify-center p-4 rounded-lg border transition-colors duration-200 ${
                 showFilters 
@@ -264,6 +274,54 @@ const AccountingPage = () => {
               </svg>
               {showFilters ? 'Hide Filters' : 'Show Filters'}
             </button>
+          </div>
+        </div>
+
+        {/* Receivable Invoices Summary */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Accounts Receivable Summary</h3>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setShowPendingInvoices(true)}
+                className="text-sm px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+              >
+                View All
+              </button>
+              <button
+                onClick={() => window.open('/invoices', '_blank')}
+                className="text-sm px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+              >
+                Manage
+              </button>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{accountingMetrics.receivables.count}</div>
+              <div className="text-sm text-blue-700">Pending Invoices</div>
+            </div>
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">Rs. {accountingMetrics.receivables.totalAmount.toLocaleString()}</div>
+              <div className="text-sm text-green-700">Total Receivables</div>
+            </div>
+            <div className="text-center p-4 bg-red-50 rounded-lg">
+              <div className="text-2xl font-bold text-red-600">{accountingMetrics.receivables.overdueCount}</div>
+              <div className="text-sm text-red-700">Overdue Invoices</div>
+            </div>
+            <div className="text-center p-4 bg-orange-50 rounded-lg">
+              <div className="text-2xl font-bold text-orange-600">Rs. {accountingMetrics.receivables.overdueAmount.toLocaleString()}</div>
+              <div className="text-sm text-orange-700">Overdue Amount</div>
+            </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <div className="flex justify-between items-center text-sm text-gray-600">
+              <span>Collection Rate: {accountingMetrics.receivables.count > 0 ? Math.round(((accountingMetrics.receivables.count - accountingMetrics.receivables.overdueCount) / accountingMetrics.receivables.count) * 100) : 0}%</span>
+              <span>Avg. Days Outstanding: {accountingMetrics.receivables.count > 0 ? '~30 days' : 'N/A'}</span>
+              <span>Next Due: {accountingMetrics.receivables.count > 0 ? 'Check pending invoices' : 'N/A'}</span>
+            </div>
           </div>
         </div>
 

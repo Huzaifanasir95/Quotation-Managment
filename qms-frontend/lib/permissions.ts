@@ -87,6 +87,7 @@ export const navigationItems: Record<UserRole, Array<{
   admin: [
     { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { href: '/sales', label: 'Sales', icon: 'sales' },
+    { href: '/invoices', label: 'Invoices', icon: 'invoices' },
     { href: '/purchases', label: 'Purchases', icon: 'purchases' },
     { href: '/inventory', label: 'Inventory', icon: 'inventory' },
     { href: '/accounting', label: 'Accounting', icon: 'accounting' },
@@ -98,6 +99,7 @@ export const navigationItems: Record<UserRole, Array<{
   sales: [
     { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { href: '/sales', label: 'Sales', icon: 'sales' },
+    { href: '/invoices', label: 'Invoices', icon: 'invoices' },
     { href: '/inventory', label: 'Inventory', icon: 'inventory' },
     { href: '/reports', label: 'Reports', icon: 'reports' },
     { href: '/import-export', label: 'Import/Export', icon: 'import-export' }
@@ -113,6 +115,7 @@ export const navigationItems: Record<UserRole, Array<{
   
   finance: [
     { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { href: '/invoices', label: 'Invoices', icon: 'invoices' },
     { href: '/accounting', label: 'Accounting', icon: 'accounting' },
     { href: '/sales', label: 'Sales', icon: 'sales' },
     { href: '/reports', label: 'Reports', icon: 'reports' }
@@ -121,6 +124,7 @@ export const navigationItems: Record<UserRole, Array<{
   auditor: [
     { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { href: '/sales', label: 'Sales', icon: 'sales' },
+    { href: '/invoices', label: 'Invoices', icon: 'invoices' },
     { href: '/purchases', label: 'Purchases', icon: 'purchases' },
     { href: '/inventory', label: 'Inventory', icon: 'inventory' },
     { href: '/accounting', label: 'Accounting', icon: 'accounting' },

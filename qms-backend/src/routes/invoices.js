@@ -186,6 +186,158 @@ router.post('/', authenticateToken, authorize(['admin', 'sales', 'finance']), as
   });
 }));
 
+// Convert sales order to invoice
+router.post('/create-from-order', authenticateToken, authorize(['admin', 'sales', 'finance']), asyncHandler(async (req, res) => {
+  const { sales_order_id, invoice_date, due_date, notes } = req.body;
+
+  if (!sales_order_id) {
+    return res.status(400).json({
+      error: 'Sales order ID is required',
+      code: 'MISSING_SALES_ORDER_ID'
+    });
+  }
+
+  // Get the sales order with items
+  const { data: salesOrder, error: orderError } = await supabaseAdmin
+    .from('sales_orders')
+    .select(`
+      *,
+      customers(*),
+      business_entities(*),
+      sales_order_items(*),
+      quotations(quotation_number)
+    `)
+    .eq('id', sales_order_id)
+    .single();
+
+  if (orderError || !salesOrder) {
+    return res.status(404).json({
+      error: 'Sales order not found',
+      code: 'SALES_ORDER_NOT_FOUND'
+    });
+  }
+
+  // Check if sales order can be invoiced
+  if (salesOrder.status === 'cancelled') {
+    return res.status(400).json({
+      error: 'Cannot create invoice for cancelled sales order',
+      code: 'INVALID_ORDER_STATUS'
+    });
+  }
+
+  // Check if invoice already exists for this sales order
+  const { data: existingInvoice } = await supabaseAdmin
+    .from('invoices')
+    .select('invoice_number')
+    .eq('sales_order_id', sales_order_id)
+    .single();
+
+  if (existingInvoice) {
+    return res.status(400).json({
+      error: `Invoice ${existingInvoice.invoice_number} already exists for this sales order`,
+      code: 'INVOICE_ALREADY_EXISTS'
+    });
+  }
+
+  // Generate invoice number
+  const currentYear = new Date().getFullYear();
+  const { data: lastInvoice } = await supabaseAdmin
+    .from('invoices')
+    .select('invoice_number')
+    .like('invoice_number', `INV-${currentYear}-%`)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  let nextNumber = 1;
+  if (lastInvoice) {
+    const lastNumber = parseInt(lastInvoice.invoice_number.split('-')[2]);
+    nextNumber = lastNumber + 1;
+  }
+
+  const invoice_number = `INV-${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
+
+  // Prepare invoice data
+  const finalInvoiceData = {
+    invoice_number,
+    sales_order_id: salesOrder.id,
+    customer_id: salesOrder.customer_id,
+    business_entity_id: salesOrder.business_entity_id,
+    invoice_date: invoice_date || new Date().toISOString().split('T')[0],
+    due_date: due_date || (() => {
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30); // Default 30 days
+      return dueDate.toISOString().split('T')[0];
+    })(),
+    subtotal: salesOrder.subtotal,
+    tax_amount: salesOrder.tax_amount,
+    discount_amount: salesOrder.discount_amount,
+    total_amount: salesOrder.total_amount,
+    status: 'draft',
+    notes: notes || `Invoice generated from Sales Order ${salesOrder.order_number}`,
+    created_by: req.user.id
+  };
+
+  // Create invoice
+  const { data: invoice, error: invoiceError } = await supabaseAdmin
+    .from('invoices')
+    .insert(finalInvoiceData)
+    .select('*')
+    .single();
+
+  if (invoiceError) {
+    return res.status(400).json({
+      error: 'Failed to create invoice',
+      code: 'INVOICE_CREATION_FAILED',
+      details: invoiceError.message
+    });
+  }
+
+  // Create invoice items from sales order items
+  const invoiceItems = salesOrder.sales_order_items.map(item => ({
+    invoice_id: invoice.id,
+    product_id: item.product_id,
+    description: item.description,
+    quantity: item.quantity,
+    unit_price: item.unit_price,
+    discount_percent: item.discount_percent,
+    tax_percent: item.tax_percent,
+    line_total: item.line_total
+  }));
+
+  const { error: itemsError } = await supabaseAdmin
+    .from('invoice_items')
+    .insert(invoiceItems);
+
+  if (itemsError) {
+    // Rollback invoice creation
+    await supabaseAdmin.from('invoices').delete().eq('id', invoice.id);
+    return res.status(400).json({
+      error: 'Failed to create invoice items',
+      code: 'INVOICE_ITEMS_CREATION_FAILED',
+      details: itemsError.message
+    });
+  }
+
+  // Update sales order status to invoiced
+  await supabaseAdmin
+    .from('sales_orders')
+    .update({ status: 'invoiced' })
+    .eq('id', sales_order_id);
+
+  res.status(201).json({
+    success: true,
+    message: `Invoice ${invoice_number} created successfully from sales order ${salesOrder.order_number}`,
+    data: { 
+      invoice: {
+        ...invoice,
+        customer: salesOrder.customers,
+        business_entity: salesOrder.business_entities
+      }
+    }
+  });
+}));
+
 // Update FBR sync status
 router.patch('/:id/fbr-sync', authenticateToken, authorize(['admin', 'finance']), asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -229,6 +381,164 @@ router.patch('/:id/fbr-sync', authenticateToken, authorize(['admin', 'finance'])
     message: 'FBR sync status updated successfully',
     data: { invoice }
   });
+}));
+
+// Auto-generate invoices for completed deliveries
+router.post('/auto-generate', authenticateToken, authorize(['admin', 'sales', 'finance']), asyncHandler(async (req, res) => {
+  try {
+    // Get all delivered sales orders that don't have invoices yet
+    const { data: deliveredOrders, error: orderError } = await supabaseAdmin
+      .from('sales_orders')
+      .select(`
+        *,
+        customers(*),
+        business_entities(*),
+        sales_order_items(*),
+        quotations(quotation_number)
+      `)
+      .eq('status', 'delivered')
+      .is('invoice_generated', false); // Add this field to track if invoice was generated
+
+    if (orderError) {
+      throw new Error(`Failed to fetch delivered orders: ${orderError.message}`);
+    }
+
+    if (!deliveredOrders || deliveredOrders.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No delivered orders found that need invoicing',
+        data: { generatedInvoices: [] }
+      });
+    }
+
+    // Filter out orders that already have invoices
+    const ordersNeedingInvoices = [];
+    for (const order of deliveredOrders) {
+      const { data: existingInvoice } = await supabaseAdmin
+        .from('invoices')
+        .select('id')
+        .eq('sales_order_id', order.id)
+        .single();
+
+      if (!existingInvoice) {
+        ordersNeedingInvoices.push(order);
+      }
+    }
+
+    const generatedInvoices = [];
+
+    // Generate invoices for each delivered order
+    for (const salesOrder of ordersNeedingInvoices) {
+      try {
+        // Generate invoice number
+        const currentYear = new Date().getFullYear();
+        const { data: lastInvoice } = await supabaseAdmin
+          .from('invoices')
+          .select('invoice_number')
+          .like('invoice_number', `INV-${currentYear}-%`)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        let nextNumber = 1;
+        if (lastInvoice) {
+          const lastNumber = parseInt(lastInvoice.invoice_number.split('-')[2]);
+          nextNumber = lastNumber + 1;
+        }
+
+        const invoice_number = `INV-${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
+
+        // Calculate due date (30 days from delivery)
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30);
+
+        // Prepare invoice data
+        const finalInvoiceData = {
+          invoice_number,
+          sales_order_id: salesOrder.id,
+          customer_id: salesOrder.customer_id,
+          business_entity_id: salesOrder.business_entity_id,
+          invoice_date: new Date().toISOString().split('T')[0],
+          due_date: dueDate.toISOString().split('T')[0],
+          subtotal: salesOrder.subtotal,
+          tax_amount: salesOrder.tax_amount,
+          discount_amount: salesOrder.discount_amount,
+          total_amount: salesOrder.total_amount,
+          status: 'sent', // Auto-generated invoices are sent directly
+          notes: `Auto-generated invoice for delivered order ${salesOrder.order_number}`,
+          created_by: req.user.id
+        };
+
+        // Create invoice
+        const { data: invoice, error: invoiceError } = await supabaseAdmin
+          .from('invoices')
+          .insert(finalInvoiceData)
+          .select('*')
+          .single();
+
+        if (invoiceError) {
+          console.error(`Failed to create invoice for order ${salesOrder.order_number}:`, invoiceError);
+          continue;
+        }
+
+        // Create invoice items from sales order items
+        const invoiceItems = salesOrder.sales_order_items.map(item => ({
+          invoice_id: invoice.id,
+          product_id: item.product_id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_percent: item.discount_percent,
+          tax_percent: item.tax_percent,
+          line_total: item.line_total
+        }));
+
+        const { error: itemsError } = await supabaseAdmin
+          .from('invoice_items')
+          .insert(invoiceItems);
+
+        if (itemsError) {
+          // Rollback invoice creation
+          await supabaseAdmin.from('invoices').delete().eq('id', invoice.id);
+          console.error(`Failed to create invoice items for order ${salesOrder.order_number}:`, itemsError);
+          continue;
+        }
+
+        // Mark sales order as invoiced
+        await supabaseAdmin
+          .from('sales_orders')
+          .update({ 
+            status: 'invoiced',
+            invoice_generated: true
+          })
+          .eq('id', salesOrder.id);
+
+        generatedInvoices.push({
+          invoice_number,
+          order_number: salesOrder.order_number,
+          customer_name: salesOrder.customers?.name,
+          total_amount: salesOrder.total_amount
+        });
+
+      } catch (error) {
+        console.error(`Error generating invoice for order ${salesOrder.order_number}:`, error);
+        continue;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Successfully generated ${generatedInvoices.length} invoice(s) from delivered orders`,
+      data: { generatedInvoices }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to auto-generate invoices',
+      code: 'AUTO_GENERATION_FAILED',
+      details: error.message
+    });
+  }
 }));
 
 module.exports = router;

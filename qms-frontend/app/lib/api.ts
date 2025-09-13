@@ -569,6 +569,38 @@ class ApiClient {
     });
   }
 
+  async createInvoiceFromOrder(orderData: { sales_order_id: string; invoice_date?: string; due_date?: string; notes?: string }) {
+    return this.request('/invoices/create-from-order', {
+      method: 'POST',
+      body: JSON.stringify(orderData),
+    });
+  }
+
+  async autoGenerateInvoices() {
+    return this.request('/invoices/auto-generate', {
+      method: 'POST',
+    });
+  }
+
+  async updateDeliveryStatus(orderId: string, statusData: { delivery_status: string; delivery_date?: string; delivery_notes?: string }) {
+    return this.request(`/orders/${orderId}/delivery-status`, {
+      method: 'PATCH',
+      body: JSON.stringify(statusData),
+    });
+  }
+
+  async getSalesOrders(params?: { page?: number; limit?: number; search?: string; status?: string; customer_id?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.customer_id) queryParams.append('customer_id', params.customer_id);
+
+    const endpoint = `/orders${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request(endpoint);
+  }
+
   async updateInvoiceFBRSync(id: string, syncData: { fbr_sync_status: string; fbr_reference?: string }) {
     return this.request(`/invoices/${id}/fbr-sync`, {
       method: 'PATCH',
