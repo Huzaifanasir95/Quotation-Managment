@@ -194,7 +194,7 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
       case 'Cost of Goods Sold': return 'text-red-600';
       case 'Other Income': return 'text-green-600';
       case 'Other Expenses': return 'text-orange-600';
-      default: return 'text-gray-600';
+      default: return 'text-gray-800';
     }
   };
 
@@ -205,13 +205,13 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900">Add Ledger Entry</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+          <button onClick={onClose} className="text-gray-600 hover:text-gray-800">✕</button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6">
           {/* Entry Type Selection */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">Entry Type *</label>
+            <label className="block text-sm font-medium text-gray-800 mb-3">Entry Type *</label>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {entryTypes.map((type) => (
                 <button
@@ -221,7 +221,7 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
                   className={`p-3 border rounded-lg text-center transition-colors duration-200 ${
                     entryData.type === type.value
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-300 hover:border-gray-400'
+                      : 'border-gray-300 hover:border-gray-400 text-gray-800'
                   }`}
                 >
                   <div className="text-lg mb-1">{type.icon}</div>
@@ -234,12 +234,12 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
           {/* Basic Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
+              <label className="block text-sm font-medium text-gray-800 mb-2">Date *</label>
               <input
                 type="date"
                 value={entryData.date}
                 onChange={(e) => handleInputChange('date', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${
                   errors.date ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
@@ -247,12 +247,12 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Reference</label>
+              <label className="block text-sm font-medium text-gray-800 mb-2">Reference</label>
               <input
                 type="text"
                 value={entryData.reference}
                 onChange={(e) => handleInputChange('reference', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                 placeholder="e.g., ADJ-2024-001, COR-2024-001"
               />
             </div>
@@ -260,12 +260,12 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
 
           {/* Description */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+            <label className="block text-sm font-medium text-gray-800 mb-2">Description *</label>
             <textarea
               value={entryData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               rows={2}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 ${
                 errors.description ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Detailed description of this ledger entry..."
@@ -276,7 +276,7 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
           {/* Ledger Lines */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
-              <label className="block text-sm font-medium text-gray-700">Ledger Lines *</label>
+              <label className="block text-sm font-medium text-gray-800">Ledger Lines *</label>
               <button
                 type="button"
                 onClick={addLine}
@@ -289,7 +289,7 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
             {loadingAccounts ? (
               <div className="text-center py-4">
                 <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <span className="ml-2 text-sm text-gray-500">Loading accounts...</span>
+                <span className="ml-2 text-sm text-gray-800">Loading accounts...</span>
               </div>
             ) : (
               <div className="space-y-4">
@@ -310,17 +310,17 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="lg:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Account *</label>
+                        <label className="block text-sm font-medium text-gray-800 mb-1">Account *</label>
                         <select
                           value={line.accountId}
                           onChange={(e) => handleLineChange(index, 'accountId', e.target.value)}
-                          className={`w-full text-black px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                          className={`w-full text-gray-900 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                             errors[`line${index}Account`] ? 'border-red-500' : 'border-gray-300'
                           }`}
                         >
-                          <option value="">Select account...</option>
+                          <option value="" className="text-gray-500">Select account...</option>
                           {accounts.map(account => (
-                            <option key={account.id} value={account.id}>
+                            <option key={account.id} value={account.id} className="text-gray-900">
                               {account.account_code} - {account.account_name}
                             </option>
                           ))}
@@ -329,12 +329,12 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Debit</label>
+                        <label className="block text-sm font-medium text-gray-800 mb-1">Debit</label>
                         <input
                           type="number"
                           value={line.debitAmount}
                           onChange={(e) => handleLineChange(index, 'debitAmount', Number(e.target.value))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                           placeholder="0.00"
                           min="0"
                           step="0.01"
@@ -342,12 +342,12 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Credit</label>
+                        <label className="block text-sm font-medium text-gray-800 mb-1">Credit</label>
                         <input
                           type="number"
                           value={line.creditAmount}
                           onChange={(e) => handleLineChange(index, 'creditAmount', Number(e.target.value))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                           placeholder="0.00"
                           min="0"
                           step="0.01"
@@ -356,12 +356,12 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
                     </div>
                     
                     <div className="mt-3">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Line Description</label>
+                      <label className="block text-sm font-medium text-gray-800 mb-1">Line Description</label>
                       <input
                         type="text"
                         value={line.description}
                         onChange={(e) => handleLineChange(index, 'description', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                         placeholder="Optional line-specific description"
                       />
                     </div>
@@ -374,19 +374,19 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
-                      <p className="text-sm text-gray-600">Total Debits</p>
+                      <p className="text-sm text-gray-800 font-medium">Total Debits</p>
                       <p className="text-lg font-semibold text-red-600">
                         Rs. {entryData.lines.reduce((sum, line) => sum + line.debitAmount, 0).toFixed(2)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Total Credits</p>
+                      <p className="text-sm text-gray-800 font-medium">Total Credits</p>
                       <p className="text-lg font-semibold text-green-600">
                         Rs. {entryData.lines.reduce((sum, line) => sum + line.creditAmount, 0).toFixed(2)}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Difference</p>
+                      <p className="text-sm text-gray-800 font-medium">Difference</p>
                       <p className={`text-lg font-semibold ${
                         Math.abs(entryData.lines.reduce((sum, line) => sum + line.debitAmount, 0) - 
                                  entryData.lines.reduce((sum, line) => sum + line.creditAmount, 0)) < 0.01 

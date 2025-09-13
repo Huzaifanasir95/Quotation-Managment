@@ -86,15 +86,15 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">{entry.id}</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Entry #{entry.id}</h3>
               <p className="text-sm text-gray-600">{entry.description}</p>
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold text-gray-900">
-                Rs. {Math.abs(entry.credit - entry.debit).toLocaleString()}
+                Rs. {Math.max(entry.total_debit || 0, entry.total_credit || 0).toLocaleString()}
               </div>
               <div className="text-sm text-gray-600">
-                {entry.credit > entry.debit ? 'Credit' : 'Debit'}
+                {(entry.total_credit || 0) > (entry.total_debit || 0) ? 'Credit Entry' : 'Debit Entry'}
               </div>
             </div>
           </div>
@@ -130,27 +130,27 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
                   <h4 className="font-medium text-gray-900 mb-3">Entry Information</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Entry ID:</span>
-                      <span className="font-medium">{entry.id}</span>
+                      <span className="text-gray-800">Entry ID:</span>
+                      <span className="font-medium text-gray-900">{entry.id}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Date:</span>
-                      <span className="font-medium">{entry.date}</span>
+                      <span className="text-gray-800">Date:</span>
+                      <span className="font-medium text-gray-900">{entry.date}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Type:</span>
+                      <span className="text-gray-800">Type:</span>
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEntryTypeColor(entry.type)}`}>
                         {entry.type}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Account Type:</span>
+                      <span className="text-gray-800">Account Type:</span>
                       <span className={`font-medium ${getAccountTypeColor(entry.accountType)}`}>
                         {entry.accountType}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Reference:</span>
+                      <span className="text-gray-800">Reference:</span>
                       <span className="font-medium text-blue-600">{entry.reference}</span>
                     </div>
                   </div>
@@ -160,27 +160,27 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
                   <h4 className="font-medium text-gray-900 mb-3">Financial Details</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Debit Amount:</span>
-                      <span className={`font-medium ${entry.debit > 0 ? 'text-red-600' : 'text-gray-400'}`}>
-                        {entry.debit > 0 ? `Rs. ${entry.debit.toLocaleString()}` : '-'}
+                      <span className="text-gray-800">Debit Amount:</span>
+                      <span className={`font-medium ${(entry.total_debit || 0) > 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                        {(entry.total_debit || 0) > 0 ? `Rs. ${(entry.total_debit || 0).toLocaleString()}` : '-'}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Credit Amount:</span>
-                      <span className={`font-medium ${entry.credit > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                        {entry.credit > 0 ? `Rs. ${entry.credit.toLocaleString()}` : '-'}
+                      <span className="text-gray-800">Credit Amount:</span>
+                      <span className={`font-medium ${(entry.total_credit || 0) > 0 ? 'text-green-600' : 'text-gray-600'}`}>
+                        {(entry.total_credit || 0) > 0 ? `Rs. ${(entry.total_credit || 0).toLocaleString()}` : '-'}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Net Amount:</span>
-                      <span className={`font-medium text-lg ${entry.credit - entry.debit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        Rs. {Math.abs(entry.credit - entry.debit).toLocaleString()}
+                      <span className="text-gray-800">Net Amount:</span>
+                      <span className={`font-medium text-lg ${(entry.total_credit || 0) - (entry.total_debit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        Rs. {Math.abs((entry.total_credit || 0) - (entry.total_debit || 0)).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Balance:</span>
-                      <span className={`font-medium ${entry.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        Rs. {entry.balance.toLocaleString()}
+                      <span className="text-gray-800">Balance:</span>
+                      <span className={`font-medium ${(entry.total_credit || 0) >= (entry.total_debit || 0) ? 'text-green-600' : 'text-red-600'}`}>
+                        Rs. {Math.max(entry.total_debit || 0, entry.total_credit || 0).toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -191,12 +191,12 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
                 <h4 className="font-medium text-gray-900 mb-3">Additional Information</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Customer/Vendor</label>
-                    <p className="text-sm text-gray-900">{entry.customerVendor || 'Not specified'}</p>
+                    <label className="block text-sm font-medium text-gray-800 mb-2">Customer/Vendor</label>
+                    <p className="text-sm text-gray-900 font-medium">{entry.customerVendor || 'Not specified'}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <p className="text-sm text-gray-900">{entry.description}</p>
+                    <label className="block text-sm font-medium text-gray-800 mb-2">Description</label>
+                    <p className="text-sm text-gray-900 font-medium">{entry.description}</p>
                   </div>
                 </div>
               </div>
@@ -270,7 +270,7 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
                                   Rs. {mockTransaction.amount.toLocaleString()}
                                 </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
                                 <button className="text-blue-600 hover:text-blue-700 font-medium">
                                   View Details
                                 </button>
@@ -282,7 +282,7 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
                     </table>
                   ) : (
                     <div className="text-center py-8">
-                      <p className="text-gray-500">No linked transactions found.</p>
+                      <p className="text-gray-800">No linked transactions found.</p>
                     </div>
                   )}
                 </div>
@@ -306,15 +306,15 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
                     <h4 className="font-medium text-gray-900 mb-4">Tax Summary</h4>
                     <div className="space-y-3">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Subtotal:</span>
-                        <span className="font-medium">Rs. {(entry.taxBreakdown?.subtotal || 0).toLocaleString()}</span>
+                        <span className="text-gray-800">Subtotal:</span>
+                        <span className="font-medium text-gray-900">Rs. {(entry.taxBreakdown?.subtotal || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">GST:</span>
+                        <span className="text-gray-800">GST:</span>
                         <span className="font-medium text-green-600">Rs. {(entry.taxBreakdown?.gst || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Other Taxes:</span>
+                        <span className="text-gray-800">Other Taxes:</span>
                         <span className="font-medium text-orange-600">Rs. 0.00</span>
                       </div>
                       <div className="border-t pt-3">
@@ -330,18 +330,18 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
                     <h4 className="font-medium text-gray-900 mb-4">Tax Details</h4>
                     <div className="space-y-3">
                       <div className="bg-gray-50 rounded-lg p-3">
-                        <div className="text-sm text-gray-600">Tax Rate</div>
-                        <div className="text-lg font-medium">15% GST</div>
+                        <div className="text-sm text-gray-800 font-medium">Tax Rate</div>
+                        <div className="text-lg font-semibold text-gray-900">15% GST</div>
                       </div>
                       <div className="bg-gray-50 rounded-lg p-3">
-                        <div className="text-sm text-gray-600">Tax Calculation</div>
-                        <div className="text-sm font-medium">
+                        <div className="text-sm text-gray-800 font-medium">Tax Calculation</div>
+                        <div className="text-sm font-medium text-gray-900">
                           Rs. {(entry.taxBreakdown?.subtotal || 0).toLocaleString()} × 15% = Rs. {(entry.taxBreakdown?.gst || 0).toLocaleString()}
                         </div>
                       </div>
                       <div className="bg-gray-50 rounded-lg p-3">
-                        <div className="text-sm text-gray-600">Tax Category</div>
-                        <div className="text-sm font-medium">Standard Rate</div>
+                        <div className="text-sm text-gray-800 font-medium">Tax Category</div>
+                        <div className="text-sm font-medium text-gray-900">Standard Rate</div>
                       </div>
                     </div>
                   </div>
@@ -365,7 +365,7 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
                   <h4 className="font-medium text-gray-900 mb-4">Sync Status</h4>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Current Status:</span>
+                      <span className="text-gray-800">Current Status:</span>
                       <span className={`inline-flex items-center px-3 py-1 text-sm font-semibold rounded-full ${getFBRStatusColor(entry.fbrSync)}`}>
                         <span className="mr-2">{getFBRStatusIcon(entry.fbrSync)}</span>
                         {entry.fbrSync}
@@ -373,16 +373,16 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
                     </div>
                     
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Last Sync Attempt:</span>
-                      <span className="text-sm text-gray-900">
+                      <span className="text-gray-800">Last Sync Attempt:</span>
+                      <span className="text-sm font-medium text-gray-900">
                         {entry.fbrSync === 'Synced' ? '2 hours ago' : 
                          entry.fbrSync === 'Pending' ? '5 minutes ago' : '1 day ago'}
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Next Sync:</span>
-                      <span className="text-sm text-gray-900">
+                      <span className="text-gray-800">Next Sync:</span>
+                      <span className="text-sm font-medium text-gray-900">
                         {entry.fbrSync === 'Synced' ? 'Not scheduled' : 
                          entry.fbrSync === 'Pending' ? 'In 10 minutes' : 'Retry in 1 hour'}
                       </span>
@@ -394,19 +394,19 @@ export default function LedgerEntryDetailsModal({ isOpen, onClose, entry }: Ledg
                   <h4 className="font-medium text-gray-900 mb-4">FBR Details</h4>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600">FBR Invoice Number:</span>
+                      <span className="text-gray-800">FBR Invoice Number:</span>
                       <span className="text-sm font-medium text-gray-900">
                         {entry.fbrSync === 'Synced' ? 'FBR-2024-001234' : 'Not assigned'}
                       </span>
                     </div>
                     
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600">POS ID:</span>
+                      <span className="text-gray-800">POS ID:</span>
                       <span className="text-sm font-medium text-gray-900">POS-001</span>
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Integration Type:</span>
+                      <span className="text-gray-800">Integration Type:</span>
                       <span className="text-sm font-medium text-gray-900">Real-time API</span>
                     </div>
                   </div>

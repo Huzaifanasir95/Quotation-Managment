@@ -19,3 +19,29 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Ensure all input placeholders are dark and visible */
+input::placeholder,
+textarea::placeholder,
+select::placeholder {
+  color: #6b7280 !important; /* gray-500 */
+  opacity: 1 !important;
+}
+
+/* Ensure all input text is dark */
+input,
+textarea,
+select {
+  color: #111827 !important; /* gray-900 */
+}
+
+/* Ensure date input values are visible */
+input[type="date"] {
+  color: #111827 !important; /* gray-900 */
+}
+
+/* Fix select option colors */
+select option {
+  color: #111827 !important; /* gray-900 */
+  background-color: white !important;
+}
