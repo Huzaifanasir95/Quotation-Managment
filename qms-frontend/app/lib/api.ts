@@ -369,6 +369,59 @@ class ApiClient {
     });
   }
 
+  // New vendor bill creation methods
+  async createVendorBillFromPO(billData: {
+    purchase_order_id: string;
+    bill_number: string;
+    bill_date: string;
+    due_date?: string;
+    received_items?: Array<any>;
+    notes?: string;
+  }) {
+    return this.request('/vendor-bills/create-from-po', {
+      method: 'POST',
+      body: JSON.stringify(billData),
+    });
+  }
+
+  async createExpenseBill(expenseData: {
+    bill_number: string;
+    vendor_id: string;
+    bill_date: string;
+    due_date?: string;
+    expense_category: string;
+    description?: string;
+    subtotal?: number;
+    tax_amount?: number;
+    total_amount: number;
+    notes?: string;
+  }) {
+    return this.request('/vendor-bills/create-expense', {
+      method: 'POST',
+      body: JSON.stringify(expenseData),
+    });
+  }
+
+  async getPendingPurchaseOrders(vendor_id?: string) {
+    const queryParams = new URLSearchParams();
+    if (vendor_id) queryParams.append('vendor_id', vendor_id);
+    
+    const endpoint = `/vendor-bills/pending-pos${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request(endpoint);
+  }
+
+  async updateVendorBillPayment(id: string, paymentData: {
+    paid_amount: number;
+    payment_date?: string;
+    payment_method?: string;
+    payment_reference?: string;
+  }) {
+    return this.request(`/vendor-bills/${id}/payment`, {
+      method: 'PATCH',
+      body: JSON.stringify(paymentData),
+    });
+  }
+
   // OCR methods
   async saveOCRResults(ocrData: any) {
     return this.request('/ocr/save-results', {

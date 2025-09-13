@@ -22,6 +22,7 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     { module: 'vendors', actions: ['view', 'create', 'edit', 'delete'] },
     { module: 'products', actions: ['view', 'create', 'edit', 'delete'] },
     { module: 'invoices', actions: ['view', 'create', 'edit', 'delete'] },
+    { module: 'payable-invoices', actions: ['view', 'create', 'edit', 'delete', 'pay'] },
     { module: 'orders', actions: ['view', 'create', 'edit', 'delete'] },
     { module: 'fbr', actions: ['view', 'create', 'edit', 'sync'] }
   ],
@@ -45,6 +46,7 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     { module: 'vendors', actions: ['view', 'create', 'edit', 'delete'] },
     { module: 'products', actions: ['view', 'create', 'edit'] },
     { module: 'inventory', actions: ['view', 'create', 'edit', 'adjust'] },
+    { module: 'payable-invoices', actions: ['view', 'create', 'edit'] },
     { module: 'reports', actions: ['view'] },
     { module: 'import-export', actions: ['view', 'create', 'edit'] }
   ],
@@ -53,6 +55,7 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     { module: 'dashboard', actions: ['view'] },
     { module: 'accounting', actions: ['view', 'create', 'edit', 'delete'] },
     { module: 'invoices', actions: ['view', 'create', 'edit', 'delete'] },
+    { module: 'payable-invoices', actions: ['view', 'create', 'edit', 'delete', 'pay'] },
     { module: 'reports', actions: ['view', 'export'] },
     { module: 'fbr', actions: ['view', 'create', 'sync'] },
     { module: 'quotations', actions: ['view'] },
@@ -73,6 +76,7 @@ export const rolePermissions: Record<UserRole, Permission[]> = {
     { module: 'customers', actions: ['view'] },
     { module: 'vendors', actions: ['view'] },
     { module: 'invoices', actions: ['view'] },
+    { module: 'payable-invoices', actions: ['view'] },
     { module: 'orders', actions: ['view'] },
     { module: 'audit-logs', actions: ['view', 'export'] }
   ]
@@ -88,6 +92,7 @@ export const navigationItems: Record<UserRole, Array<{
     { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { href: '/sales', label: 'Sales', icon: 'sales' },
     { href: '/invoices', label: 'Invoices', icon: 'invoices' },
+    { href: '/payable-invoices', label: 'Payable Invoices', icon: 'payable-invoices' },
     { href: '/purchases', label: 'Purchases', icon: 'purchases' },
     { href: '/inventory', label: 'Inventory', icon: 'inventory' },
     { href: '/accounting', label: 'Accounting', icon: 'accounting' },
@@ -108,6 +113,7 @@ export const navigationItems: Record<UserRole, Array<{
   procurement: [
     { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { href: '/purchases', label: 'Purchases', icon: 'purchases' },
+    { href: '/payable-invoices', label: 'Payable Invoices', icon: 'payable-invoices' },
     { href: '/inventory', label: 'Inventory', icon: 'inventory' },
     { href: '/reports', label: 'Reports', icon: 'reports' },
     { href: '/import-export', label: 'Import/Export', icon: 'import-export' }
@@ -116,6 +122,7 @@ export const navigationItems: Record<UserRole, Array<{
   finance: [
     { href: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { href: '/invoices', label: 'Invoices', icon: 'invoices' },
+    { href: '/payable-invoices', label: 'Payable Invoices', icon: 'payable-invoices' },
     { href: '/accounting', label: 'Accounting', icon: 'accounting' },
     { href: '/sales', label: 'Sales', icon: 'sales' },
     { href: '/reports', label: 'Reports', icon: 'reports' }
