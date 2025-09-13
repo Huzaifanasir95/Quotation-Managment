@@ -7,9 +7,9 @@ class ApiClient {
 
   constructor(baseURL: string) {
     this.baseURL = baseURL;
-    // Get token from localStorage or cookies if available
+    // Get token from session cookies only
     if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('auth_token') || this.getCookie('auth_token');
+      this.token = this.getCookie('auth_token');
     }
   }
 
@@ -25,37 +25,39 @@ class ApiClient {
     return null;
   }
 
-  private setCookie(name: string, value: string, days: number) {
+  private setSessionCookie(name: string, value: string) {
     if (typeof window === 'undefined') return;
-    const expires = new Date();
-    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
-    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax;Secure`;
+    // Session cookie - expires when browser closes
+    // For localhost development, don't use Secure flag
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const secureFlag = !isLocalhost ? ';Secure' : '';
+    document.cookie = `${name}=${value};path=/;SameSite=Lax${secureFlag}`;
   }
 
   private deleteCookie(name: string) {
     if (typeof window === 'undefined') return;
-    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax;Secure`;
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const secureFlag = !isLocalhost ? ';Secure' : '';
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax${secureFlag}`;
   }
 
   setToken(token: string) {
     this.token = token;
     if (typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', token);
-      this.setCookie('auth_token', token, 7); // 7 days
+      this.setSessionCookie('auth_token', token);
     }
   }
 
   clearToken() {
     this.token = null;
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token');
       this.deleteCookie('auth_token');
     }
   }
 
   refreshToken() {
     if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('auth_token') || this.getCookie('auth_token');
+      this.token = this.getCookie('auth_token');
     }
   }
 

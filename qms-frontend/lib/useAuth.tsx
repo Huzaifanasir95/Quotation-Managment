@@ -5,28 +5,49 @@ import { apiClient } from '../app/lib/api';
 import { UserRole, hasPermission, canAccessModule } from './permissions';
 
 // Cookie utility functions
-const setCookie = (name: string, value: string, days: number) => {
+const setSessionCookie = (name: string, value: string) => {
   if (typeof window === 'undefined') return;
-  const expires = new Date();
-  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
-  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax;Secure`;
+  console.log('🍪 Attempting to set cookie:', name, value.substring(0, 20) + '...');
+  
+  // Session cookie - expires when browser closes
+  // For localhost development, don't use Secure flag
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const secureFlag = !isLocalhost ? ';Secure' : '';
+  const cookieString = `${name}=${value};path=/;SameSite=Lax${secureFlag}`;
+  
+  console.log('🍪 Cookie string:', cookieString);
+  document.cookie = cookieString;
+  
+  // Verify it was set immediately
+  const verification = getCookie(name);
+  console.log('🍪 Immediate verification:', verification ? 'SUCCESS' : 'FAILED');
 };
 
 const getCookie = (name: string): string | null => {
   if (typeof window === 'undefined') return null;
+  console.log('🔍 Looking for cookie:', name);
+  console.log('🔍 All cookies:', document.cookie);
+  
   const nameEQ = name + '=';
   const ca = document.cookie.split(';');
   for (let i = 0; i < ca.length; i++) {
     let c = ca[i];
     while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    if (c.indexOf(nameEQ) === 0) {
+      const value = c.substring(nameEQ.length, c.length);
+      console.log('✅ Found cookie:', name, 'value:', value.substring(0, 20) + '...');
+      return value;
+    }
   }
+  console.log('❌ Cookie not found:', name);
   return null;
 };
 
 const deleteCookie = (name: string) => {
   if (typeof window === 'undefined') return;
-  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax;Secure`;
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const secureFlag = !isLocalhost ? ';Secure' : '';
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax${secureFlag}`;
 };
 
 interface User {
@@ -61,26 +82,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Clean up any existing localStorage auth data
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('auth_token');
+      console.log('🧹 Cleared any existing localStorage auth data');
+    }
     checkAuthStatus();
   }, []);
 
   const checkAuthStatus = async () => {
     try {
-      const token = localStorage.getItem('auth_token') || getCookie('auth_token');
+      // Only use session cookies - no localStorage
+      const token = getCookie('auth_token');
+      
       if (!token) {
+        console.log('❌ No token found in session cookies');
         setLoading(false);
         return;
       }
 
-      // Refresh token in API client
-      apiClient.refreshToken();
+      console.log('✅ Token found in session cookie, checking with backend...');
+      // Set token in API client
+      apiClient.setToken(token);
       const response = await apiClient.getProfile();
       if (response.success && response.data) {
+        console.log('✅ Profile verified, setting user');
         setUser(response.data.user);
-        // Ensure token is stored in both localStorage and cookie
-        localStorage.setItem('auth_token', token);
-        setCookie('auth_token', token, 7); // 7 days
       } else {
+        console.log('❌ Profile verification failed');
         clearAuthData();
       }
     } catch (error) {
@@ -92,7 +121,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearAuthData = () => {
-    localStorage.removeItem('auth_token');
     deleteCookie('auth_token');
     apiClient.clearToken();
   };
@@ -105,11 +133,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await apiClient.login(email, password);
       
       if (response.success && response.data.token) {
+        console.log('🎯 Setting user data:', response.data.user);
         setUser(response.data.user);
-        // Store token in both localStorage and cookie
-        localStorage.setItem('auth_token', response.data.token);
-        setCookie('auth_token', response.data.token, 7); // 7 days
+        // Store token only in session cookie (no localStorage)
+        setSessionCookie('auth_token', response.data.token);
         const totalTime = Date.now() - startTime;
+        console.log('✅ Login completed, token stored in session cookie only');
+        
+        // Verify cookie was set
+        setTimeout(() => {
+          const cookieCheck = getCookie('auth_token');
+          console.log('🍪 Cookie verification:', cookieCheck ? 'Cookie set successfully' : 'Cookie not found!');
+        }, 100);
+        
         return { success: true };
       } else {
         throw new Error(response.message || 'Login failed');

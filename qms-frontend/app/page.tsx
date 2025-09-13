@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
@@ -10,7 +10,7 @@ interface AuthFormData {
   password: string;
 }
 
-export default function HomePage() {
+function LoginForm() {
   const [error, setError] = useState('');
   const [loadingTime, setLoadingTime] = useState(0);
   const router = useRouter();
@@ -23,7 +23,9 @@ export default function HomePage() {
 
   // If user is already logged in, redirect them
   useEffect(() => {
+    console.log('🔍 Auth state check:', { user: !!user, loading, redirectUrl });
     if (user && !loading) {
+      console.log('🚀 Redirecting to:', redirectUrl);
       router.push(redirectUrl);
     }
   }, [user, loading, router, redirectUrl]);
@@ -53,8 +55,8 @@ export default function HomePage() {
       // Login using the auth context
       await login(data.email, data.password);
       const totalTime = Date.now() - startTime;
-      // Redirect to intended page or dashboard
-      router.push(redirectUrl);
+      console.log('✅ Login successful, user will be redirected by useEffect');
+      // Don't redirect here - let the useEffect handle it when user state updates
     } catch (err: any) {
       const totalTime = Date.now() - startTime;
       console.error(`❌ Auth error in ${totalTime}ms:`, err);
@@ -151,5 +153,22 @@ export default function HomePage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#56425b' }}>
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

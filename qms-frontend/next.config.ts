@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   /* config options here */
   env: {
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
+    JWT_SECRET: process.env.JWT_SECRET,
   },
   // Fix multiple lockfiles warning
   outputFileTracingRoot: __dirname,

@@ -17,10 +17,27 @@ const protectedRoutes = [
   '/import-export'
 ];
 
-export function middleware(request: NextRequest) {
+async function verifyToken(token: string): Promise<boolean> {
+  try {
+    // Validate token with backend only (no JWT verification in edge runtime)
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api/v1'}/auth/profile`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    return response.ok;
+  } catch (error) {
+    console.error('Token verification failed:', error);
+    return false;
+  }
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const authToken = request.cookies.get('auth_token')?.value || 
-                   request.headers.get('authorization')?.replace('Bearer ', '');
+  
+  // Get auth token from cookie
+  const authToken = request.cookies.get('auth_token')?.value;
 
   // Check if the current path is a protected route
   const isProtectedRoute = protectedRoutes.some(route => 
@@ -30,17 +47,35 @@ export function middleware(request: NextRequest) {
   // Check if the current path is a public route
   const isPublicRoute = publicRoutes.includes(pathname);
 
-  // If it's a protected route and there's no auth token, redirect to login
-  if (isProtectedRoute && !authToken) {
-    const loginUrl = new URL('/', request.url);
-    // Add the attempted URL as a redirect parameter
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+  // If it's a protected route, check authentication
+  if (isProtectedRoute) {
+    if (!authToken) {
+      const loginUrl = new URL('/', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Verify token server-side
+    const isValidToken = await verifyToken(authToken);
+    if (!isValidToken) {
+      // Clear invalid token and redirect to login
+      const response = NextResponse.redirect(new URL('/', request.url));
+      response.cookies.delete('auth_token');
+      return response;
+    }
   }
 
   // If user is authenticated and trying to access login page, redirect to dashboard
   if (isPublicRoute && authToken && pathname === '/') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    const isValidToken = await verifyToken(authToken);
+    if (isValidToken) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    } else {
+      // Clear invalid token
+      const response = NextResponse.next();
+      response.cookies.delete('auth_token');
+      return response;
+    }
   }
 
   return NextResponse.next();
