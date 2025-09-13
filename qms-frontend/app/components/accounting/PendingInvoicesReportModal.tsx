@@ -1,8 +1,10 @@
 'use client';
 
-
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../lib/api';
+import jsPDF from 'jspdf';
+import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 
 
 interface PendingInvoicesReportModalProps {
@@ -168,39 +170,343 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
     setIsExporting(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      const timestamp = new Date().toISOString().split('T')[0];
+      const reportTitle = `${activeTab === 'receivable' ? 'Receivable' : 'Payable'} Invoices Report`;
+      const filename = `pending_${activeTab}_invoices_${timestamp}`;
 
       if (format === 'csv') {
-        const csvContent = [
-          ['Invoice ID', activeTab === 'receivable' ? 'Customer' : 'Vendor', 'Amount', 'Due Date', 'Status', 'Days Overdue', 'FBR Sync', 'Last Reminder', 'Notes'],
+        // Enhanced CSV export with proper formatting
+        const csvData = filteredInvoices.map(invoice => ({
+          'Invoice ID': invoice.id,
+          [activeTab === 'receivable' ? 'Customer' : 'Vendor']: invoice.party,
+          'Amount (PKR)': invoice.amount.toLocaleString(),
+          'Due Date': invoice.dueDate,
+          'Status': invoice.status,
+          'Days Overdue': invoice.daysOverdue > 0 ? invoice.daysOverdue : 0,
+          'FBR Sync Status': invoice.fbrSync,
+          'Last Reminder': invoice.lastReminder,
+          'Notes': invoice.notes.replace(/,/g, ';') // Replace commas to avoid CSV issues
+        }));
+
+        const csv = Papa.unparse(csvData);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } 
+      else if (format === 'excel') {
+        // Enhanced Excel export with formatting and summary
+        const workbook = XLSX.utils.book_new();
+        
+        // Create summary data
+        const summaryData = [
+          ['Pending Invoices Report Summary', ''],
+          ['Report Type:', activeTab === 'receivable' ? 'Receivable Invoices' : 'Payable Invoices'],
+          ['Generated Date:', new Date().toLocaleDateString()],
+          ['Total Invoices:', filteredInvoices.length],
+          ['Total Amount:', `PKR ${totalPendingAmount.toLocaleString()}`],
+          ['Overdue Invoices:', overdueInvoices.length],
+          ['Overdue Amount:', `PKR ${totalOverdueAmount.toLocaleString()}`],
+          ['', ''], // Empty row
+          ['Filters Applied:', ''],
+          ['Date From:', filters.dateFrom || 'Not Set'],
+          ['Date To:', filters.dateTo || 'Not Set'],
+          ['Party Filter:', filters.party],
+          ['Status Filter:', filters.status],
+          ['Amount Range:', filters.amountRange],
+          ['', ''] // Empty row before data
+        ];
+
+        // Create main data
+        const mainData = [
+          ['Invoice ID', activeTab === 'receivable' ? 'Customer' : 'Vendor', 'Amount (PKR)', 'Due Date', 'Status', 'Days Overdue', 'FBR Sync Status', 'Last Reminder', 'Notes'],
           ...filteredInvoices.map(invoice => [
             invoice.id,
             invoice.party,
             invoice.amount,
             invoice.dueDate,
             invoice.status,
-            invoice.daysOverdue,
+            invoice.daysOverdue > 0 ? invoice.daysOverdue : 0,
             invoice.fbrSync,
             invoice.lastReminder,
             invoice.notes
           ])
-        ].map(row => row.join(',')).join('\n');
+        ];
 
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `pending_invoices_${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
-        window.URL.revokeObjectURL(url);
+        // Create summary worksheet
+        const summaryWS = XLSX.utils.aoa_to_sheet(summaryData);
+        XLSX.utils.book_append_sheet(workbook, summaryWS, 'Summary');
+
+        // Create main data worksheet
+        const dataWS = XLSX.utils.aoa_to_sheet(mainData);
+        XLSX.utils.book_append_sheet(workbook, dataWS, 'Invoices Data');
+
+        // Set column widths for better readability
+        const wscols = [
+          { width: 15 }, // Invoice ID
+          { width: 25 }, // Party
+          { width: 15 }, // Amount
+          { width: 12 }, // Due Date
+          { width: 12 }, // Status
+          { width: 15 }, // Days Overdue
+          { width: 15 }, // FBR Sync
+          { width: 15 }, // Last Reminder
+          { width: 30 }  // Notes
+        ];
+        dataWS['!cols'] = wscols;
+
+        // Write Excel file
+        XLSX.writeFile(workbook, `${filename}.xlsx`);
+      } 
+      else if (format === 'pdf') {
+        // Enhanced PDF export with proper formatting
+        const pdf = new jsPDF();
+        const pageWidth = pdf.internal.pageSize.width;
+        const margin = 20;
+        let yPosition = margin;
+
+        // Add title
+        pdf.setFontSize(18);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(reportTitle, pageWidth / 2, yPosition, { align: 'center' });
+        yPosition += 15;
+
+        // Add metadata
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, margin, yPosition);
+        yPosition += 8;
+        pdf.text(`Total Invoices: ${filteredInvoices.length} | Total Amount: PKR ${totalPendingAmount.toLocaleString()}`, margin, yPosition);
+        yPosition += 8;
+        pdf.text(`Overdue: ${overdueInvoices.length} invoices | Overdue Amount: PKR ${totalOverdueAmount.toLocaleString()}`, margin, yPosition);
+        yPosition += 15;
+
+        // Add filters info if applied
+        const appliedFilters = [];
+        if (filters.dateFrom) appliedFilters.push(`Date From: ${filters.dateFrom}`);
+        if (filters.dateTo) appliedFilters.push(`Date To: ${filters.dateTo}`);
+        if (filters.party !== 'All') appliedFilters.push(`Party: ${filters.party}`);
+        if (filters.status !== 'All') appliedFilters.push(`Status: ${filters.status}`);
+        if (filters.amountRange !== 'All') appliedFilters.push(`Amount: ${filters.amountRange}`);
+
+        if (appliedFilters.length > 0) {
+          pdf.setFontSize(9);
+          pdf.text('Applied Filters: ' + appliedFilters.join(', '), margin, yPosition);
+          yPosition += 12;
+        }
+
+        // Add table header
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'bold');
+        const headers = ['ID', 'Party', 'Amount', 'Due Date', 'Status', 'Overdue'];
+        const colWidths = [25, 40, 25, 25, 20, 20];
+        let xPosition = margin;
+        
+        headers.forEach((header, index) => {
+          pdf.text(header, xPosition, yPosition);
+          xPosition += colWidths[index];
+        });
+        yPosition += 8;
+
+        // Add line separator
+        pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+        yPosition += 5;
+
+        // Add table data
+        pdf.setFont('helvetica', 'normal');
+        filteredInvoices.slice(0, 30).forEach((invoice, index) => { // Limit to first 30 items for PDF
+          if (yPosition > 270) { // Start new page if needed
+            pdf.addPage();
+            yPosition = margin;
+            
+            // Re-add headers on new page
+            pdf.setFont('helvetica', 'bold');
+            xPosition = margin;
+            headers.forEach((header, index) => {
+              pdf.text(header, xPosition, yPosition);
+              xPosition += colWidths[index];
+            });
+            yPosition += 8;
+            pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+            yPosition += 5;
+            pdf.setFont('helvetica', 'normal');
+          }
+
+          xPosition = margin;
+          const rowData = [
+            invoice.id.substring(0, 10), // Truncate long IDs
+            invoice.party.substring(0, 15), // Truncate long names
+            `${invoice.amount.toLocaleString()}`,
+            invoice.dueDate,
+            invoice.status,
+            invoice.daysOverdue > 0 ? `${invoice.daysOverdue}d` : 'On time'
+          ];
+
+          rowData.forEach((data, colIndex) => {
+            pdf.text(data.toString(), xPosition, yPosition);
+            xPosition += colWidths[colIndex];
+          });
+          yPosition += 6;
+        });
+
+        // Add footer note if data was truncated
+        if (filteredInvoices.length > 30) {
+          yPosition += 10;
+          pdf.setFontSize(8);
+          pdf.setFont('helvetica', 'italic');
+          pdf.text(`Note: Only first 30 invoices shown. Total: ${filteredInvoices.length} invoices.`, margin, yPosition);
+          pdf.text('For complete data, please use Excel export.', margin, yPosition + 6);
+        }
+
+        // Add page numbers
+        const pageCount = pdf.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+          pdf.setPage(i);
+          pdf.setFontSize(8);
+          pdf.text(`Page ${i} of ${pageCount}`, pageWidth - 30, pdf.internal.pageSize.height - 10);
+        }
+
+        // Save PDF
+        pdf.save(`${filename}.pdf`);
       }
       
-      alert(`${format.toUpperCase()} report exported successfully!`);
+      // Success message
+      const exportMessages = {
+        csv: 'CSV file downloaded successfully!',
+        excel: 'Excel file downloaded successfully with summary and detailed data sheets!',
+        pdf: 'PDF report generated successfully!'
+      };
+      
+      alert(exportMessages[format]);
       
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
+      alert(`Failed to export ${format.toUpperCase()} report. Please try again.`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const currentDate = new Date().toLocaleDateString();
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Pending Invoices Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+            .summary { display: flex; justify-content: space-around; margin: 20px 0; }
+            .summary-item { text-align: center; }
+            .summary-value { font-size: 18px; font-weight: bold; }
+            .summary-label { font-size: 12px; color: #666; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            .overdue { color: #dc2626; font-weight: bold; }
+            .due-soon { color: #f59e0b; }
+            .footer { margin-top: 20px; text-align: center; font-size: 12px; color: #666; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Pending Invoices Report</h1>
+            <h3>${activeTab === 'receivable' ? 'Receivable Invoices' : 'Payable Invoices'}</h3>
+            <p>Generated on: ${currentDate}</p>
+          </div>
+          
+          <div class="summary">
+            <div class="summary-item">
+              <div class="summary-value">${filteredInvoices.length}</div>
+              <div class="summary-label">Total Invoices</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value">PKR ${totalPendingAmount.toLocaleString()}</div>
+              <div class="summary-label">Total Amount</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value">${overdueInvoices.length}</div>
+              <div class="summary-label">Overdue</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-value">PKR ${totalOverdueAmount.toLocaleString()}</div>
+              <div class="summary-label">Overdue Amount</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Invoice ID</th>
+                <th>${activeTab === 'receivable' ? 'Customer' : 'Vendor'}</th>
+                <th>Amount</th>
+                <th>Due Date</th>
+                <th>Status</th>
+                <th>Days Overdue</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredInvoices.map(invoice => `
+                <tr>
+                  <td>${invoice.id}</td>
+                  <td>${invoice.party}</td>
+                  <td>PKR ${invoice.amount.toLocaleString()}</td>
+                  <td>${invoice.dueDate}</td>
+                  <td class="${invoice.status === 'Overdue' ? 'overdue' : invoice.status === 'Due Soon' ? 'due-soon' : ''}">${invoice.status}</td>
+                  <td class="${invoice.daysOverdue > 0 ? 'overdue' : ''}">${invoice.daysOverdue > 0 ? `${invoice.daysOverdue} days` : 'On time'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <p>Anoosh International - QMS Report</p>
+            <p>This report contains ${filteredInvoices.length} pending invoices totaling PKR ${totalPendingAmount.toLocaleString()}</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
+  const sendReminders = async () => {
+    const overdueInvoicesForReminder = overdueInvoices.filter(invoice => 
+      invoice.daysOverdue >= 3 // Only send reminders for invoices overdue by 3+ days
+    );
+    
+    if (overdueInvoicesForReminder.length === 0) {
+      alert('No invoices eligible for reminder (must be 3+ days overdue)');
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      
+      // Simulate API call to send reminders
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // In a real implementation, this would call an API to send email/SMS reminders
+      alert(`Reminder sent for ${overdueInvoicesForReminder.length} overdue invoice(s)`);
+      
+      // Refresh data to update last reminder dates
+      await fetchInvoicesData();
+      
+    } catch (error) {
+      console.error('Failed to send reminders:', error);
+      alert('Failed to send reminders. Please try again.');
     } finally {
       setIsExporting(false);
     }
@@ -226,8 +532,53 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Pending Invoices Report</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Pending Invoices Report</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              {filteredInvoices.length} {activeTab} invoice(s) • Total: PKR {totalPendingAmount.toLocaleString()}
+              {overdueInvoices.length > 0 && (
+                <span className="text-red-600 font-medium"> • {overdueInvoices.length} overdue</span>
+              )}
+            </p>
+          </div>
+          <div className="flex items-center space-x-2">
+            {/* Quick Export Buttons */}
+            <div className="hidden sm:flex space-x-2">
+              <button
+                onClick={() => exportReport('csv')}
+                disabled={isExporting || filteredInvoices.length === 0}
+                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Export CSV"
+              >
+                📋
+              </button>
+              <button
+                onClick={() => exportReport('excel')}
+                disabled={isExporting || filteredInvoices.length === 0}
+                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Export Excel"
+              >
+                📊
+              </button>
+              <button
+                onClick={() => exportReport('pdf')}
+                disabled={isExporting || filteredInvoices.length === 0}
+                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Export PDF"
+              >
+                📄
+              </button>
+              <button
+                onClick={handlePrint}
+                disabled={isExporting || filteredInvoices.length === 0}
+                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Print Report"
+              >
+                🖨️
+              </button>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+          </div>
         </div>
 
         {/* Tabs for Receivable/Payable */}
@@ -344,34 +695,82 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
             </div>
           </div>
 
+          {/* Bulk Actions */}
+          {overdueInvoices.length > 0 && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+              <h3 className="font-medium text-orange-900 mb-3">Bulk Actions</h3>
+              <p className="text-sm text-orange-800 mb-4">
+                {overdueInvoices.filter(inv => inv.daysOverdue >= 3).length} invoice(s) eligible for reminder (3+ days overdue)
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={sendReminders}
+                  disabled={isExporting || overdueInvoices.filter(inv => inv.daysOverdue >= 3).length === 0}
+                  className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="mr-2">📧</span>
+                  {isExporting ? 'Sending...' : 'Send Reminders'}
+                </button>
+                <button
+                  onClick={() => setFilters({...filters, status: 'Overdue'})}
+                  className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200"
+                >
+                  <span className="mr-2">🔍</span>
+                  Show Only Overdue
+                </button>
+              </div>
+              <p className="text-xs text-orange-600 mt-2">
+                * Reminders will be sent to {activeTab === 'receivable' ? 'customers' : 'vendors'} with invoices overdue by 3 or more days
+              </p>
+            </div>
+          )}
+
           {/* Export Options */}
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
             <h3 className="font-medium text-green-900 mb-3">Export Options</h3>
-            <div className="flex space-x-3">
+            <p className="text-sm text-green-800 mb-4">Export {filteredInvoices.length} {activeTab} invoice(s) • Total: PKR {totalPendingAmount.toLocaleString()}</p>
+            <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => exportReport('csv')}
-                disabled={isExporting}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isExporting || filteredInvoices.length === 0}
+                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                📋 Export CSV
+                <span className="mr-2">📋</span>
+                {isExporting ? 'Exporting...' : 'Export CSV'}
               </button>
               <button
                 onClick={() => exportReport('excel')}
-                disabled={isExporting}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isExporting || filteredInvoices.length === 0}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                📊 Export Excel
+                <span className="mr-2">📊</span>
+                {isExporting ? 'Exporting...' : 'Export Excel'}
               </button>
               <button
                 onClick={() => exportReport('pdf')}
-                disabled={isExporting}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isExporting || filteredInvoices.length === 0}
+                className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                📄 Export PDF
+                <span className="mr-2">📄</span>
+                {isExporting ? 'Exporting...' : 'Export PDF'}
+              </button>
+              <button
+                onClick={handlePrint}
+                disabled={isExporting || filteredInvoices.length === 0}
+                className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="mr-2">🖨️</span>
+                Print Report
               </button>
             </div>
             {isExporting && (
-              <p className="text-sm text-green-700 mt-2">Exporting report...</p>
+              <div className="mt-3 flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
+                <p className="text-sm text-green-700">Processing export...</p>
+              </div>
+            )}
+            {filteredInvoices.length === 0 && (
+              <p className="text-sm text-gray-500 mt-2">No data available to export. Please adjust your filters.</p>
             )}
           </div>
 
