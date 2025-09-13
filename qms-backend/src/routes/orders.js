@@ -261,13 +261,13 @@ router.patch('/:id/delivery-status', authenticateToken, authorize(['admin', 'sal
     updated_at: new Date().toISOString()
   };
 
-  // Add delivery date if status is delivered
-  if (delivery_status === 'delivered' && delivery_date) {
-    updateData.delivery_date = delivery_date;
-  }
-
-  if (delivery_notes) {
-    updateData.delivery_notes = delivery_notes;
+  // Only add delivery fields if they exist in the database schema
+  // For now, we'll store this info in notes or create a separate delivery tracking table later
+  if (delivery_notes && delivery_status === 'delivered') {
+    // Store delivery info in the notes field for now
+    updateData.notes = currentOrder.notes 
+      ? `${currentOrder.notes}\n\nDelivery Update: ${delivery_notes} (${new Date().toLocaleDateString()})`
+      : `Delivery Update: ${delivery_notes} (${new Date().toLocaleDateString()})`;
   }
 
   const { data: order, error } = await supabaseAdmin
