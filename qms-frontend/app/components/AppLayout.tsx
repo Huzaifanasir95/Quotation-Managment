@@ -21,7 +21,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="text-sm text-gray-600">
-              © {new Date().getFullYear()} QMS - Quotation Management System
+              © {new Date().getFullYear()} QMS - Anoosh International
             </div>
             <div className="h-4 border-l border-gray-300"></div>
             <div className="text-sm text-gray-500">

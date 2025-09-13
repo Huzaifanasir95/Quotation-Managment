@@ -1,16 +1,16 @@
 {
-  "name": "QMS - Quotation Management System",
-  "short_name": "QMS",
-  "description": "Comprehensive Quotation Management System for Business Operations",
+  "name": "Anoosh International",
+  "short_name": "Anoosh",
+  "description": "Comprehensive Business Management System for Anoosh International",
   "icons": [
     {
-      "src": "/favicon-16x16.png",
-      "sizes": "16x16",
+      "src": "/Logo.png",
+      "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/favicon-32x32.png",
-      "sizes": "32x32",
+      "src": "/Logo.png",
+      "sizes": "512x512",
       "type": "image/png"
     },
     {

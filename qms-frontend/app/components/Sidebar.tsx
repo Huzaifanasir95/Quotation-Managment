@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../lib/useAuth';
 import { getNavigationForRole } from '../../lib/permissions';
@@ -60,8 +61,17 @@ export default function Sidebar() {
   if (loading) {
     return (
       <div className="fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-50">
-        <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a]">
-          <h1 className="text-2xl font-bold text-white">Anoosh International</h1>
+        <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a] px-4">
+          <div className="flex items-center space-x-2">
+            <Image
+              src="/Logo.png"
+              alt="Anoosh International Logo"
+              width={40}
+              height={40}
+              className="rounded-full"
+            />
+            <h1 className="text-xl font-bold text-white">Anoosh International</h1>
+          </div>
         </div>
         <div className="flex items-center justify-center h-32">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
@@ -74,8 +84,17 @@ export default function Sidebar() {
   if (!user) {
     return (
       <div className="fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-50">
-        <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a]">
-          <h1 className="text-2xl font-bold text-white">Anoosh International</h1>
+        <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a] px-4">
+          <div className="flex items-center space-x-2">
+            <Image
+              src="/Logo.png"
+              alt="Anoosh International Logo"
+              width={40}
+              height={40}
+              className="rounded-full"
+            />
+            <h1 className="text-xl font-bold text-white">Anoosh International</h1>
+          </div>
         </div>
         <div className="p-4 text-center">
           <p className="text-white text-sm">Please log in to continue</p>
@@ -109,8 +128,17 @@ export default function Sidebar() {
   return (
     <div className="fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-50">
       {/* Logo Section */}
-      <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a]">
-        <h1 className="text-2xl font-bold text-white">Anoosh International</h1>
+      <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a] px-4">
+        <div className="flex items-center space-x-2">
+          <Image
+            src="/Logo.png"
+            alt="Anoosh International Logo"
+            width={40}
+            height={40}
+            className="rounded-full"
+          />
+          <h1 className="text-xl font-bold text-white">Anoosh International</h1>
+        </div>
       </div>
 
       {/* User Info */}
