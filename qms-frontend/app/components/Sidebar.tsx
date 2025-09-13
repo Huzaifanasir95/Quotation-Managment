@@ -112,19 +112,6 @@ export default function Sidebar() {
     return pathname.startsWith(href);
   };
 
-  const getRoleBadge = (role: string) => {
-    const badges = {
-      admin: { color: 'bg-purple-100 text-purple-800', label: 'Admin' },
-      sales: { color: 'bg-blue-100 text-blue-800', label: 'Sales' },
-      procurement: { color: 'bg-green-100 text-green-800', label: 'Procurement' },
-      finance: { color: 'bg-yellow-100 text-yellow-800', label: 'Finance' },
-      auditor: { color: 'bg-gray-100 text-gray-800', label: 'Auditor' }
-    };
-    return badges[role as keyof typeof badges] || badges.auditor;
-  };
-
-  const roleBadge = getRoleBadge(user?.role || 'auditor');
-
   return (
     <div className="fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-50">
       {/* Logo Section */}
@@ -141,30 +128,8 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* User Info */}
-      <div className="p-4 border-b border-[#6b5b7a]">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-            <span className="text-[#56425b] font-medium text-sm">
-              {user?.first_name?.charAt(0) || 'U'}{user?.last_name?.charAt(0) || 'U'}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">
-              {user?.first_name || 'User'} {user?.last_name || 'Name'}
-            </p>
-            <div className="flex items-center space-x-2">
-              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${roleBadge.color}`}>
-                {roleBadge.label}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
-        {navigationItems.map((item) => {
+      <nav className="flex-1 p-4 space-y-2 mt-4">{navigationItems.map((item) => {
           const isItemActive = isActive(item.href);
           return (
             <Link
