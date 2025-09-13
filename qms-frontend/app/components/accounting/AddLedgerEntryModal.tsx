@@ -27,6 +27,9 @@ export default function AddLedgerEntryModal({ isOpen, onClose, onEntryAdded }: A
 
   const entryTypes = [
     { value: 'manual', label: 'Manual Adjustment', icon: '✏️' },
+    { value: 'sale', label: 'Sales Entry', icon: '🛒' },
+    { value: 'purchase', label: 'Purchase Entry', icon: '📦' },
+    { value: 'expense', label: 'Expense Entry', icon: '💸' },
     { value: 'correction', label: 'Correction Entry', icon: '🔄' },
     { value: 'reversal', label: 'Reversal Entry', icon: '↩️' },
     { value: 'opening', label: 'Opening Balance', icon: '🚪' },
