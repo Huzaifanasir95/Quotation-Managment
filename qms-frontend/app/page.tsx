@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
 
 interface AuthFormData {
@@ -14,8 +14,19 @@ export default function HomePage() {
   const [error, setError] = useState('');
   const [loadingTime, setLoadingTime] = useState(0);
   const router = useRouter();
-  const { login, loading } = useAuth();
+  const searchParams = useSearchParams();
+  const { login, loading, user } = useAuth();
   const { register, handleSubmit, formState: { errors } } = useForm<AuthFormData>();
+
+  // Get the redirect URL from search params
+  const redirectUrl = searchParams.get('redirect') || '/dashboard';
+
+  // If user is already logged in, redirect them
+  useEffect(() => {
+    if (user && !loading) {
+      router.push(redirectUrl);
+    }
+  }, [user, loading, router, redirectUrl]);
 
   // Update loading time every 100ms when loading
   useEffect(() => {
@@ -42,8 +53,8 @@ export default function HomePage() {
       // Login using the auth context
       await login(data.email, data.password);
       const totalTime = Date.now() - startTime;
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Redirect to intended page or dashboard
+      router.push(redirectUrl);
     } catch (err: any) {
       const totalTime = Date.now() - startTime;
       console.error(`❌ Auth error in ${totalTime}ms:`, err);

@@ -4,6 +4,31 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { apiClient } from '../app/lib/api';
 import { UserRole, hasPermission, canAccessModule } from './permissions';
 
+// Cookie utility functions
+const setCookie = (name: string, value: string, days: number) => {
+  if (typeof window === 'undefined') return;
+  const expires = new Date();
+  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax;Secure`;
+};
+
+const getCookie = (name: string): string | null => {
+  if (typeof window === 'undefined') return null;
+  const nameEQ = name + '=';
+  const ca = document.cookie.split(';');
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+  }
+  return null;
+};
+
+const deleteCookie = (name: string) => {
+  if (typeof window === 'undefined') return;
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax;Secure`;
+};
+
 interface User {
   id: string;
   email: string;
@@ -41,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuthStatus = async () => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('auth_token') || getCookie('auth_token');
       if (!token) {
         setLoading(false);
         return;
@@ -52,17 +77,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await apiClient.getProfile();
       if (response.success && response.data) {
         setUser(response.data.user);
+        // Ensure token is stored in both localStorage and cookie
+        localStorage.setItem('auth_token', token);
+        setCookie('auth_token', token, 7); // 7 days
       } else {
-        localStorage.removeItem('auth_token');
-        apiClient.clearToken();
+        clearAuthData();
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      localStorage.removeItem('auth_token');
-      apiClient.clearToken();
+      clearAuthData();
     } finally {
       setLoading(false);
     }
+  };
+
+  const clearAuthData = () => {
+    localStorage.removeItem('auth_token');
+    deleteCookie('auth_token');
+    apiClient.clearToken();
   };
 
   const login = async (email: string, password: string) => {
@@ -72,8 +104,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       const response = await apiClient.login(email, password);
       
-      if (response.success) {
+      if (response.success && response.data.token) {
         setUser(response.data.user);
+        // Store token in both localStorage and cookie
+        localStorage.setItem('auth_token', response.data.token);
+        setCookie('auth_token', response.data.token, 7); // 7 days
         const totalTime = Date.now() - startTime;
         return { success: true };
       } else {
@@ -89,8 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('auth_token');
-    apiClient.clearToken();
+    clearAuthData();
     setUser(null);
     window.location.href = '/';
   };
