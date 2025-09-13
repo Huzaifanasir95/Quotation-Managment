@@ -728,44 +728,49 @@ export default function GeneratePLReportModal({ isOpen, onClose }: GeneratePLRep
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4 bg-black bg-opacity-60" style={{ backdropFilter: 'blur(4px)' }}>
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-300 bg-gray-100">
           <h2 className="text-2xl font-bold text-gray-900">Generate Profit & Loss Report</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+          <button 
+            onClick={onClose} 
+            className="text-gray-600 hover:text-gray-800 hover:bg-gray-200 p-2 rounded-lg transition-colors duration-200 font-bold text-xl"
+          >
+            ✕
+          </button>
         </div>
 
         <div className="p-6">
           {/* Report Configuration */}
           <div className="mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Report Configuration</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Report Configuration</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date From *</label>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">Date From *</label>
                 <input
                   type="date"
                   value={reportConfig.dateFrom}
                   onChange={(e) => handleInputChange('dateFrom', e.target.value)}
-                  className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full text-gray-900 px-3 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date To *</label>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">Date To *</label>
                 <input
                   type="date"
                   value={reportConfig.dateTo}
                   onChange={(e) => handleInputChange('dateTo', e.target.value)}
-                  className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full text-gray-900 px-3 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Group By</label>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">Group By</label>
                 <select
                   value={reportConfig.groupBy}
                   onChange={(e) => handleInputChange('groupBy', e.target.value)}
-                  className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full text-gray-900 px-3 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {groupByOptions.map(option => (
                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -774,11 +779,11 @@ export default function GeneratePLReportModal({ isOpen, onClose }: GeneratePLRep
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Export Format</label>
+                <label className="block text-sm font-semibold text-gray-800 mb-2">Export Format</label>
                 <select
                   value={reportConfig.format}
                   onChange={(e) => handleInputChange('format', e.target.value)}
-                  className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full text-gray-900 px-3 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   {formatOptions.map(option => (
                     <option key={option.value} value={option.value}>{option.icon} {option.label}</option>
@@ -816,7 +821,7 @@ export default function GeneratePLReportModal({ isOpen, onClose }: GeneratePLRep
               <button
                 onClick={generateReport}
                 disabled={isGenerating || !reportConfig.dateFrom || !reportConfig.dateTo}
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 shadow-md"
               >
                 {isGenerating ? 'Generating Report...' : 'Generate Report'}
               </button>
@@ -826,108 +831,108 @@ export default function GeneratePLReportModal({ isOpen, onClose }: GeneratePLRep
           {/* Report Preview */}
           {reportData && (
             <div className="space-y-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-3">Report Generated Successfully!</h4>
-                <p className="text-sm text-blue-800">
+              <div className="bg-blue-50 border border-blue-300 rounded-lg p-4">
+                <h4 className="font-semibold text-blue-900 mb-3">Report Generated Successfully!</h4>
+                <p className="text-sm text-blue-900">
                   Period: {reportData.period} | Format: {reportConfig.format.toUpperCase()}
                 </p>
-                <p className="text-xs text-blue-700 mt-1">
+                <p className="text-xs text-blue-800 mt-1">
                   Data sourced from live accounting ledger entries
                 </p>
               </div>
 
               {/* Revenue Section */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h4 className="font-medium text-green-900 mb-3">Revenue</h4>
+              <div className="bg-green-50 border border-green-300 rounded-lg p-4">
+                <h4 className="font-semibold text-green-900 mb-3">Revenue</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
-                    <span className="text-green-700">Sales:</span>
-                    <span className="ml-2 font-medium">Rs. {reportData.revenue.sales.toLocaleString()}</span>
+                    <span className="text-green-800 font-medium">Sales:</span>
+                    <span className="ml-2 font-semibold text-gray-900">Rs. {reportData.revenue.sales.toLocaleString()}</span>
                   </div>
                   <div>
-                    <span className="text-green-700">Other Income:</span>
-                    <span className="ml-2 font-medium">Rs. {reportData.revenue.otherIncome.toLocaleString()}</span>
+                    <span className="text-green-800 font-medium">Other Income:</span>
+                    <span className="ml-2 font-semibold text-gray-900">Rs. {reportData.revenue.otherIncome.toLocaleString()}</span>
                   </div>
                   <div>
-                    <span className="text-green-700">Total Revenue:</span>
-                    <span className="ml-2 font-medium text-lg">Rs. {reportData.revenue.netRevenue.toLocaleString()}</span>
+                    <span className="text-green-800 font-medium">Total Revenue:</span>
+                    <span className="ml-2 font-bold text-lg text-gray-900">Rs. {reportData.revenue.netRevenue.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
 
               {/* Costs Section */}
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <h4 className="font-medium text-red-900 mb-3">Cost of Goods Sold</h4>
+              <div className="bg-red-50 border border-red-300 rounded-lg p-4">
+                <h4 className="font-semibold text-red-900 mb-3">Cost of Goods Sold</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
-                    <span className="text-red-700">Purchases:</span>
-                    <span className="ml-2 font-medium">Rs. {reportData.costOfGoodsSold.purchases.toLocaleString()}</span>
+                    <span className="text-red-800 font-medium">Purchases:</span>
+                    <span className="ml-2 font-semibold text-gray-900">Rs. {reportData.costOfGoodsSold.purchases.toLocaleString()}</span>
                   </div>
                   <div>
-                    <span className="text-red-700">Direct Expenses:</span>
-                    <span className="ml-2 font-medium">Rs. {reportData.costOfGoodsSold.directLabor.toLocaleString()}</span>
+                    <span className="text-red-800 font-medium">Direct Labor:</span>
+                    <span className="ml-2 font-semibold text-gray-900">Rs. {reportData.costOfGoodsSold.directLabor.toLocaleString()}</span>
                   </div>
                   <div>
-                    <span className="text-red-700">Total Costs:</span>
-                    <span className="ml-2 font-medium text-lg">Rs. {reportData.costOfGoodsSold.totalCogs.toLocaleString()}</span>
+                    <span className="text-red-800 font-medium">Total Costs:</span>
+                    <span className="ml-2 font-bold text-lg text-gray-900">Rs. {reportData.costOfGoodsSold.totalCogs.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
 
               {/* Expenses Section */}
               {reportConfig.includeExpenses && (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                  <h4 className="font-medium text-orange-900 mb-3">Operating Expenses</h4>
+                <div className="bg-orange-50 border border-orange-300 rounded-lg p-4">
+                  <h4 className="font-semibold text-orange-900 mb-3">Operating Expenses</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-orange-700">Salaries:</span>
-                      <span className="ml-2 font-medium">Rs. {reportData.operatingExpenses.salariesWages.toLocaleString()}</span>
+                      <span className="text-orange-800 font-medium">Salaries:</span>
+                      <span className="ml-2 font-semibold text-gray-900">Rs. {reportData.operatingExpenses.salariesWages.toLocaleString()}</span>
                     </div>
                     <div>
-                      <span className="text-orange-700">Rent:</span>
-                      <span className="ml-2 font-medium">Rs. {reportData.operatingExpenses.rentUtilities.toLocaleString()}</span>
+                      <span className="text-orange-800 font-medium">Rent:</span>
+                      <span className="ml-2 font-semibold text-gray-900">Rs. {reportData.operatingExpenses.rentUtilities.toLocaleString()}</span>
                     </div>
                     <div>
-                      <span className="text-orange-700">Utilities:</span>
-                      <span className="ml-2 font-medium">Rs. {reportData.operatingExpenses.officeExpenses.toLocaleString()}</span>
+                      <span className="text-orange-800 font-medium">Office:</span>
+                      <span className="ml-2 font-semibold text-gray-900">Rs. {reportData.operatingExpenses.officeExpenses.toLocaleString()}</span>
                     </div>
                     <div>
-                      <span className="text-orange-700">Office:</span>
-                      <span className="ml-2 font-medium">Rs. {reportData.operatingExpenses.insurance.toLocaleString()}</span>
+                      <span className="text-orange-800 font-medium">Insurance:</span>
+                      <span className="ml-2 font-semibold text-gray-900">Rs. {reportData.operatingExpenses.insurance.toLocaleString()}</span>
                     </div>
                     <div>
-                      <span className="text-orange-700">Marketing:</span>
-                      <span className="ml-2 font-medium">Rs. {reportData.operatingExpenses.marketing.toLocaleString()}</span>
+                      <span className="text-orange-800 font-medium">Marketing:</span>
+                      <span className="ml-2 font-semibold text-gray-900">Rs. {reportData.operatingExpenses.marketing.toLocaleString()}</span>
                     </div>
                     <div>
-                      <span className="text-orange-700">Other:</span>
-                      <span className="ml-2 font-medium">Rs. {reportData.operatingExpenses.otherExpenses.toLocaleString()}</span>
+                      <span className="text-orange-800 font-medium">Other:</span>
+                      <span className="ml-2 font-semibold text-gray-900">Rs. {reportData.operatingExpenses.otherExpenses.toLocaleString()}</span>
                     </div>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-orange-200">
-                    <span className="text-orange-700 font-medium">Total Expenses:</span>
-                    <span className="ml-2 font-medium text-lg">Rs. {reportData.operatingExpenses.totalOperatingExpenses.toLocaleString()}</span>
+                  <div className="mt-3 pt-3 border-t border-orange-300">
+                    <span className="text-orange-800 font-semibold">Total Expenses:</span>
+                    <span className="ml-2 font-bold text-lg text-gray-900">Rs. {reportData.operatingExpenses.totalOperatingExpenses.toLocaleString()}</span>
                   </div>
                 </div>
               )}
 
               {/* Summary Section */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h4 className="font-medium text-gray-900 mb-3">Summary</h4>
+              <div className="bg-gray-100 border border-gray-400 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-3">Summary</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-600">Gross Profit:</span>
-                    <span className="ml-2 font-medium text-green-600">Rs. {reportData.summary.grossProfit.toLocaleString()}</span>
+                    <span className="text-gray-800 font-medium">Gross Profit:</span>
+                    <span className="ml-2 font-semibold text-green-700">Rs. {reportData.summary.grossProfit.toLocaleString()}</span>
                   </div>
                   <div>
-                    <span className="text-gray-600">Net Profit:</span>
-                    <span className={`ml-2 font-medium text-lg Rs. {reportData.summary.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className="text-gray-800 font-medium">Net Profit:</span>
+                    <span className={`ml-2 font-bold text-lg ${reportData.summary.netIncome >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                       Rs. {reportData.summary.netIncome.toLocaleString()}
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-600">Profit Margin:</span>
-                    <span className={`ml-2 font-medium Rs. {reportData.summary.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className="text-gray-800 font-medium">Profit Margin:</span>
+                    <span className={`ml-2 font-semibold ${reportData.summary.netIncome >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                       {reportData.summary.netProfitMargin.toFixed(2)}%
                     </span>
                   </div>
@@ -938,7 +943,7 @@ export default function GeneratePLReportModal({ isOpen, onClose }: GeneratePLRep
               <div className="text-center">
                 <button
                   onClick={downloadReport}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
+                  className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-md"
                 >
                   <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -951,10 +956,10 @@ export default function GeneratePLReportModal({ isOpen, onClose }: GeneratePLRep
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-300 bg-gray-100">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+            className="px-4 py-2 text-gray-800 font-medium bg-gray-200 border border-gray-400 rounded-lg hover:bg-gray-300 transition-colors duration-200"
           >
             Close
           </button>
