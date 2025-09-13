@@ -6,6 +6,8 @@ import { useAuth } from '../../lib/useAuth';
 const pageTitles: { [key: string]: string } = {
   '/dashboard': 'Dashboard',
   '/sales': 'Sales',
+  '/invoices': 'Recievable Invoices',
+  '/payable-invoices': 'Payable Invoices',
   '/purchases': 'Purchases',
   '/inventory': 'Inventory',
   '/accounting': 'Accounting',
@@ -14,7 +16,11 @@ const pageTitles: { [key: string]: string } = {
   '/settings': 'Settings',
 };
 
-export default function TopBar() {
+interface TopBarProps {
+  onSidebarToggle?: () => void;
+}
+
+export default function TopBar({ onSidebarToggle }: TopBarProps) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -30,7 +36,9 @@ export default function TopBar() {
     }
   };
 
-  const currentPageTitle = pageTitles[pathname] || 'Dashboard';
+  // Find the first key in pageTitles that matches the start of the pathname
+  const currentPageTitle =
+    Object.entries(pageTitles).find(([key]) => pathname.startsWith(key))?.[1] || 'Dashboard';
   
   // Display role-based names instead of user first/last name
   const getUserDisplayName = () => {
@@ -55,13 +63,25 @@ export default function TopBar() {
   const userEmail = user?.email || 'user@qms.com';
 
   return (
-    <div className="fixed top-0 left-64 right-0 h-16 shadow-sm border-b border-[#6b5b7a] z-40" style={{ backgroundColor: '#56425b' }}>
-      <div className="flex items-center justify-between h-full px-6">
-        {/* Left side - Page title */}
+    <div
+      className="fixed top-0 right-0 h-16 shadow-sm border-b border-[#6b5b7a] z-40 w-full md:ml-64 transition-all duration-300"
+      style={{ backgroundColor: '#56425b' }}
+    >
+      <div className="flex items-center justify-between h-full px-4 md:px-6">
+        {/* Left side - Hamburger for mobile, Page title */}
         <div className="flex items-center">
+          {/* Hamburger only on mobile */}
+          <button
+            className="md:hidden mr-2 text-white focus:outline-none"
+            onClick={onSidebarToggle}
+            aria-label="Open sidebar"
+          >
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
           <h2 className="text-xl font-semibold text-white">{currentPageTitle}</h2>
         </div>
-
         {/* Right side - Actions */}
         <div className="flex items-center space-x-4">
           {/* Profile - Display only */}

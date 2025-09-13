@@ -337,8 +337,6 @@ const PayableInvoicesPage = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Payable Invoices (Vendor Bills)</h1>
-          <p className="mt-2 text-gray-600">Manage vendor bills and payables</p>
         </div>
 
         {error && (

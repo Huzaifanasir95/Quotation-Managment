@@ -62,10 +62,15 @@ const iconMap: Record<string, React.ReactElement> = {
   )
 };
 
-export default function Sidebar() {
+
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, logout, loading } = useAuth();
   const pathname = usePathname();
-  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Show loading state while checking authentication
   if (loading) {
@@ -122,8 +127,29 @@ export default function Sidebar() {
     return pathname.startsWith(href);
   };
 
+  // Responsive: show sidebar on md+ always, on mobile only if open
   return (
-    <div className="fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-50">
+    <div
+      className={`fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-50
+        transition-transform duration-300
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0
+        md:block
+      `}
+      style={{ zIndex: 100 }}
+    >
+      {/* Mobile close button */}
+      <div className="md:hidden flex justify-end p-2">
+        <button
+          onClick={onClose}
+          className="text-white p-2 rounded hover:bg-[#6b5b7a] focus:outline-none"
+          aria-label="Close sidebar"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
       {/* Logo Section */}
       <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a] px-4">
         <div className="flex items-center space-x-2">
