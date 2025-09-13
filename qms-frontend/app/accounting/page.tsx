@@ -42,6 +42,8 @@ const AccountingPage = () => {
   const [showAddLedger, setShowAddLedger] = useState(false);
   const [showEntryDetails, setShowEntryDetails] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<LedgerEntry | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   
   // Filters state
   const [filters, setFilters] = useState({
@@ -161,17 +163,6 @@ const AccountingPage = () => {
     refetchLedger(); // Use React Query refetch instead of manual API call
   }, [refetchLedger]);
 
-  const clearFilters = useCallback(() => {
-    setFilters({
-      dateFrom: '',
-      dateTo: '',
-      customer: 'All',
-      vendor: 'All',
-      accountType: 'All',
-      entryType: 'All'
-    });
-  }, []);
-
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto">
@@ -232,7 +223,7 @@ const AccountingPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <button
               onClick={() => setShowPLReport(true)}
-              className="flex items-center justify-center p-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 border border-gray-300 transition-colors duration-200"
+              className="flex items-center justify-center p-4 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors duration-200"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -242,7 +233,7 @@ const AccountingPage = () => {
 
             <button
               onClick={() => setShowPendingInvoices(true)}
-              className="flex items-center justify-center p-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 border border-gray-300 transition-colors duration-200"
+              className="flex items-center justify-center p-4 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 border border-yellow-200 transition-colors duration-200"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -252,7 +243,7 @@ const AccountingPage = () => {
 
             <button
               onClick={() => setShowAddLedger(true)}
-              className="flex items-center justify-center p-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 border border-gray-300 transition-colors duration-200"
+              className="flex items-center justify-center p-4 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200 transition-colors duration-200"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -261,141 +252,198 @@ const AccountingPage = () => {
             </button>
 
             <button
-              onClick={clearFilters}
-              className="flex items-center justify-center p-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 border border-gray-400 transition-colors duration-200"
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center justify-center p-4 rounded-lg border transition-colors duration-200 ${
+                showFilters 
+                  ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100' 
+                  : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+              }`}
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.414A1 1 0 013 6.707V4z" />
               </svg>
-              Clear Filters
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
             </button>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date From</label>
-              <input
-                type="date"
-                value={filters.dateFrom}
-                onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date To</label>
-              <input
-                type="date"
-                value={filters.dateTo}
-                onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Customer</label>
-              <select
-                value={filters.customer}
-                onChange={(e) => setFilters({ ...filters, customer: e.target.value })}
-                className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+        {/* Filters - Collapsible */}
+        {showFilters && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
+              <button
+                onClick={() => setFilters({
+                  dateFrom: '',
+                  dateTo: '',
+                  customer: 'All',
+                  vendor: 'All',
+                  accountType: 'All',
+                  entryType: 'All'
+                })}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
-                {filterOptions.customers.map((customer: string) => (
-                  <option key={customer} value={customer}>{customer}</option>
-                ))}
-              </select>
+                Clear All
+              </button>
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Date From</label>
+                <input
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                  className="w-full px-4 py-2 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Vendor</label>
-              <select
-                value={filters.vendor}
-                onChange={(e) => setFilters({ ...filters, vendor: e.target.value })}
-                className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                {filterOptions.vendors.map((vendor: string) => (
-                  <option key={vendor} value={vendor}>{vendor}</option>
-                ))}
-              </select>
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Date To</label>
+                <input
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                  className="w-full px-4 py-2 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Account Type</label>
-              <select
-                value={filters.accountType}
-                onChange={(e) => setFilters({ ...filters, accountType: e.target.value })}
-                className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                {filterOptions.accountTypes.map((type: string) => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Customer</label>
+                <select
+                  value={filters.customer}
+                  onChange={(e) => setFilters({ ...filters, customer: e.target.value })}
+                  className="w-full px-4 py-2 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {filterOptions.customers.map((customer: string) => (
+                    <option key={customer} value={customer}>{customer}</option>
+                  ))}
+                </select>
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Entry Type</label>
-              <select
-                value={filters.entryType}
-                onChange={(e) => setFilters({ ...filters, entryType: e.target.value })}
-                className="w-full px-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                {filterOptions.entryTypes.map((type: string) => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Vendor</label>
+                <select
+                  value={filters.vendor}
+                  onChange={(e) => setFilters({ ...filters, vendor: e.target.value })}
+                  className="w-full px-4 py-2 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {filterOptions.vendors.map((vendor: string) => (
+                    <option key={vendor} value={vendor}>{vendor}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Account Type</label>
+                <select
+                  value={filters.accountType}
+                  onChange={(e) => setFilters({ ...filters, accountType: e.target.value })}
+                  className="w-full px-4 py-2 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {filterOptions.accountTypes.map((type: string) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Entry Type</label>
+                <select
+                  value={filters.entryType}
+                  onChange={(e) => setFilters({ ...filters, entryType: e.target.value })}
+                  className="w-full px-4 py-2 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {filterOptions.entryTypes.map((type: string) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
           {/* Ledger Table */}
           <div className="bg-white rounded-lg shadow-md">
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">General Ledger</h3>
-                <div className="flex space-x-1">
-                  <button
-                    onClick={() => setActiveTab('all')}
-                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                      activeTab === 'all' 
-                        ? 'bg-blue-100 text-blue-700' 
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    All Entries
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('sales')}
-                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                      activeTab === 'sales' 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    Sales Ledger
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('purchases')}
-                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                      activeTab === 'purchases' 
-                        ? 'bg-red-100 text-red-700' 
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    Purchase Ledger
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('expenses')}
-                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                      activeTab === 'expenses' 
-                        ? 'bg-orange-100 text-orange-700' 
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    Expense Ledger
-                  </button>
+                <div className="flex items-center space-x-4">
+                  {/* View Mode Toggle */}
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-500">View:</span>
+                    <div className="flex bg-gray-100 rounded-lg p-1">
+                      <button
+                        onClick={() => setViewMode('grid')}
+                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 ${
+                          viewMode === 'grid'
+                            ? 'bg-white text-gray-900 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                        title="Grid View"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setViewMode('list')}
+                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors duration-200 ${
+                          viewMode === 'list'
+                            ? 'bg-white text-gray-900 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                        title="List View"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Ledger Type Tabs */}
+                  <div className="flex space-x-1">
+                    <button
+                      onClick={() => setActiveTab('all')}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+                        activeTab === 'all' 
+                          ? 'bg-blue-100 text-blue-700' 
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      All Entries
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('sales')}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+                        activeTab === 'sales' 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Sales Ledger
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('purchases')}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+                        activeTab === 'purchases' 
+                          ? 'bg-red-100 text-red-700' 
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Purchase Ledger
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('expenses')}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
+                        activeTab === 'expenses' 
+                          ? 'bg-orange-100 text-orange-700' 
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Expense Ledger
+                    </button>
+                  </div>
                 </div>
             </div>
           </div>
@@ -421,7 +469,52 @@ const AccountingPage = () => {
                 <p className="text-gray-500">No ledger entries found.</p>
                 <p className="text-sm text-gray-400 mt-1">Total Entries: {ledgerEntries.length} | Filtered: {entriesWithBalance.length}</p>
               </div>
+            ) : viewMode === 'grid' ? (
+              // Grid View
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
+                {entriesWithBalance.map((entry: any) => (
+                  <div key={entry.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow duration-200 cursor-pointer"
+                       onClick={() => handleEntryClick(entry)}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">#{entry.id}</h4>
+                        <p className="text-sm text-gray-500">{new Date(entry.entry_date).toLocaleDateString()}</p>
+                      </div>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        entry.reference_type === 'sale' ? 'bg-green-100 text-green-800' :
+                        entry.reference_type === 'purchase' ? 'bg-red-100 text-red-800' :
+                        entry.reference_type === 'expense' ? 'bg-orange-100 text-orange-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {entry.reference_type ? entry.reference_type.charAt(0).toUpperCase() + entry.reference_type.slice(1) : 'General'}
+                      </span>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <p className="text-sm font-medium text-blue-600">{entry.reference_number || 'N/A'}</p>
+                      <p className="text-sm text-gray-800 line-clamp-2">{entry.description}</p>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm">
+                        <span className="text-gray-600">Amount: </span>
+                        <span className="font-semibold text-gray-900">
+                          Rs. {Math.max(entry.total_debit || 0, entry.total_credit || 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                        entry.status === 'posted' ? 'bg-green-100 text-green-800' :
+                        entry.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {entry.status?.charAt(0).toUpperCase() + entry.status?.slice(1)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
+              // List View (Table)
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
