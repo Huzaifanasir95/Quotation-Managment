@@ -12,6 +12,18 @@ import QuotationTrendsModal from '../components/sales/QuotationTrendsModal';
 import TopCustomersModal from '../components/sales/TopCustomersModal';
 import { apiClient, type SalesDashboardData, type QuotationTrend, type Customer } from '../lib/api';
 
+interface SalesOrder {
+  id: string;
+  order_number: string;
+  customer_id: string;
+  status: string;
+  total_amount: number;
+  order_date: string;
+  expected_delivery_date: string;
+  customers?: { name: string; email: string };
+  created_at: string;
+}
+
 export default function SalesPage() {
   const [showCreateQuotation, setShowCreateQuotation] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
@@ -21,17 +33,22 @@ export default function SalesPage() {
   const [showViewQuotes, setShowViewQuotes] = useState(false);
   const [showQuotationTrends, setShowQuotationTrends] = useState(false);
   const [showTopCustomers, setShowTopCustomers] = useState(false);
+  const [showOrderManagement, setShowOrderManagement] = useState(false);
+  const [showUpdateDeliveryStatus, setShowUpdateDeliveryStatus] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
 
   // State for real data
   const [salesData, setSalesData] = useState<SalesDashboardData | null>(null);
   const [quotationTrends, setQuotationTrends] = useState<QuotationTrend[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [loading, setLoading] = useState(false); // Changed to false for immediate UI
   const [dataLoading, setDataLoading] = useState({
     customers: true,
     dashboard: true,
-    trends: true
+    trends: true,
+    orders: true
   });
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -89,11 +106,27 @@ export default function SalesPage() {
           }
         };
 
+        // Load sales orders
+        const fetchOrders = async () => {
+          try {
+            const ordersResponse = await apiClient.getSalesOrders({ limit: 50 });
+            
+            if (ordersResponse.success) {
+              setSalesOrders(ordersResponse.data.orders || []);
+            }
+          } catch (err) {
+            console.error('❌ Failed to fetch orders:', err);
+          } finally {
+            setDataLoading(prev => ({ ...prev, orders: false }));
+          }
+        };
+
         // Start all fetches in parallel for fastest loading
         Promise.all([
           fetchCustomers(),
           fetchDashboard(),
-          fetchTrends()
+          fetchTrends(),
+          fetchOrders()
         ]).then(() => {
         });
         
@@ -158,9 +191,10 @@ export default function SalesPage() {
 
   const refreshDashboardData = async () => {
     try {
-      const [dashboardResponse, trendsResponse] = await Promise.all([
+      const [dashboardResponse, trendsResponse, ordersResponse] = await Promise.all([
         apiClient.getSalesDashboard(),
-        apiClient.getQuotationTrends()
+        apiClient.getQuotationTrends(),
+        apiClient.getSalesOrders({ limit: 50 })
       ]);
       
       if (dashboardResponse.success) {
@@ -170,8 +204,44 @@ export default function SalesPage() {
       if (trendsResponse.success) {
         setQuotationTrends(trendsResponse.data.trends);
       }
+
+      if (ordersResponse.success) {
+        setSalesOrders(ordersResponse.data.orders || []);
+      }
     } catch (error) {
       console.error('Failed to refresh dashboard data:', error);
+    }
+  };
+
+  const handleUpdateDeliveryStatus = async (orderId: string, status: string, deliveryDate?: string) => {
+    try {
+      const response = await apiClient.updateDeliveryStatus(orderId, {
+        delivery_status: status,
+        delivery_date: deliveryDate || new Date().toISOString().split('T')[0],
+        delivery_notes: `Status updated to ${status}`
+      });
+
+      if (response.success) {
+        if (response.data.auto_generated_invoice) {
+          alert(`Order status updated and invoice ${response.data.auto_generated_invoice.invoice_number} was automatically generated!`);
+        } else {
+          alert('Order delivery status updated successfully!');
+        }
+        
+        // Refresh orders
+        const ordersResponse = await apiClient.getSalesOrders({ limit: 50 });
+        if (ordersResponse.success) {
+          setSalesOrders(ordersResponse.data.orders || []);
+        }
+        
+        setShowUpdateDeliveryStatus(false);
+        setSelectedOrder(null);
+      } else {
+        alert('Failed to update delivery status');
+      }
+    } catch (error) {
+      console.error('Failed to update delivery status:', error);
+      alert('Failed to update delivery status');
     }
   };
   
@@ -266,7 +336,7 @@ export default function SalesPage() {
         {/* High-Frequency Sales Tasks */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <button
               onClick={() => setShowCreateQuotation(true)}
               className="flex items-center justify-center p-4 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors duration-200"
@@ -295,6 +365,16 @@ export default function SalesPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
               Convert Quote to Order
+            </button>
+
+            <button
+              onClick={() => setShowOrderManagement(true)}
+              className="flex items-center justify-center p-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              Manage Orders
             </button>
 
             <button
@@ -705,6 +785,198 @@ export default function SalesPage() {
         onClose={() => setShowTopCustomers(false)}
         customers={salesData?.topCustomers || []}
       />
+
+      {/* Order Management Modal */}
+      {showOrderManagement && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Sales Orders Management</h2>
+              <button
+                onClick={() => setShowOrderManagement(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6">
+              {dataLoading.orders ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-gray-500 mt-2">Loading orders...</p>
+                </div>
+              ) : salesOrders.length === 0 ? (
+                <div className="text-center py-8">
+                  <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Sales Orders Found</h3>
+                  <p className="text-gray-500">Convert some quotations to orders to see them here</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order #</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected Delivery</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {salesOrders.map((order) => (
+                        <tr key={order.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-blue-600">{order.order_number}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{order.customers?.name || 'Unknown'}</div>
+                            <div className="text-sm text-gray-500">{order.customers?.email}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {new Date(order.order_date).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {order.expected_delivery_date ? new Date(order.expected_delivery_date).toLocaleDateString() : 'Not set'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            Rs. {order.total_amount.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                              order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                              order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
+                              order.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                              order.status === 'pending' ? 'bg-gray-100 text-gray-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {order.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <button
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setShowUpdateDeliveryStatus(true);
+                              }}
+                              className="text-blue-600 hover:text-blue-700 mr-3"
+                            >
+                              Update Status
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Update Delivery Status Modal */}
+      {showUpdateDeliveryStatus && selectedOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">Update Delivery Status</h2>
+              <button
+                onClick={() => {
+                  setShowUpdateDeliveryStatus(false);
+                  setSelectedOrder(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-4">
+                <h3 className="font-medium text-gray-900">{selectedOrder.order_number}</h3>
+                <p className="text-sm text-gray-500">{selectedOrder.customers?.name}</p>
+                <p className="text-sm text-gray-500">Current Status: <span className="font-medium">{selectedOrder.status}</span></p>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={() => handleUpdateDeliveryStatus(selectedOrder.id, 'processing')}
+                  className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-yellow-50 hover:border-yellow-300 transition-colors"
+                >
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full mr-3"></div>
+                    <div>
+                      <p className="font-medium text-gray-900">Mark as Processing</p>
+                      <p className="text-sm text-gray-500">Order is being prepared</p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleUpdateDeliveryStatus(selectedOrder.id, 'shipped')}
+                  className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                >
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full mr-3"></div>
+                    <div>
+                      <p className="font-medium text-gray-900">Mark as Shipped</p>
+                      <p className="text-sm text-gray-500">Order has been dispatched</p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleUpdateDeliveryStatus(selectedOrder.id, 'delivered')}
+                  className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-green-50 hover:border-green-300 transition-colors"
+                >
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+                    <div>
+                      <p className="font-medium text-gray-900">Mark as Delivered</p>
+                      <p className="text-sm text-gray-500">Order delivered to customer (auto-generates invoice)</p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleUpdateDeliveryStatus(selectedOrder.id, 'cancelled')}
+                  className="w-full p-3 text-left border border-gray-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-colors"
+                >
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
+                    <div>
+                      <p className="font-medium text-gray-900">Cancel Order</p>
+                      <p className="text-sm text-gray-500">Mark order as cancelled</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => {
+                  setShowUpdateDeliveryStatus(false);
+                  setSelectedOrder(null);
+                }}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
