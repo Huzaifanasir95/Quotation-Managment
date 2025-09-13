@@ -37,6 +37,8 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
     amountRange: 'All'
   });
   const [isExporting, setIsExporting] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'line'>('grid');
   const [invoices, setInvoices] = useState<TransformedInvoice[]>([]);
   const [parties, setParties] = useState<string[]>(['All']);
   const [isLoading, setIsLoading] = useState(false);
@@ -482,36 +484,6 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
     printWindow.print();
   };
 
-  const sendReminders = async () => {
-    const overdueInvoicesForReminder = overdueInvoices.filter(invoice => 
-      invoice.daysOverdue >= 3 // Only send reminders for invoices overdue by 3+ days
-    );
-    
-    if (overdueInvoicesForReminder.length === 0) {
-      alert('No invoices eligible for reminder (must be 3+ days overdue)');
-      return;
-    }
-
-    try {
-      setIsExporting(true);
-      
-      // Simulate API call to send reminders
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // In a real implementation, this would call an API to send email/SMS reminders
-      alert(`Reminder sent for ${overdueInvoicesForReminder.length} overdue invoice(s)`);
-      
-      // Refresh data to update last reminder dates
-      await fetchInvoicesData();
-      
-    } catch (error) {
-      console.error('Failed to send reminders:', error);
-      alert('Failed to send reminders. Please try again.');
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   const clearFilters = () => {
     setFilters({
       dateFrom: '',
@@ -620,110 +592,100 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
 
           {/* Filters */}
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date From</label>
-                <input
-                  type="date"
-                  value={filters.dateFrom}
-                  onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                  className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Date To</label>
-                <input
-                  type="date"
-                  value={filters.dateTo}
-                  onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                  className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{activeTab === 'receivable' ? 'Customer' : 'Vendor'}</label>
-                <select
-                  value={filters.party}
-                  onChange={(e) => setFilters({ ...filters, party: e.target.value })}
-                  className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {parties.map(party => (
-                    <option key={party} value={party}>{party}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <select
-                  value={filters.status}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                  className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {statuses.map(status => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Amount Range</label>
-                <select
-                  value={filters.amountRange}
-                  onChange={(e) => setFilters({ ...filters, amountRange: e.target.value })}
-                  className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {amountRanges.map(range => (
-                    <option key={range} value={range}>{range}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                <span className="mr-1">{showFilters ? '▼' : '▶'}</span>
+                {showFilters ? 'Hide Filters' : 'Show Filters'}
+              </button>
             </div>
+            
+            {showFilters && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Date From</label>
+                    <input
+                      type="date"
+                      value={filters.dateFrom}
+                      onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                      className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
 
-            <div className="mt-4 flex items-center justify-between">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Date To</label>
+                    <input
+                      type="date"
+                      value={filters.dateTo}
+                      onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                      className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{activeTab === 'receivable' ? 'Customer' : 'Vendor'}</label>
+                    <select
+                      value={filters.party}
+                      onChange={(e) => setFilters({ ...filters, party: e.target.value })}
+                      className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {parties.map(party => (
+                        <option key={party} value={party}>{party}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select
+                      value={filters.status}
+                      onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                      className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {statuses.map(status => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Amount Range</label>
+                    <select
+                      value={filters.amountRange}
+                      onChange={(e) => setFilters({ ...filters, amountRange: e.target.value })}
+                      className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {amountRanges.map(range => (
+                        <option key={range} value={range}>{range}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between">
+                  <p className="text-sm text-gray-600">
+                    Found {filteredInvoices.length} invoice(s) out of {invoices.length} total
+                  </p>
+                  <button
+                    onClick={clearFilters}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Clear Filters
+                  </button>
+                </div>
+              </>
+            )}
+            
+            {!showFilters && (
               <p className="text-sm text-gray-600">
                 Found {filteredInvoices.length} invoice(s) out of {invoices.length} total
               </p>
-              <button
-                onClick={clearFilters}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Clear Filters
-              </button>
-            </div>
+            )}
           </div>
-
-          {/* Bulk Actions */}
-          {overdueInvoices.length > 0 && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
-              <h3 className="font-medium text-orange-900 mb-3">Bulk Actions</h3>
-              <p className="text-sm text-orange-800 mb-4">
-                {overdueInvoices.filter(inv => inv.daysOverdue >= 3).length} invoice(s) eligible for reminder (3+ days overdue)
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={sendReminders}
-                  disabled={isExporting || overdueInvoices.filter(inv => inv.daysOverdue >= 3).length === 0}
-                  className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="mr-2">📧</span>
-                  {isExporting ? 'Sending...' : 'Send Reminders'}
-                </button>
-                <button
-                  onClick={() => setFilters({...filters, status: 'Overdue'})}
-                  className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200"
-                >
-                  <span className="mr-2">🔍</span>
-                  Show Only Overdue
-                </button>
-              </div>
-              <p className="text-xs text-orange-600 mt-2">
-                * Reminders will be sent to {activeTab === 'receivable' ? 'customers' : 'vendors'} with invoices overdue by 3 or more days
-              </p>
-            </div>
-          )}
 
           {/* Export Options */}
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
@@ -776,8 +738,37 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
 
           {/* Invoices Table */}
           <div className="bg-white rounded-lg shadow-md">
-            <div className="px-6 py-4 border-b border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">{activeTab === 'receivable' ? 'Receivable Invoices' : 'Payable Invoices'}</h3>
+              
+              {/* View Mode Toggle - Only show for payable invoices */}
+              {activeTab === 'payable' && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">View:</span>
+                  <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`px-3 py-1 text-sm font-medium transition-colors ${
+                        viewMode === 'grid' 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      📊 Grid
+                    </button>
+                    <button
+                      onClick={() => setViewMode('line')}
+                      className={`px-3 py-1 text-sm font-medium transition-colors border-l border-gray-300 ${
+                        viewMode === 'line' 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      📋 Line
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="overflow-x-auto">
@@ -800,65 +791,140 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
                   <p className="text-gray-500">No pending {activeTab === 'receivable' ? 'receivable invoices' : 'payable invoices'} found.</p>
                 </div>
               ) : (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice ID</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{activeTab === 'receivable' ? 'Customer' : 'Vendor'}</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days Overdue</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FBR Sync</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Reminder</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredInvoices.map((invoice) => (
-                      <tr key={invoice.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer">
-                            {invoice.id}
+                <>
+                  {/* Grid View - Default for receivable and optional for payable */}
+                  {(activeTab === 'receivable' || viewMode === 'grid') && (
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice ID</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{activeTab === 'receivable' ? 'Customer' : 'Vendor'}</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days Overdue</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">FBR Sync</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Reminder</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredInvoices.map((invoice) => (
+                          <tr key={invoice.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer">
+                                {invoice.id}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{invoice.party}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">Rs. {invoice.amount.toLocaleString()}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{invoice.dueDate}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(invoice.status)}`}>
+                                {invoice.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className={`text-sm font-medium ${
+                                invoice.daysOverdue > 0 ? 'text-red-600' : 'text-gray-900'
+                              }`}>
+                                {invoice.daysOverdue > 0 ? `${invoice.daysOverdue} days` : 'On time'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${getFBRStatusColor(invoice.fbrSync)}`}>
+                                <span className="mr-1">{getFBRStatusIcon(invoice.fbrSync)}</span>
+                                {invoice.fbrSync}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{invoice.lastReminder}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm text-gray-900 truncate max-w-xs">{invoice.notes}</div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {/* Line View - Only for payable invoices */}
+                  {activeTab === 'payable' && viewMode === 'line' && (
+                    <div className="divide-y divide-gray-200">
+                      {filteredInvoices.map((invoice) => (
+                        <div key={invoice.id} className="p-4 hover:bg-gray-50 transition-colors">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3 mb-2">
+                                <h4 className="text-lg font-semibold text-blue-600 hover:text-blue-800 cursor-pointer">
+                                  {invoice.id}
+                                </h4>
+                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(invoice.status)}`}>
+                                  {invoice.status}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-600 mb-1">
+                                <span className="font-medium">Vendor:</span> {invoice.party}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                <span className="font-medium">Due Date:</span> {invoice.dueDate}
+                                {invoice.daysOverdue > 0 && (
+                                  <span className="ml-2 text-red-600 font-medium">
+                                    ({invoice.daysOverdue} days overdue)
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xl font-bold text-gray-900 mb-1">
+                                Rs. {invoice.amount.toLocaleString()}
+                              </div>
+                              <div className="flex items-center justify-end space-x-2">
+                                <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${getFBRStatusColor(invoice.fbrSync)}`}>
+                                  <span className="mr-1">{getFBRStatusIcon(invoice.fbrSync)}</span>
+                                  {invoice.fbrSync}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{invoice.party}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">Rs. {invoice.amount.toLocaleString()}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{invoice.dueDate}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(invoice.status)}`}>
-                            {invoice.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className={`text-sm font-medium ${
-                            invoice.daysOverdue > 0 ? 'text-red-600' : 'text-gray-900'
-                          }`}>
-                            {invoice.daysOverdue > 0 ? `${invoice.daysOverdue} days` : 'On time'}
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="font-medium text-gray-700">Last Reminder:</span>
+                              <span className="ml-2 text-gray-600">{invoice.lastReminder}</span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">Notes:</span>
+                              <span className="ml-2 text-gray-600">{invoice.notes || 'No notes'}</span>
+                            </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${getFBRStatusColor(invoice.fbrSync)}`}>
-                            <span className="mr-1">{getFBRStatusIcon(invoice.fbrSync)}</span>
-                            {invoice.fbrSync}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{invoice.lastReminder}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900 truncate max-w-xs">{invoice.notes}</div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          
+                          {/* Action buttons for line view */}
+                          <div className="mt-3 flex space-x-2">
+                            <button className="text-xs px-3 py-1 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors">
+                              View Details
+                            </button>
+                            <button className="text-xs px-3 py-1 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors">
+                              Mark Paid
+                            </button>
+                            {invoice.daysOverdue > 3 && (
+                              <button className="text-xs px-3 py-1 bg-orange-100 text-orange-800 rounded-lg hover:bg-orange-200 transition-colors">
+                                Send Reminder
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
