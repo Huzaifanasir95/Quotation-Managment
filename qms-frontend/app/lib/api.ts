@@ -358,7 +358,9 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to download document');
+      const errorText = await response.text();
+      console.error('Download error:', response.status, errorText);
+      throw new Error(`Failed to download document: ${response.status} - ${errorText}`);
     }
 
     return response.blob();

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { apiClient, type PurchaseOrder } from '../../lib/api';
+import { generateVendorBillPDF, generateDeliveryChallanPDF } from '../../../lib/pdfUtils';
 import VendorBillDetailsModal from './VendorBillDetailsModal';
 import DeliveryChallanDetailsModal from './DeliveryChallanDetailsModal';
 
@@ -88,28 +89,21 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
   const handleDownloadBill = async (billId: string, billNumber: string) => {
     setDownloading(billId);
     try {
-      // Get the bill documents
-      const response = await apiClient.getDocuments('vendor_bill', billId);
-      if (response.success && response.data.documents.length > 0) {
-        const document = response.data.documents[0]; // Download the first document
-        const blob = await apiClient.downloadDocument(document.id);
+      // Get the full bill details
+      const response = await apiClient.getVendorBillById(billId);
+      if (response.success && response.data?.vendorBill) {
+        const billData = response.data.vendorBill;
+        console.log('Generating PDF for bill:', billData);
         
-        // Create download link
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = document.file_name || `${billNumber}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        // Generate and download PDF
+        await generateVendorBillPDF(billData);
       } else {
-        alert('No documents found for this bill');
+        console.log('No bill data found:', response);
+        alert('Bill details not found');
       }
-    } catch (error) {
-      console.error('Failed to download bill:', error);
-      alert('Failed to download bill. Please try again.');
+    } catch (error: any) {
+      console.error('Failed to generate bill PDF:', error);
+      alert(`Failed to generate bill PDF: ${error.message || 'Please try again.'}`);
     } finally {
       setDownloading(null);
     }
@@ -122,28 +116,21 @@ export default function PurchaseOrderDetailsModal({ isOpen, onClose, po }: Purch
   const handleDownloadChallan = async (challanId: string, challanNumber: string) => {
     setDownloading(challanId);
     try {
-      // Get the challan documents
-      const response = await apiClient.getDocuments('delivery_challan', challanId);
-      if (response.success && response.data.documents.length > 0) {
-        const document = response.data.documents[0]; // Download the first document
-        const blob = await apiClient.downloadDocument(document.id);
+      // Get the full challan details
+      const response = await apiClient.getDeliveryChallanById(challanId);
+      if (response.success && response.data?.deliveryChallan) {
+        const challanData = response.data.deliveryChallan;
+        console.log('Generating PDF for challan:', challanData);
         
-        // Create download link
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = document.file_name || `${challanNumber}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        // Generate and download PDF
+        await generateDeliveryChallanPDF(challanData);
       } else {
-        alert('No documents found for this challan');
+        console.log('No challan data found:', response);
+        alert('Delivery challan details not found');
       }
-    } catch (error) {
-      console.error('Failed to download challan:', error);
-      alert('Failed to download challan. Please try again.');
+    } catch (error: any) {
+      console.error('Failed to generate challan PDF:', error);
+      alert(`Failed to generate delivery challan PDF: ${error.message || 'Please try again.'}`);
     } finally {
       setDownloading(null);
     }

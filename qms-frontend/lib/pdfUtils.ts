@@ -212,6 +212,334 @@ export const generateQuotationPDF = async (quotationData: QuotationData): Promis
   }
 };
 
+interface VendorBillData {
+  id: string;
+  bill_number: string;
+  bill_date: string;
+  due_date?: string;
+  status: string;
+  subtotal: number;
+  tax_amount?: number;
+  total_amount: number;
+  paid_amount?: number;
+  notes?: string;
+  vendors?: {
+    name: string;
+    email?: string;
+    phone?: string;
+    gst_number?: string;
+    contact_person?: string;
+  };
+  purchase_orders?: {
+    po_number: string;
+    status?: string;
+  };
+}
+
+export const generateVendorBillPDF = async (billData: VendorBillData): Promise<void> => {
+  try {
+    const jsPDF = await loadJsPDF();
+    if (!jsPDF) {
+      throw new Error('PDF generation library not available');
+    }
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 20;
+    const lineHeight = 7;
+    let yPosition = margin;
+
+    // Helper function to add text with word wrapping
+    const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10) => {
+      pdf.setFontSize(fontSize);
+      const lines = pdf.splitTextToSize(text, maxWidth);
+      pdf.text(lines, x, y);
+      return y + (lines.length * lineHeight);
+    };
+
+    // Header
+    pdf.setFontSize(24);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('VENDOR BILL', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 15;
+
+    // Company Info
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('QMS - Quotation Management System', margin, yPosition);
+    yPosition += lineHeight;
+    pdf.text('Professional Business Services', margin, yPosition);
+    yPosition += lineHeight;
+    pdf.text('Email: info@qms.com | Web: www.qms.com', margin, yPosition);
+    yPosition += 15;
+
+    // Line separator
+    pdf.setDrawColor(0, 0, 0);
+    pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 10;
+
+    // Bill Details
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Bill Details:', margin, yPosition);
+    yPosition += lineHeight + 2;
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Bill Number: ${billData.bill_number}`, margin, yPosition);
+    yPosition += lineHeight;
+    pdf.text(`Bill Date: ${new Date(billData.bill_date).toLocaleDateString()}`, margin, yPosition);
+    yPosition += lineHeight;
+    if (billData.due_date) {
+      pdf.text(`Due Date: ${new Date(billData.due_date).toLocaleDateString()}`, margin, yPosition);
+      yPosition += lineHeight;
+    }
+    pdf.text(`Status: ${billData.status.charAt(0).toUpperCase() + billData.status.slice(1)}`, margin, yPosition);
+    yPosition += lineHeight;
+    if (billData.purchase_orders?.po_number) {
+      pdf.text(`Purchase Order: ${billData.purchase_orders.po_number}`, margin, yPosition);
+      yPosition += lineHeight;
+    }
+    yPosition += 10;
+
+    // Vendor Information
+    if (billData.vendors) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Vendor Information:', margin, yPosition);
+      yPosition += lineHeight + 2;
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Name: ${billData.vendors.name}`, margin, yPosition);
+      yPosition += lineHeight;
+      if (billData.vendors.contact_person) {
+        pdf.text(`Contact Person: ${billData.vendors.contact_person}`, margin, yPosition);
+        yPosition += lineHeight;
+      }
+      if (billData.vendors.email) {
+        pdf.text(`Email: ${billData.vendors.email}`, margin, yPosition);
+        yPosition += lineHeight;
+      }
+      if (billData.vendors.phone) {
+        pdf.text(`Phone: ${billData.vendors.phone}`, margin, yPosition);
+        yPosition += lineHeight;
+      }
+      if (billData.vendors.gst_number) {
+        pdf.text(`GST Number: ${billData.vendors.gst_number}`, margin, yPosition);
+        yPosition += lineHeight;
+      }
+      yPosition += 15;
+    }
+
+    // Amount Details Section
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFillColor(240, 240, 240);
+    pdf.rect(margin, yPosition, pageWidth - 2 * margin, 10, 'F');
+    yPosition += 7;
+    pdf.text('Amount Details', margin + 2, yPosition);
+    yPosition += 8;
+
+    // Amount breakdown
+    pdf.setFont('helvetica', 'normal');
+    const amountCol = pageWidth - margin - 40;
+    
+    pdf.text('Subtotal:', margin + 10, yPosition);
+    pdf.text(`Rs. ${billData.subtotal.toFixed(2)}`, amountCol, yPosition);
+    yPosition += lineHeight;
+
+    if (billData.tax_amount && billData.tax_amount > 0) {
+      pdf.text('Tax Amount:', margin + 10, yPosition);
+      pdf.text(`Rs. ${billData.tax_amount.toFixed(2)}`, amountCol, yPosition);
+      yPosition += lineHeight;
+    }
+
+    // Line separator for total
+    pdf.line(margin + 10, yPosition, pageWidth - margin - 10, yPosition);
+    yPosition += 5;
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(14);
+    pdf.text('Total Amount:', margin + 10, yPosition);
+    pdf.text(`Rs. ${billData.total_amount.toFixed(2)}`, amountCol, yPosition);
+    yPosition += lineHeight + 5;
+
+    if (billData.paid_amount && billData.paid_amount > 0) {
+      pdf.setFontSize(12);
+      pdf.text('Paid Amount:', margin + 10, yPosition);
+      pdf.text(`Rs. ${billData.paid_amount.toFixed(2)}`, amountCol, yPosition);
+      yPosition += lineHeight;
+
+      const remainingAmount = billData.total_amount - billData.paid_amount;
+      pdf.text('Remaining:', margin + 10, yPosition);
+      pdf.text(`Rs. ${remainingAmount.toFixed(2)}`, amountCol, yPosition);
+      yPosition += lineHeight + 10;
+    }
+
+    // Notes section
+    if (billData.notes && billData.notes !== 'NULL') {
+      yPosition += 10;
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Notes:', margin, yPosition);
+      yPosition += lineHeight + 2;
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      yPosition = addWrappedText(billData.notes, margin, yPosition, pageWidth - 2 * margin, 10);
+    }
+
+    // Footer
+    const footerY = pageHeight - 20;
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('Generated by QMS - Quotation Management System', pageWidth / 2, footerY, { align: 'center' });
+
+    // Save the PDF
+    const filename = `vendor-bill-${billData.bill_number}-${new Date().toISOString().split('T')[0]}.pdf`;
+    pdf.save(filename);
+
+  } catch (error) {
+    console.error('Error generating vendor bill PDF:', error);
+    throw new Error('Failed to generate PDF. Please try again.');
+  }
+};
+
+interface DeliveryChallanData {
+  id: string;
+  challan_number: string;
+  challan_date: string;
+  delivery_date?: string;
+  status: string;
+  remarks?: string;
+  vendors?: {
+    name: string;
+    email?: string;
+    phone?: string;
+    contact_person?: string;
+  };
+  purchase_orders?: {
+    po_number: string;
+    status?: string;
+  };
+}
+
+export const generateDeliveryChallanPDF = async (challanData: DeliveryChallanData): Promise<void> => {
+  try {
+    const jsPDF = await loadJsPDF();
+    if (!jsPDF) {
+      throw new Error('PDF generation library not available');
+    }
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 20;
+    const lineHeight = 7;
+    let yPosition = margin;
+
+    // Helper function to add text with word wrapping
+    const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10) => {
+      pdf.setFontSize(fontSize);
+      const lines = pdf.splitTextToSize(text, maxWidth);
+      pdf.text(lines, x, y);
+      return y + (lines.length * lineHeight);
+    };
+
+    // Header
+    pdf.setFontSize(24);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('DELIVERY CHALLAN', pageWidth / 2, yPosition, { align: 'center' });
+    yPosition += 15;
+
+    // Company Info
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('QMS - Quotation Management System', margin, yPosition);
+    yPosition += lineHeight;
+    pdf.text('Professional Business Services', margin, yPosition);
+    yPosition += lineHeight;
+    pdf.text('Email: info@qms.com | Web: www.qms.com', margin, yPosition);
+    yPosition += 15;
+
+    // Line separator
+    pdf.setDrawColor(0, 0, 0);
+    pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+    yPosition += 10;
+
+    // Challan Details
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Challan Details:', margin, yPosition);
+    yPosition += lineHeight + 2;
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Challan Number: ${challanData.challan_number}`, margin, yPosition);
+    yPosition += lineHeight;
+    pdf.text(`Challan Date: ${new Date(challanData.challan_date).toLocaleDateString()}`, margin, yPosition);
+    yPosition += lineHeight;
+    if (challanData.delivery_date) {
+      pdf.text(`Delivery Date: ${new Date(challanData.delivery_date).toLocaleDateString()}`, margin, yPosition);
+      yPosition += lineHeight;
+    }
+    pdf.text(`Status: ${challanData.status.charAt(0).toUpperCase() + challanData.status.slice(1)}`, margin, yPosition);
+    yPosition += lineHeight;
+    if (challanData.purchase_orders?.po_number) {
+      pdf.text(`Purchase Order: ${challanData.purchase_orders.po_number}`, margin, yPosition);
+      yPosition += lineHeight;
+    }
+    yPosition += 10;
+
+    // Vendor Information
+    if (challanData.vendors) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Vendor Information:', margin, yPosition);
+      yPosition += lineHeight + 2;
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Name: ${challanData.vendors.name}`, margin, yPosition);
+      yPosition += lineHeight;
+      if (challanData.vendors.contact_person) {
+        pdf.text(`Contact Person: ${challanData.vendors.contact_person}`, margin, yPosition);
+        yPosition += lineHeight;
+      }
+      if (challanData.vendors.email) {
+        pdf.text(`Email: ${challanData.vendors.email}`, margin, yPosition);
+        yPosition += lineHeight;
+      }
+      if (challanData.vendors.phone) {
+        pdf.text(`Phone: ${challanData.vendors.phone}`, margin, yPosition);
+        yPosition += lineHeight;
+      }
+      yPosition += 15;
+    }
+
+    // Remarks section
+    if (challanData.remarks && challanData.remarks !== 'NULL') {
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Remarks:', margin, yPosition);
+      yPosition += lineHeight + 2;
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      yPosition = addWrappedText(challanData.remarks, margin, yPosition, pageWidth - 2 * margin, 10);
+      yPosition += 10;
+    }
+
+    // Footer
+    const footerY = pageHeight - 20;
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('Generated by QMS - Quotation Management System', pageWidth / 2, footerY, { align: 'center' });
+
+    // Save the PDF
+    const filename = `delivery-challan-${challanData.challan_number}-${new Date().toISOString().split('T')[0]}.pdf`;
+    pdf.save(filename);
+
+  } catch (error) {
+    console.error('Error generating delivery challan PDF:', error);
+    throw new Error('Failed to generate PDF. Please try again.');
+  }
+};
+
 export const generateQuotationPDFFromHTML = async (elementId: string, filename?: string): Promise<void> => {
   try {
     const html2canvas = await loadHtml2Canvas();
