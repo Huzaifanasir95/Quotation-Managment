@@ -173,7 +173,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
     
     try {
       const orderData = {
-        quotation_id: parseInt(selectedQuote.id),
+        quotation_id: selectedQuote.id, // Keep as string, let backend handle conversion
         expected_delivery: orderDetails.expectedDelivery,
         priority: orderDetails.priority,
         notes: orderDetails.notes,
@@ -186,6 +186,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
         status: 'pending'
       };
       
+      console.log('Converting quote with data:', orderData);
       const response = await apiClient.convertQuoteToOrder(orderData);
       
       if (response.success) {
@@ -265,70 +266,47 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-green-50 to-blue-50 px-8 py-6 border-b border-gray-200 flex-shrink-0">
+        <div className="bg-white px-6 py-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">Convert Quote to Order</h2>
-              <p className="text-gray-600 mt-1">Transform approved quotations into sales orders</p>
+              <h2 className="text-xl font-semibold text-gray-900">Convert Quote to Order</h2>
+              <p className="text-gray-500 text-sm">Step {currentStepIndex + 1} of {steps.length}</p>
             </div>
             <button 
               onClick={onClose} 
-              className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors duration-200"
+              className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded transition-colors"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-
-          {/* Step Indicator */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Progress</span>
-              <span className="text-sm font-medium text-gray-700">{Math.round(((currentStepIndex + 1) / steps.length) * 100)}%</span>
+          
+          {/* Progress Bar */}
+          <div className="mt-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-gray-600">Progress</span>
+              <span className="text-xs font-medium text-gray-600">{Math.round(((currentStepIndex + 1) / steps.length) * 100)}%</span>
             </div>
-            <div className="flex items-center space-x-4">
-              {steps.map((step, index) => (
-                <div key={step.id} className="flex items-center">
-                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-200 ${
-                    index <= currentStepIndex
-                      ? 'bg-green-500 border-green-500 text-white'
-                      : 'bg-white border-gray-300 text-gray-400'
-                  }`}>
-                    {index < currentStepIndex ? (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <span className="text-lg">{step.icon}</span>
-                    )}
-                  </div>
-                  <span className={`ml-3 text-sm font-medium ${
-                    index <= currentStepIndex ? 'text-gray-900' : 'text-gray-500'
-                  }`}>
-                    {step.name}
-                  </span>
-                  {index < steps.length - 1 && (
-                    <div className={`w-12 h-0.5 mx-4 ${
-                      index < currentStepIndex ? 'bg-green-500' : 'bg-gray-300'
-                    }`} />
-                  )}
-                </div>
-              ))}
+            <div className="w-full bg-gray-200 rounded-full h-1.5">
+              <div 
+                className="bg-blue-500 h-1.5 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${((currentStepIndex + 1) / steps.length) * 100}%` }}
+              ></div>
             </div>
           </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="p-8">
+          <div className="p-6">
             {currentStep === 'select' && (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Select a Quote to Convert</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Select a Quote to Convert</h3>
                   
                   {/* Search and Filter */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div className="md:col-span-2">
                       <div className="relative">
                         <input
@@ -336,9 +314,9 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                           placeholder="Search quotes by number, customer, or email..."
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full text-black pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className="w-full text-black pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
-                        <svg className="w-5 h-5 text-gray-400 absolute left-3 top-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                       </div>
@@ -347,7 +325,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                       <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="w-full text-black px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="All">All Statuses</option>
                         <option value="approved">Approved</option>
