@@ -1,16 +1,19 @@
 'use client';
 
+
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../lib/api';
+
 
 interface PendingInvoicesReportModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+
 interface TransformedInvoice {
   id: string;
-  customer: string;
+  party: string; // customer or vendor
   amount: number;
   dueDate: string;
   status: string;
@@ -20,56 +23,58 @@ interface TransformedInvoice {
   notes: string;
 }
 
+
 export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingInvoicesReportModalProps) {
+  // Tab state: 'receivable' (customer invoices) or 'payable' (vendor bills)
+  const [activeTab, setActiveTab] = useState<'receivable' | 'payable'>('receivable');
   const [filters, setFilters] = useState({
     dateFrom: '',
     dateTo: '',
-    customer: 'All',
+    party: 'All', // customer or vendor
     status: 'All',
     amountRange: 'All'
   });
   const [isExporting, setIsExporting] = useState(false);
   const [invoices, setInvoices] = useState<TransformedInvoice[]>([]);
-  const [customers, setCustomers] = useState<string[]>(['All']);
+  const [parties, setParties] = useState<string[]>(['All']);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const statuses = ['All', 'pending', 'paid', 'overdue', 'cancelled'];
   const amountRanges = ['All', 'Under Rs. 1000', 'Rs. 1000-Rs. 5000', 'Over Rs. 5000'];
 
-  // Fetch invoices and customers data
+  // Fetch invoices and parties data
   useEffect(() => {
     if (isOpen) {
       fetchInvoicesData();
     }
-  }, [isOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, activeTab]);
 
   const fetchInvoicesData = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Fetch invoices with pending status
-      const invoicesResponse = await apiClient.getInvoices({ 
-        limit: 100, 
-        status: 'pending' 
-      });
-      
-      if (invoicesResponse.success) {
-        const transformedInvoices: TransformedInvoice[] = invoicesResponse.data.invoices.map((invoice: any) => {
+      let response;
+      if (activeTab === 'receivable') {
+        response = await apiClient.getReceivableInvoices({ limit: 100, status: 'pending' });
+      } else {
+        response = await apiClient.getPayableInvoices({ limit: 100, status: 'pending' });
+      }
+      if (response.success) {
+        const transformedInvoices: TransformedInvoice[] = response.data.invoices?.map((invoice: any) => {
           const today = new Date();
           const dueDate = new Date(invoice.due_date);
           const daysOverdue = Math.max(0, Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)));
-          
           let status = 'Due Soon';
           if (daysOverdue > 0) {
             status = 'Overdue';
           } else if (invoice.status === 'paid') {
             status = 'Paid';
           }
-          
           return {
-            id: invoice.invoice_number,
-            customer: invoice.customers?.name || 'Unknown Customer',
+            id: invoice.invoice_number || invoice.id,
+            party: activeTab === 'receivable' ? (invoice.customers?.name || 'Unknown Customer') : (invoice.vendors?.name || 'Unknown Vendor'),
             amount: invoice.total_amount || 0,
             dueDate: invoice.due_date,
             status: status,
@@ -79,13 +84,11 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
             lastReminder: invoice.last_reminder_date || 'N/A',
             notes: invoice.notes || 'No notes'
           };
-        });
-        
+        }) || [];
         setInvoices(transformedInvoices);
-        
-        // Extract unique customers
-        const uniqueCustomers = Array.from(new Set(transformedInvoices.map(inv => inv.customer)));
-        setCustomers(['All', ...uniqueCustomers]);
+        // Extract unique parties
+        const uniqueParties = Array.from(new Set(transformedInvoices.map(inv => inv.party)));
+        setParties(['All', ...uniqueParties]);
       } else {
         setError('Failed to fetch invoices');
       }
@@ -100,15 +103,13 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
   const filteredInvoices = invoices.filter(invoice => {
     const matchesDateFrom = !filters.dateFrom || invoice.dueDate >= filters.dateFrom;
     const matchesDateTo = !filters.dateTo || invoice.dueDate <= filters.dateTo;
-    const matchesCustomer = filters.customer === 'All' || invoice.customer === filters.customer;
+    const matchesParty = filters.party === 'All' || invoice.party === filters.party;
     const matchesStatus = filters.status === 'All' || invoice.status === filters.status;
-    
     let matchesAmount = true;
     if (filters.amountRange === 'Under Rs. 1000') matchesAmount = invoice.amount < 1000;
     else if (filters.amountRange === 'Rs. 1000-Rs. 5000') matchesAmount = invoice.amount >= 1000 && invoice.amount <= 5000;
     else if (filters.amountRange === 'Over Rs. 5000') matchesAmount = invoice.amount > 5000;
-    
-    return matchesDateFrom && matchesDateTo && matchesCustomer && matchesStatus && matchesAmount;
+    return matchesDateFrom && matchesDateTo && matchesParty && matchesStatus && matchesAmount;
   });
 
   const getStatusColor = (status: string) => {
@@ -144,12 +145,13 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
+
       if (format === 'csv') {
         const csvContent = [
-          ['Invoice ID', 'Customer', 'Amount', 'Due Date', 'Status', 'Days Overdue', 'FBR Sync', 'Last Reminder', 'Notes'],
+          ['Invoice ID', activeTab === 'receivable' ? 'Customer' : 'Vendor', 'Amount', 'Due Date', 'Status', 'Days Overdue', 'FBR Sync', 'Last Reminder', 'Notes'],
           ...filteredInvoices.map(invoice => [
             invoice.id,
-            invoice.customer,
+            invoice.party,
             invoice.amount,
             invoice.dueDate,
             invoice.status,
@@ -183,7 +185,7 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
     setFilters({
       dateFrom: '',
       dateTo: '',
-      customer: 'All',
+      party: 'All',
       status: 'All',
       amountRange: 'All'
     });
@@ -203,20 +205,36 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
 
+        {/* Tabs for Receivable/Payable */}
+        <div className="flex space-x-2 px-6 pt-4">
+          <button
+            className={`px-4 py-2 rounded-t-lg font-medium border-b-2 transition-colors duration-200 ${activeTab === 'receivable' ? 'border-blue-600 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 bg-gray-100 hover:text-blue-700'}`}
+            onClick={() => setActiveTab('receivable')}
+          >
+            Receivable Invoices
+          </button>
+          <button
+            className={`px-4 py-2 rounded-t-lg font-medium border-b-2 transition-colors duration-200 ${activeTab === 'payable' ? 'border-red-600 text-red-700 bg-red-50' : 'border-transparent text-gray-500 bg-gray-100 hover:text-red-700'}`}
+            onClick={() => setActiveTab('payable')}
+          >
+            Payable Invoices
+          </button>
+        </div>
+
         <div className="p-6">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">{filteredInvoices.length}</div>
-              <div className="text-sm text-blue-800">Total Pending</div>
-            </div>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-red-600">{overdueInvoices.length}</div>
-              <div className="text-sm text-red-800">Overdue</div>
+            <div className={`${activeTab === 'receivable' ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200'} border rounded-lg p-4 text-center`}>
+              <div className={`text-2xl font-bold ${activeTab === 'receivable' ? 'text-blue-600' : 'text-red-600'}`}>{filteredInvoices.length}</div>
+              <div className={`text-sm ${activeTab === 'receivable' ? 'text-blue-800' : 'text-red-800'}`}>{activeTab === 'receivable' ? 'Total Receivable' : 'Total Payable'}</div>
             </div>
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-              <div className="text-2xl font-bold text-yellow-600">Rs. {totalPendingAmount.toLocaleString()}</div>
-              <div className="text-sm text-yellow-800">Total Amount</div>
+              <div className="text-2xl font-bold text-yellow-600">{overdueInvoices.length}</div>
+              <div className="text-sm text-yellow-800">Overdue</div>
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <div className="text-2xl font-bold text-green-600">Rs. {totalPendingAmount.toLocaleString()}</div>
+              <div className="text-sm text-green-800">Total Amount</div>
             </div>
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
               <div className="text-2xl font-bold text-orange-600">Rs. {totalOverdueAmount.toLocaleString()}</div>
@@ -249,14 +267,14 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Customer</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{activeTab === 'receivable' ? 'Customer' : 'Vendor'}</label>
                 <select
-                  value={filters.customer}
-                  onChange={(e) => setFilters({ ...filters, customer: e.target.value })}
+                  value={filters.party}
+                  onChange={(e) => setFilters({ ...filters, party: e.target.value })}
                   className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  {customers.map(customer => (
-                    <option key={customer} value={customer}>{customer}</option>
+                  {parties.map(party => (
+                    <option key={party} value={party}>{party}</option>
                   ))}
                 </select>
               </div>
@@ -335,7 +353,7 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
           {/* Invoices Table */}
           <div className="bg-white rounded-lg shadow-md">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Pending Invoices</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{activeTab === 'receivable' ? 'Receivable Invoices' : 'Payable Invoices'}</h3>
             </div>
 
             <div className="overflow-x-auto">
@@ -355,14 +373,14 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
                 </div>
               ) : filteredInvoices.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-gray-500">No pending invoices found.</p>
+                  <p className="text-gray-500">No pending {activeTab === 'receivable' ? 'receivable invoices' : 'payable invoices'} found.</p>
                 </div>
               ) : (
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice ID</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{activeTab === 'receivable' ? 'Customer' : 'Vendor'}</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -381,7 +399,7 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{invoice.customer}</div>
+                          <div className="text-sm text-gray-900">{invoice.party}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">Rs. {invoice.amount.toLocaleString()}</div>
