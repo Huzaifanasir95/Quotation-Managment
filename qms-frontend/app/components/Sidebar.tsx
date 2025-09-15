@@ -136,7 +136,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         md:translate-x-0
         md:block
       `}
-      style={{ zIndex: 100 }}
+      style={{ zIndex: 10 }}
     >
       {/* Mobile close button */}
       <div className="md:hidden flex justify-end p-2">

@@ -20,7 +20,6 @@ interface VendorData {
   name: string;
   email: string;
   phone: string;
-  gst_number: string;
   address: string;
   contact_person: string;
   status: 'active' | 'inactive';
@@ -166,12 +165,14 @@ export default function SettingsPage() {
   const onVendorSubmit = async (data: Omit<VendorData, 'id' | 'status'>) => {
     setLoading(true);
     try {
+  // No gst_number in VendorData, send data as is
+  const apiData = data;
       if (editingVendor) {
         // Update existing vendor
-        const response = await apiClient.updateVendor(editingVendor.id, data);
+        const response = await apiClient.updateVendor(editingVendor.id, apiData);
         if (response && response.success) {
           // Backend returns: { success: true, data: { vendor: {...} } }
-          const updatedVendor = response.data?.vendor || { ...editingVendor, ...data };
+          const updatedVendor = response.data?.vendor || { ...editingVendor, ...apiData };
           setVendors(vendors.map(vendor => 
             vendor.id === editingVendor.id 
               ? updatedVendor
@@ -184,7 +185,7 @@ export default function SettingsPage() {
         }
       } else {
         // Create new vendor
-        const response = await apiClient.createVendor(data);
+        const response = await apiClient.createVendor(apiData);
         if (response && response.success) {
           // Backend returns: { success: true, data: { vendor: {...} } }
           const newVendor = response.data?.vendor;
@@ -194,7 +195,7 @@ export default function SettingsPage() {
           } else {
             // Fallback if response structure is unexpected
             const fallbackVendor: VendorData = {
-              ...data,
+              ...apiData,
               id: Date.now().toString(),
               status: 'active'
             };
@@ -474,7 +475,6 @@ export default function SettingsPage() {
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GST Number</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
@@ -510,9 +510,6 @@ export default function SettingsPage() {
                               <div className="text-sm text-gray-500">{vendor.email}</div>
                               <div className="text-sm text-gray-500">{vendor.phone}</div>
                             </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="text-sm text-gray-900">{vendor.gst_number}</span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -600,16 +597,7 @@ export default function SettingsPage() {
                               placeholder="+92-300-1234567"
                             />
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">GST Number</label>
-                            <input
-                              {...registerVendor('gst_number')}
-                              type="text"
-                              defaultValue={editingVendor?.gst_number || ''}
-                              className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                              placeholder="17-123456789"
-                            />
-                          </div>
+                          {/* GST Number removed as backend does not support it */}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>

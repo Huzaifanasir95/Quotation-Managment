@@ -17,6 +17,16 @@ interface QuotationItem {
   quantity: number;
   unit_price: number;
   line_total: number;
+  current_stock?: number;
+}
+
+interface ProductOption {
+  id: string;
+  name: string;
+  description?: string;
+  unit_of_measure: string;
+  current_stock: number;
+  selling_price?: number;
 }
 
 interface Customer {
@@ -43,6 +53,8 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
   const [error, setError] = useState<string | null>(null);
   const [defaultTerms, setDefaultTerms] = useState<string>('');
   const [isLoadingTerms, setIsLoadingTerms] = useState(false);
+  const [products, setProducts] = useState<ProductOption[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
 
   // Handle mounting for portal
   useEffect(() => {
@@ -50,16 +62,16 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
     return () => setMounted(false);
   }, []);
 
-  // Fetch customers and terms when modal opens
+  // Fetch customers, products, and terms when modal opens
   useEffect(() => {
     if (isOpen) {
       fetchCustomers();
+      fetchProducts();
       fetchTermsAndConditions();
       // Set default dates after component mounts to avoid hydration issues
       const today = new Date().toISOString().split('T')[0];
       const validUntil = new Date();
       validUntil.setDate(validUntil.getDate() + 30);
-      
       setFormData(prev => ({
         ...prev,
         quotation_date: today,
@@ -67,6 +79,20 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
       }));
     }
   }, [isOpen]);
+
+  const fetchProducts = async () => {
+    setIsLoadingProducts(true);
+    try {
+      const response = await apiClient.getProducts({ limit: 100 });
+      if (response.success && response.data?.products) {
+        setProducts(response.data.products);
+      }
+    } catch (error) {
+      console.error('Failed to fetch products:', error);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
 
   const fetchCustomers = async () => {
     setIsLoadingCustomers(true);
@@ -111,10 +137,12 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
   const addItem = () => {
     const newItem: QuotationItem = {
       id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      product_id: '',
       description: '',
       quantity: 1,
       unit_price: 0,
-      line_total: 0
+      line_total: 0,
+      current_stock: undefined
     };
     setItems([...items, newItem]);
   };
@@ -122,13 +150,23 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
   const updateItem = (id: string, field: keyof QuotationItem, value: string | number) => {
     setItems(items.map(item => {
       if (item.id === id) {
-        const updatedItem = { ...item, [field]: value };
-        
+        let updatedItem = { ...item, [field]: value };
+        // If product_id changes, update description, unit_price, and current_stock
+        if (field === 'product_id') {
+          const selectedProduct = products.find(p => p.id === value);
+          if (selectedProduct) {
+            updatedItem = {
+              ...updatedItem,
+              description: selectedProduct.name,
+              unit_price: selectedProduct.selling_price || 0,
+              current_stock: selectedProduct.current_stock
+            };
+          }
+        }
         // Recalculate line total for numeric fields
-        if (field === 'quantity' || field === 'unit_price') {
+        if (field === 'quantity' || field === 'unit_price' || field === 'product_id') {
           const quantity = Number(updatedItem.quantity);
           const unitPrice = Number(updatedItem.unit_price);
-          
           updatedItem.line_total = quantity * unitPrice;
         }
         return updatedItem;
@@ -157,40 +195,36 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
   const handleSubmit = async (status: 'draft' | 'sent') => {
     setError(null);
     setIsLoading(true);
-    
     try {
       if (!formData.customer_id) {
         throw new Error('Please select a customer');
       }
-
       if (items.length === 0) {
         throw new Error('Please add at least one item');
       }
-
       // Validate all items have required fields
-      const invalidItem = items.find(item => 
-        !item.description.trim() || 
-        item.quantity <= 0 || 
+      const invalidItem = items.find(item =>
+        !item.product_id ||
+        !item.description.trim() ||
+        item.quantity <= 0 ||
         item.unit_price < 0 ||
         isNaN(Number(item.quantity)) ||
         isNaN(Number(item.unit_price))
       );
       if (invalidItem) {
-        throw new Error('Please fill in all item details correctly. Description is required, quantity must be greater than 0, and prices must be valid numbers.');
+        throw new Error('Please fill in all item details correctly. Product, description, quantity (>0), and valid price are required.');
       }
-
       // Clean and prepare quotation data for API
       const cleanedData: any = {
         customer_id: formData.customer_id,
         quotation_date: formData.quotation_date,
         items: items.map(item => ({
+          product_id: item.product_id,
           description: item.description.trim(),
           quantity: Number(item.quantity),
-          unit_price: Number(item.unit_price),
-          ...(item.product_id && { product_id: item.product_id })
+          unit_price: Number(item.unit_price)
         }))
       };
-
       // Only add optional fields if they have values
       if (formData.valid_until) {
         cleanedData.valid_until = formData.valid_until;
@@ -201,11 +235,26 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
       if (formData.notes.trim()) {
         cleanedData.notes = formData.notes.trim();
       }
-
       const response = await apiClient.createQuotation(cleanedData);
-      
       if (response.success) {
-        
+        // Subtract inventory for each product item
+        for (const item of items) {
+          if (item.product_id && item.quantity > 0) {
+            try {
+              await apiClient.createStockMovement({
+                product_id: item.product_id,
+                movement_type: 'sale',
+                quantity: item.quantity,
+                reference_type: 'quotation',
+                reference_id: response.data?.id,
+                notes: 'Auto-deducted on quotation creation'
+              });
+            } catch (err) {
+              // Log error but don't block quotation creation
+              console.error('Failed to subtract inventory for product', item.product_id, err);
+            }
+          }
+        }
         // After successful creation, update status if needed
         if (status === 'sent' && response.data?.id) {
           try {
@@ -214,7 +263,6 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
             // Don't throw error here since the quotation was created successfully
           }
         }
-        
         onQuotationCreated?.();
         onClose();
         // Reset form
@@ -231,9 +279,7 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
       }
     } catch (err: any) {
       console.error('Failed to create quotation:', err);
-      
       let errorMessage = 'Failed to create quotation';
-      
       // Try to parse detailed error information
       if (err.message) {
         try {
@@ -249,7 +295,6 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
           errorMessage = err.message;
         }
       }
-      
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -466,70 +511,88 @@ export default function NewQuotationModal({ isOpen, onClose, onQuotationCreated 
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="grid grid-cols-10 gap-3 items-center p-3 bg-gray-100 rounded-lg font-medium text-sm text-gray-700">
-                  <div className="col-span-5">Description</div>
+                <div className="grid grid-cols-12 gap-3 items-center p-3 bg-gray-100 rounded-lg font-medium text-sm text-gray-700">
+                  <div className="col-span-4">Product</div>
+                  <div className="col-span-2">Stock</div>
                   <div className="col-span-2">Quantity</div>
                   <div className="col-span-2">Unit Price</div>
-                  <div className="col-span-1">Action</div>
+                  <div className="col-span-2">Action</div>
                 </div>
-                {items.map((item) => (
-                  <div key={item.id} className="grid grid-cols-10 gap-3 items-center p-3 bg-gray-50 rounded-lg">
-                    <div className="col-span-5">
-                      <input
-                        type="text"
-                        value={item.description}
-                        onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                        className="w-full px-3 py-2 text-black border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                        placeholder="Item description"
-                      />
-                      <div className="mt-1 px-3 py-1 text-xs text-gray-600 bg-blue-50 rounded">
-                        Total: Rs. {item.line_total.toFixed(2)}
+                {items.map((item) => {
+                  const selectedProduct = products.find(p => p.id === item.product_id);
+                  return (
+                    <div key={item.id} className="grid grid-cols-12 gap-3 items-center p-3 bg-gray-50 rounded-lg">
+                      <div className="col-span-4">
+                        <select
+                          value={item.product_id || ''}
+                          onChange={e => updateItem(item.id, 'product_id', e.target.value)}
+                          className="w-full px-3 py-2 text-black border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                        >
+                          <option value="">Select product</option>
+                          {products.map(product => (
+                            <option key={product.id} value={product.id}>
+                              {product.name}
+                            </option>
+                          ))}
+                        </select>
+                        {item.description && (
+                          <div className="mt-1 px-3 py-1 text-xs text-gray-600 bg-blue-50 rounded">
+                            {item.description}
+                          </div>
+                        )}
+                      </div>
+                      <div className="col-span-2">
+                        <span className="block px-3 py-2 text-sm text-gray-700 bg-gray-200 rounded">
+                          {selectedProduct ? selectedProduct.current_stock : '--'}
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <input
+                          type="number"
+                          value={item.quantity}
+                          onChange={e => {
+                            const value = e.target.value === '' ? 1 : parseInt(e.target.value) || 1;
+                            updateItem(item.id, 'quantity', value);
+                          }}
+                          className="w-full px-3 py-2 text-black border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                          placeholder="Qty"
+                          min="1"
+                          max={selectedProduct ? selectedProduct.current_stock : undefined}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <input
+                          type="number"
+                          value={item.unit_price === 0 ? '' : item.unit_price}
+                          onChange={e => {
+                            const value = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
+                            updateItem(item.id, 'unit_price', value);
+                          }}
+                          onFocus={e => {
+                            if (e.target.value === '0') {
+                              e.target.select();
+                            }
+                          }}
+                          className="w-full px-3 py-2 text-black border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                          placeholder="Unit Price"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                      <div className="col-span-2 flex items-center space-x-2">
+                        <span className="text-xs text-gray-600 bg-blue-50 rounded px-2 py-1">Total: Rs. {item.line_total.toFixed(2)}</span>
+                        <button
+                          onClick={() => removeItem(item.id)}
+                          className="text-red-600 hover:text-red-800 transition-colors duration-200 p-1"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
                       </div>
                     </div>
-                    <div className="col-span-2">
-                      <input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => {
-                          const value = e.target.value === '' ? 1 : parseInt(e.target.value) || 1;
-                          updateItem(item.id, 'quantity', value);
-                        }}
-                        className="w-full px-3 py-2 text-black border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                        placeholder="Qty"
-                        min="1"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <input
-                        type="number"
-                        value={item.unit_price === 0 ? '' : item.unit_price}
-                        onChange={(e) => {
-                          const value = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
-                          updateItem(item.id, 'unit_price', value);
-                        }}
-                        onFocus={(e) => {
-                          if (e.target.value === '0') {
-                            e.target.select();
-                          }
-                        }}
-                        className="w-full px-3 py-2 text-black border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                        placeholder="Unit Price"
-                        min="0"
-                        step="0.01"
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <button
-                        onClick={() => removeItem(item.id)}
-                        className="text-red-600 hover:text-red-800 transition-colors duration-200 p-1"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
