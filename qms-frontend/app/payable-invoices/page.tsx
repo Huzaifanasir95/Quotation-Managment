@@ -11,7 +11,7 @@ interface VendorBill {
   purchase_order_id?: string;
   bill_date: string;
   due_date: string;
-  status: 'pending' | 'approved' | 'paid' | 'overdue';
+  status: 'pending'  | 'approved' | 'paid' | 'overdue';
   total_amount: number;
   paid_amount: number;
   notes?: string;
