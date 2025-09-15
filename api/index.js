@@ -926,6 +926,8 @@ app.get('/api/v1/business-entities', async (req, res) => {
 // Documents endpoints
 app.get('/api/v1/documents', async (req, res) => {
   try {
+    console.log('Documents API endpoint called with query:', req.query);
+    
     const { 
       document_type, 
       compliance_status, 
@@ -948,8 +950,12 @@ app.get('/api/v1/documents', async (req, res) => {
         vendors (id, name, email, gst_number),
         business_entities (id, name, legal_name, country)
       `)
-      .order('uploaded_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('uploaded_at', { ascending: false });
+
+    // Apply range after building the query
+    if (limit && offset) {
+      query = query.range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+    }
 
     // Apply filters
     if (document_type && document_type !== 'All') {
@@ -980,25 +986,102 @@ app.get('/api/v1/documents', async (req, res) => {
       query = query.lte('uploaded_at', date_to + 'T23:59:59');
     }
 
+    console.log('Executing documents query...');
     const { data: documents, error } = await query;
 
     if (error) {
       console.error('Documents fetch error:', error);
       return res.status(500).json({
         success: false,
-        message: 'Failed to fetch documents'
+        message: 'Failed to fetch documents',
+        error: error.message
       });
     }
+
+    console.log(`Successfully fetched ${documents?.length || 0} documents`);
 
     res.json({
       success: true,
       data: documents || []
     });
   } catch (error) {
-    console.error('Documents error:', error);
+    console.error('Documents API error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
+// Document upload endpoint
+app.post('/api/v1/documents/upload', async (req, res) => {
+  try {
+    console.log('Document upload endpoint called');
+    console.log('Body:', req.body);
+    console.log('Files:', req.files);
+
+    // For now, return a mock success response
+    // In a real implementation, you would handle file uploads to Supabase Storage
+    const mockDocument = {
+      id: 'mock-' + Date.now(),
+      reference_type: req.body.reference_type || 'trade_document',
+      reference_id: req.body.reference_id || null,
+      file_name: req.body.file_name || 'uploaded_document.pdf',
+      file_path: '/mock/path/to/document.pdf',
+      file_size: 1024,
+      mime_type: 'application/pdf',
+      document_type: req.body.document_type || 'commercial_invoice',
+      linked_reference_type: req.body.linked_reference_type || null,
+      linked_reference_number: req.body.linked_reference_number || null,
+      linked_reference_id: req.body.linked_reference_id || null,
+      customer_id: req.body.customer_id || null,
+      vendor_id: req.body.vendor_id || null,
+      business_entity_id: req.body.business_entity_id || null,
+      compliance_status: 'pending',
+      compliance_notes: req.body.compliance_notes || null,
+      ocr_status: 'pending',
+      document_date: req.body.document_date || null,
+      expiry_date: req.body.expiry_date || null,
+      issuing_authority: req.body.issuing_authority || null,
+      country_of_origin: req.body.country_of_origin || null,
+      notes: req.body.notes || null,
+      uploaded_by: 'admin',
+      uploaded_at: new Date().toISOString()
+    };
+
+    res.status(201).json({
+      success: true,
+      message: 'Document uploaded successfully',
+      data: { document: mockDocument }
+    });
+  } catch (error) {
+    console.error('Document upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
+// Document download endpoint
+app.get('/api/v1/documents/download/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('Document download endpoint called for ID:', id);
+
+    // For now, return a 404 since this is a mock implementation
+    res.status(404).json({
+      success: false,
+      message: 'Document not found or download not implemented in demo mode'
+    });
+  } catch (error) {
+    console.error('Document download error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
     });
   }
 });

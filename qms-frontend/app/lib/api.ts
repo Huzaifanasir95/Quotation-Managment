@@ -1,4 +1,7 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 
+  (typeof window !== 'undefined' && window.location.origin.includes('vercel.app') 
+    ? '/api/v1' 
+    : 'http://localhost:5000/api/v1');
 
 // API utility functions
 class ApiClient {
