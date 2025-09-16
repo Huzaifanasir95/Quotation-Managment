@@ -1,7 +1,8 @@
 -- Document Attachments Table Setup and Sample Data
 -- Run this script in your Supabase SQL editor to ensure the table exists and has sample data
+-- This script is safe to run multiple times
 
--- Ensure the document_attachments table exists with correct structure
+-- Create the document_attachments table if it doesn't exist
 CREATE TABLE IF NOT EXISTS public.document_attachments (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   reference_type character varying NOT NULL,
@@ -19,9 +20,9 @@ CREATE TABLE IF NOT EXISTS public.document_attachments (
   customer_id uuid,
   vendor_id uuid,
   business_entity_id uuid,
-  compliance_status character varying DEFAULT 'pending'::character varying CHECK (compliance_status::text = ANY (ARRAY['pending'::character varying, 'approved'::character varying, 'rejected'::character varying, 'under_review'::character varying]::text[])),
+  compliance_status character varying DEFAULT 'pending'::character varying,
   compliance_notes text,
-  ocr_status character varying DEFAULT 'pending'::character varying CHECK (ocr_status::text = ANY (ARRAY['pending'::character varying, 'processing'::character varying, 'completed'::character varying, 'failed'::character varying]::text[])),
+  ocr_status character varying DEFAULT 'pending'::character varying,
   document_date date,
   expiry_date date,
   issuing_authority character varying,
@@ -30,47 +31,27 @@ CREATE TABLE IF NOT EXISTS public.document_attachments (
   CONSTRAINT document_attachments_pkey PRIMARY KEY (id)
 );
 
--- Add foreign key constraints if they don't exist
-DO $$
+-- Add constraints if they don't exist (safe to run multiple times)
+DO $$ 
 BEGIN
-  -- Add business_entity_id foreign key if not exists
+  -- Add compliance_status check constraint
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints 
-    WHERE constraint_name = 'document_attachments_business_entity_id_fkey'
+    SELECT 1 FROM information_schema.check_constraints 
+    WHERE constraint_name = 'document_attachments_compliance_status_check'
   ) THEN
     ALTER TABLE public.document_attachments 
-    ADD CONSTRAINT document_attachments_business_entity_id_fkey 
-    FOREIGN KEY (business_entity_id) REFERENCES public.business_entities(id);
+    ADD CONSTRAINT document_attachments_compliance_status_check 
+    CHECK (compliance_status::text = ANY (ARRAY['pending'::character varying, 'approved'::character varying, 'rejected'::character varying, 'under_review'::character varying]::text[]));
   END IF;
 
-  -- Add customer_id foreign key if not exists
+  -- Add ocr_status check constraint
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints 
-    WHERE constraint_name = 'document_attachments_customer_id_fkey'
+    SELECT 1 FROM information_schema.check_constraints 
+    WHERE constraint_name = 'document_attachments_ocr_status_check'
   ) THEN
     ALTER TABLE public.document_attachments 
-    ADD CONSTRAINT document_attachments_customer_id_fkey 
-    FOREIGN KEY (customer_id) REFERENCES public.customers(id);
-  END IF;
-
-  -- Add vendor_id foreign key if not exists
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints 
-    WHERE constraint_name = 'document_attachments_vendor_id_fkey'
-  ) THEN
-    ALTER TABLE public.document_attachments 
-    ADD CONSTRAINT document_attachments_vendor_id_fkey 
-    FOREIGN KEY (vendor_id) REFERENCES public.vendors(id);
-  END IF;
-
-  -- Add uploaded_by foreign key if not exists
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints 
-    WHERE constraint_name = 'document_attachments_uploaded_by_fkey'
-  ) THEN
-    ALTER TABLE public.document_attachments 
-    ADD CONSTRAINT document_attachments_uploaded_by_fkey 
-    FOREIGN KEY (uploaded_by) REFERENCES public.users(id);
+    ADD CONSTRAINT document_attachments_ocr_status_check 
+    CHECK (ocr_status::text = ANY (ARRAY['pending'::character varying, 'processing'::character varying, 'completed'::character varying, 'failed'::character varying]::text[]));
   END IF;
 END $$;
 

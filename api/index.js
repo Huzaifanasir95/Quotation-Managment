@@ -931,23 +931,63 @@ app.get('/api/v1/documents', async (req, res) => {
     console.log('🔗 Supabase URL:', process.env.SUPABASE_URL ? 'Set' : 'Missing');
     console.log('🔑 Supabase Key:', process.env.SUPABASE_ANON_KEY ? 'Set' : 'Missing');
     
-    // First, verify table exists by doing a simple count
-    console.log('📊 Checking if document_attachments table exists...');
-    const { count, error: countError } = await supabase
-      .from('document_attachments')
-      .select('*', { count: 'exact', head: true });
+    // First, check if the table exists by trying a simple query
+    console.log('� Checking if document_attachments table exists...');
     
-    if (countError) {
-      console.error('❌ Table access error:', countError);
-      return res.status(500).json({
-        success: false,
-        message: 'Database table access error',
-        error: countError.message,
-        details: 'document_attachments table may not exist or access is denied'
+    try {
+      // Try to query the table structure first
+      const { data: tableCheck, error: tableError } = await supabase
+        .from('document_attachments')
+        .select('id')
+        .limit(1);
+      
+      if (tableError) {
+        console.error('❌ Table check failed:', tableError);
+        
+        // Check if it's a table not found error
+        if (tableError.message && (
+          tableError.message.includes('relation "public.document_attachments" does not exist') ||
+          tableError.message.includes('table "document_attachments" does not exist') ||
+          tableError.message.includes('does not exist')
+        )) {
+          console.log('📋 Table does not exist, returning empty response with helpful message');
+          return res.json({
+            success: true,
+            data: [],
+            meta: {
+              total: 0,
+              message: 'Document attachments table does not exist. Please run the database setup script.',
+              tableExists: false,
+              setupRequired: true
+            }
+          });
+        }
+        
+        // For other errors, return them
+        return res.status(500).json({
+          success: false,
+          message: 'Database access error',
+          error: tableError.message,
+          details: 'Unable to access document_attachments table',
+          setupRequired: true
+        });
+      }
+      
+      console.log('✅ Table exists and is accessible');
+      
+    } catch (preliminaryError) {
+      console.error('💥 Preliminary table check failed:', preliminaryError);
+      return res.json({
+        success: true,
+        data: [],
+        meta: {
+          total: 0,
+          message: 'Document attachments table is not accessible. Please check database setup.',
+          tableExists: false,
+          setupRequired: true
+        }
       });
     }
-    
-    console.log(`✅ Table exists with ${count || 0} records`);
     
     const { 
       document_type, 
@@ -1028,7 +1068,8 @@ app.get('/api/v1/documents', async (req, res) => {
       data: documents || [],
       meta: {
         total: documents?.length || 0,
-        message: documents?.length === 0 ? 'No documents found. Upload some documents to see them here.' : `Found ${documents.length} documents`
+        message: documents?.length === 0 ? 'No documents found. Upload some documents to see them here.' : `Found ${documents.length} documents`,
+        tableExists: true
       }
     });
   } catch (error) {

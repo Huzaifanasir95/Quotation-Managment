@@ -88,6 +88,13 @@ export default function ImportExportPage() {
           
           console.log(`✅ Successfully loaded ${documentsData.length} documents`);
           
+          // Check if table setup is required
+          if (documentsResponse?.meta?.setupRequired) {
+            console.log('⚠️ Database setup required');
+            setError(`Database setup required: ${documentsResponse.meta.message || 'Document attachments table needs to be created.'}`);
+            return;
+          }
+          
           // If no documents found, show informative message instead of error
           if (documentsData.length === 0) {
             console.log('📝 No documents found - showing empty state');
@@ -97,9 +104,17 @@ export default function ImportExportPage() {
           
           // Handle documents error more gracefully
           if (docError.message.includes('Failed to fetch documents') || 
-              docError.message.includes('document_attachments')) {
-            console.log('📋 Setting empty documents array due to missing table or no data');
+              docError.message.includes('document_attachments') ||
+              docError.message.includes('table') ||
+              docError.message.includes('Database')) {
+            console.log('📋 Setting empty documents array due to missing table or database issue');
             setDocuments([]); // Set empty array instead of throwing error
+            
+            // Show helpful error message for database setup
+            if (docError.message.includes('does not exist') || docError.message.includes('setup')) {
+              setError('Database setup required: The document attachments table needs to be created. Please contact your administrator to run the database setup script.');
+              return;
+            }
           } else {
             throw docError; // Re-throw other errors
           }
@@ -268,6 +283,8 @@ export default function ImportExportPage() {
   }
 
   if (error) {
+    const isSetupError = error.includes('setup') || error.includes('table') || error.includes('Database');
+    
     return (
       <AppLayout>
         <div className="max-w-7xl mx-auto">
@@ -277,14 +294,37 @@ export default function ImportExportPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Data</h3>
+            <h3 className="text-lg font-medium text-red-800 mb-2">
+              {isSetupError ? 'Database Setup Required' : 'Error Loading Data'}
+            </h3>
             <p className="text-red-600 mb-4">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-            >
-              Retry
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Retry
+              </button>
+              {isSetupError && (
+                <button
+                  onClick={() => window.open('https://app.supabase.com', '_blank')}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Open Supabase Dashboard
+                </button>
+              )}
+            </div>
+            {isSetupError && (
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-left">
+                <h4 className="font-medium text-blue-800 mb-2">Setup Instructions:</h4>
+                <ol className="text-sm text-blue-700 list-decimal list-inside space-y-1">
+                  <li>Open your Supabase Dashboard</li>
+                  <li>Go to the SQL Editor</li>
+                  <li>Run the <code className="bg-blue-100 px-1 rounded">setup-document-attachments.sql</code> script</li>
+                  <li>Refresh this page</li>
+                </ol>
+              </div>
+            )}
           </div>
         </div>
       </AppLayout>
