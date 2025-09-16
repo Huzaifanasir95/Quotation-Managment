@@ -49,6 +49,8 @@ const InvoicePage = () => {
   const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
   const [showInvoiceDetails, setShowInvoiceDetails] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [isSendingReminder, setIsSendingReminder] = useState(false);
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
 
   // Create invoice form data
   const [invoiceFormData, setInvoiceFormData] = useState({
@@ -151,27 +153,60 @@ const InvoicePage = () => {
       });
 
       if (response.success) {
-        alert(`Invoice created successfully: ${response.data.invoice.invoice_number}`);
         setShowCreateFromOrder(false);
         setSelectedOrder(null);
-        setInvoiceFormData({
-          invoice_date: new Date().toISOString().split('T')[0],
-          due_date: (() => {
-            const date = new Date();
-            date.setDate(date.getDate() + 30);
-            return date.toISOString().split('T')[0];
-          })(),
-          notes: ''
-        });
-        fetchInvoices();
-        fetchDeliveredOrders();
+        fetchInvoices(); // Refresh the invoices list
+        setError(null);
       } else {
-        setError('Failed to create invoice');
+        setError(response.error || 'Failed to create invoice');
       }
     } catch (err: any) {
       setError(err.message || 'Failed to create invoice');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSendReminder = async () => {
+    if (!selectedInvoice) return;
+
+    setIsSendingReminder(true);
+    try {
+      const response = await apiClient.sendInvoiceReminder(selectedInvoice.id);
+      
+      if (response.success) {
+        setError(null);
+        // Optionally show success message
+        alert('Invoice reminder sent successfully!');
+      } else {
+        setError(response.error || 'Failed to send reminder');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to send reminder');
+    } finally {
+      setIsSendingReminder(false);
+    }
+  };
+
+  const handleMarkAsPaid = async () => {
+    if (!selectedInvoice) return;
+
+    setIsMarkingPaid(true);
+    try {
+      const response = await apiClient.markInvoiceAsPaid(selectedInvoice.id);
+      
+      if (response.success) {
+        setError(null);
+        setShowInvoiceDetails(false);
+        fetchInvoices(); // Refresh the invoices list
+        alert('Invoice marked as paid successfully!');
+      } else {
+        setError(response.error || 'Failed to mark invoice as paid');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to mark invoice as paid');
+    } finally {
+      setIsMarkingPaid(false);
     }
   };
 
@@ -727,11 +762,19 @@ const InvoicePage = () => {
                 >
                   Close
                 </button>
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                  Send Invoice
+                <button 
+                  onClick={handleSendReminder}
+                  disabled={isSendingReminder}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isSendingReminder ? 'Sending...' : 'Send Reminder'}
                 </button>
-                <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                  Mark as Paid
+                <button 
+                  onClick={handleMarkAsPaid}
+                  disabled={isMarkingPaid}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                >
+                  {isMarkingPaid ? 'Marking...' : 'Mark as Paid'}
                 </button>
               </div>
             </div>

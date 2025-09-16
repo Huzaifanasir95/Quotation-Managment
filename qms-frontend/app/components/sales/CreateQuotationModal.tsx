@@ -132,15 +132,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     }
   ];
 
-  // Load customers and products when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      fetchCustomers();
-      fetchTermsAndConditions();
-      loadProducts();
-    }
-  }, [isOpen]);
-
   const fetchCustomers = async () => {
     setIsLoadingCustomers(true);
     try {
@@ -188,30 +179,31 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         // Transform the API response to match the expected format
         const transformedProducts = response.data.products?.map((product: any) => ({
           id: product.id.toString(),
-          name: `${product.name} - ${product.selling_price || product.price || 0}`,
+          name: product.name,
           price: parseFloat(product.selling_price || product.price || 0),
           description: product.description || '',
-          sku: product.sku || ''
+          sku: product.sku || '',
+          stock: parseInt(product.current_stock || 0, 10)
         })) || [];
         setProducts(transformedProducts);
       } else {
         console.error('Failed to load products:', response);
         // Fallback to mock data if API fails
         setProducts([
-          { id: '1', name: 'Laptop Dell XPS 13 - Rs. 1200', price: 1200 },
-          { id: '2', name: 'Monitor 27" 4K - Rs. 800', price: 800 },
-          { id: '3', name: 'Wireless Mouse - Rs. 50', price: 50 },
-          { id: '4', name: 'USB-C Hub - Rs. 45', price: 45 }
+          { id: '1', name: 'Laptop Dell XPS 13', price: 1200, stock: 10 },
+          { id: '2', name: 'Monitor 27" 4K', price: 800, stock: 15 },
+          { id: '3', name: 'Wireless Mouse', price: 50, stock: 20 },
+          { id: '4', name: 'USB-C Hub', price: 45, stock: 25 }
         ]);
       }
     } catch (error) {
       console.error('Failed to load products:', error);
       // Fallback to mock data if API call fails
       setProducts([
-        { id: '1', name: 'Laptop Dell XPS 13 - Rs. 1200', price: 1200 },
-        { id: '2', name: 'Monitor 27" 4K - Rs. 800', price: 800 },
-        { id: '3', name: 'Wireless Mouse - Rs. 50', price: 50 },
-        { id: '4', name: 'USB-C Hub - Rs. 45', price: 45 }
+        { id: '1', name: 'Laptop Dell XPS 13', price: 1200, stock: 10 },
+        { id: '2', name: 'Monitor 27" 4K', price: 800, stock: 15 },
+        { id: '3', name: 'Wireless Mouse', price: 50, stock: 20 },
+        { id: '4', name: 'USB-C Hub', price: 45, stock: 25 }
       ]);
     }
   };
@@ -372,7 +364,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         items: items.map(item => {
           const product = products.find(p => p.id === item.productId);
           return {
-            description: product?.name?.replace(/\s-\s\$[\d,.]+$/, '') || 'Unknown Product',
+            description: product?.name || 'Unknown Product',
             quantity: item.quantity,
             unit_price: item.unitPrice,
             line_total: item.quantity * item.unitPrice
@@ -406,6 +398,15 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       return;
     }
 
+    // Validate stock before submission
+    for (const item of items) {
+      const product = products.find(p => p.id === item.productId);
+      if (product && item.quantity > product.stock) {
+        alert(`Insufficient stock for ${product.name}. Available: ${product.stock}`);
+        return;
+      }
+    }
+
     setIsLoading(true);
     
     try {
@@ -416,6 +417,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         notes: formData.notes,
         terms_conditions: formData.termsConditions,
         items: items.map(item => ({
+          product_id: item.productId || null,
           description: products.find(p => p.id === item.productId)?.name || 'Unknown Product',
           quantity: item.quantity,
           unit_price: item.unitPrice
@@ -449,7 +451,10 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           
           setIsUploading(false);
         }
-        
+
+        // Note: Quotations do not reduce inventory as they are estimates/proposals
+        // Inventory will be reduced when the quotation is converted to a sales order
+
         alert('Quotation created successfully!');
         
         // Call callback to refresh quotation list
@@ -720,43 +725,137 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                   {itemsViewMode === 'grid' ? (
                     /* Grid View */
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {items.map((item, index) => (
-                        <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-medium text-gray-900">Item #{index + 1}</h4>
-                            <button
-                              onClick={() => removeItem(index)}
-                              className="text-red-500 hover:text-red-700 p-1 rounded"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </div>
-                          
-                          <div className="space-y-3">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">Product</label>
-                              <select
-                                value={item.productId}
-                                onChange={(e) => {
-                                  const product = products.find(p => p.id === e.target.value);
-                                  const newItems = [...items];
-                                  newItems[index] = { ...item, productId: e.target.value, unitPrice: product?.price || 0 };
-                                  setItems(newItems);
-                                }}
-                                className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                      {items.map((item, index) => {
+                        const selectedProduct = products.find(p => p.id === item.productId);
+                        const availableStock = selectedProduct?.stock || 0;
+                        const isOverStock = item.quantity > availableStock;
+                        return (
+                          <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-medium text-gray-900">Item #{index + 1}</h4>
+                              <button
+                                onClick={() => removeItem(index)}
+                                className="text-red-500 hover:text-red-700 p-1 rounded"
                               >
-                                <option value="">Select product...</option>
-                                {products.map(p => (
-                                  <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                              </select>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
                             </div>
                             
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-3">
                               <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Product</label>
+                                <select
+                                  value={item.productId}
+                                  onChange={(e) => {
+                                    const product = products.find(p => p.id === e.target.value);
+                                    const newItems = [...items];
+                                    newItems[index] = { ...item, productId: e.target.value, unitPrice: product?.price || 0 };
+                                    setItems(newItems);
+                                  }}
+                                  className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                >
+                                  <option value="">Select product...</option>
+                                  {products.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name} - Rs. {p.price} (Stock: {p.stock})</option>
+                                  ))}
+                                </select>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={item.quantity}
+                                    onChange={(e) => {
+                                      const newItems = [...items];
+                                      newItems[index] = { ...item, quantity: Number(e.target.value) };
+                                      setItems(newItems);
+                                    }}
+                                    className={`w-full text-black p-2 border rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500 ${isOverStock ? 'border-red-500' : 'border-gray-300'}`}
+                                    placeholder="Qty"
+                                  />
+                                  {isOverStock && <p className="text-red-500 text-xs mt-1">Insufficient stock</p>}
+                                </div>
+                                
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-700 mb-1">Price</label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={item.unitPrice}
+                                    onChange={(e) => {
+                                      const newItems = [...items];
+                                      newItems[index] = { ...item, unitPrice: Number(e.target.value) };
+                                      setItems(newItems);
+                                    }}
+                                    className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                    placeholder="Price"
+                                  />
+                                </div>
+                              </div>
+                              
+                              {item.productId && (
+                                <>
+                                  <div className="text-sm text-gray-500">
+                                    Available stock: {availableStock}
+                                  </div>
+                                  <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
+                                    <p className="text-sm text-gray-900">
+                                      <span className="font-medium">Total:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
+                                    </p>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    /* List View */
+                    <div className="space-y-4">
+                      {items.map((item, index) => {
+                        const selectedProduct = products.find(p => p.id === item.productId);
+                        const availableStock = selectedProduct?.stock || 0;
+                        const isOverStock = item.quantity > availableStock;
+                        return (
+                          <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-medium text-gray-900">Item #{index + 1}</h4>
+                              <button
+                                onClick={() => removeItem(index)}
+                                className="text-red-500 hover:text-red-700 p-1 rounded"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                              <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
+                                <select
+                                  value={item.productId}
+                                  onChange={(e) => {
+                                    const product = products.find(p => p.id === e.target.value);
+                                    const newItems = [...items];
+                                    newItems[index] = { ...item, productId: e.target.value, unitPrice: product?.price || 0 };
+                                    setItems(newItems);
+                                  }}
+                                  className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                >
+                                  <option value="">Select product...</option>
+                                  {products.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name} - Rs. {p.price} (Stock: {p.stock})</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
                                 <input
                                   type="number"
                                   min="1"
@@ -766,13 +865,13 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                     newItems[index] = { ...item, quantity: Number(e.target.value) };
                                     setItems(newItems);
                                   }}
-                                  className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                  placeholder="Qty"
+                                  className={`w-full text-black p-2 border rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500 ${isOverStock ? 'border-red-500' : 'border-gray-300'}`}
+                                  placeholder="Quantity"
                                 />
+                                {isOverStock && <p className="text-red-500 text-xs mt-1">Insufficient stock</p>}
                               </div>
-                              
                               <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Price</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price</label>
                                 <input
                                   type="number"
                                   step="0.01"
@@ -782,98 +881,24 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                     newItems[index] = { ...item, unitPrice: Number(e.target.value) };
                                     setItems(newItems);
                                   }}
-                                  className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                  className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
                                   placeholder="Price"
                                 />
                               </div>
                             </div>
-                            
                             {item.productId && (
-                              <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
-                                <p className="text-sm text-gray-900">
-                                  <span className="font-medium">Total:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
+                              <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                <p className="text-sm text-gray-500">
+                                  Available stock: {availableStock}
+                                </p>
+                                <p className="text-sm text-gray-900 mt-1">
+                                  <span className="font-medium">Subtotal:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
                                 </p>
                               </div>
                             )}
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    /* List View */
-                    <div className="space-y-4">
-                      {items.map((item, index) => (
-                        <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-medium text-gray-900">Item #{index + 1}</h4>
-                            <button
-                              onClick={() => removeItem(index)}
-                              className="text-red-500 hover:text-red-700 p-1 rounded"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div className="md:col-span-2">
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
-                              <select
-                                value={item.productId}
-                                onChange={(e) => {
-                                  const product = products.find(p => p.id === e.target.value);
-                                  const newItems = [...items];
-                                  newItems[index] = { ...item, productId: e.target.value, unitPrice: product?.price || 0 };
-                                  setItems(newItems);
-                                }}
-                                className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                              >
-                                <option value="">Select product...</option>
-                                {products.map(p => (
-                                  <option key={p.id} value={p.id}>{p.name} - Rs. {p.price}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                              <input
-                                type="number"
-                                min="1"
-                                value={item.quantity}
-                                onChange={(e) => {
-                                  const newItems = [...items];
-                                  newItems[index] = { ...item, quantity: Number(e.target.value) };
-                                  setItems(newItems);
-                                }}
-                                className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                placeholder="Quantity"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={item.unitPrice}
-                                onChange={(e) => {
-                                  const newItems = [...items];
-                                  newItems[index] = { ...item, unitPrice: Number(e.target.value) };
-                                  setItems(newItems);
-                                }}
-                                className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                placeholder="Price"
-                              />
-                            </div>
-                          </div>
-                          {item.productId && (
-                            <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                              <p className="text-sm text-gray-900">
-                                <span className="font-medium">Subtotal:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                   
@@ -1155,7 +1180,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                 <p className="font-medium text-gray-900 truncate">
                                   {products.find(p => p.id === item.productId)?.name || 'Product'}
                                 </p>
-                                <p className="text-gray-500">Qty: {item.quantity} × Rs. {item.unitPrice}</p>
+                                <p className="text-gray-500">Qty: {item.quantity} × Rs. {item.unitPrice} (Stock: {products.find(p => p.id === item.productId)?.stock || 0})</p>
                               </div>
                               <span className="font-medium text-gray-900">Rs. {(item.quantity * item.unitPrice).toFixed(2)}</span>
                             </div>

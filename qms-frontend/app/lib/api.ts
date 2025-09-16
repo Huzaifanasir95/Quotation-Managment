@@ -638,11 +638,35 @@ class ApiClient {
     });
   }
 
+  async sendInvoiceReminder(invoiceId: string) {
+    return this.request(`/invoices/${invoiceId}/send-reminder`, {
+      method: 'POST',
+    });
+  }
+
+  async markInvoiceAsPaid(invoiceId: string) {
+    return this.request(`/invoices/${invoiceId}/mark-paid`, {
+      method: 'PATCH',
+    });
+  }
+
+  async getInvoiceDetails(invoiceId: string) {
+    return this.request(`/invoices/${invoiceId}`);
+  }
+
   async updateDeliveryStatus(orderId: string, statusData: { delivery_status: string; delivery_date?: string; delivery_notes?: string }) {
-    return this.request(`/orders/${orderId}/delivery-status`, {
+    console.log('🌐 API CLIENT: updateDeliveryStatus called');
+    console.log('- Order ID:', orderId);
+    console.log('- Status Data:', statusData);
+    console.log('- API URL:', `${this.baseURL}/orders/${orderId}/delivery-status`);
+    
+    const result = await this.request(`/orders/${orderId}/delivery-status`, {
       method: 'PATCH',
       body: JSON.stringify(statusData),
     });
+    
+    console.log('🌐 API CLIENT: updateDeliveryStatus response:', result);
+    return result;
   }
 
   async getSalesOrders(params?: { page?: number; limit?: number; search?: string; status?: string; customer_id?: string }) {

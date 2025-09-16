@@ -125,6 +125,44 @@ router.post('/convert-quote', authenticateToken, authorize(['admin', 'sales']), 
     });
   }
 
+  // Validate stock availability (but don't reduce yet - reduction happens when shipped)
+  for (const item of quotation.quotation_items) {
+    if (item.product_id) {
+      // Get current product stock
+      const { data: product, error: productError } = await supabaseAdmin
+        .from('products')
+        .select('current_stock')
+        .eq('id', item.product_id)
+        .single();
+
+      if (!productError && product) {
+        // Check if we have sufficient stock
+        if (product.current_stock < item.quantity) {
+          // Rollback order and items creation
+          await supabaseAdmin.from('sales_order_items').delete().eq('sales_order_id', order.id);
+          await supabaseAdmin.from('sales_orders').delete().eq('id', order.id);
+          return res.status(400).json({
+            error: `Insufficient stock for product ID ${item.product_id}. Available: ${product.current_stock}, Required: ${item.quantity}`,
+            code: 'INSUFFICIENT_STOCK'
+          });
+        }
+
+        // Create stock reservation record (not actual reduction)
+        await supabaseAdmin
+          .from('stock_movements')
+          .insert({
+            product_id: item.product_id,
+            movement_type: 'adjustment',
+            quantity: 0, // No actual stock change yet
+            reference_type: 'sales_order',
+            reference_id: order.id,
+            notes: `Stock reserved for sales order ${order.order_number} - will be reduced when shipped`,
+            created_by: req.user.id
+          });
+      }
+    }
+  }
+
   // Update quotation status to converted
   const { error: updateError } = await supabaseAdmin
     .from('quotations')
@@ -230,6 +268,12 @@ router.get('/:id', authenticateToken, authorize(['admin', 'sales', 'finance', 'p
 
 // Update order delivery status
 router.patch('/:id/delivery-status', authenticateToken, authorize(['admin', 'sales', 'logistics']), asyncHandler(async (req, res) => {
+  console.log('🎯 BACKEND ENDPOINT HIT: /orders/:id/delivery-status');
+  console.log('- Method: PATCH');
+  console.log('- Order ID from params:', req.params.id);
+  console.log('- Request body:', req.body);
+  console.log('- User:', req.user?.email || 'Unknown');
+  
   const { id } = req.params;
   const { delivery_status, delivery_date, delivery_notes } = req.body;
 
@@ -287,6 +331,113 @@ router.patch('/:id/delivery-status', authenticateToken, authorize(['admin', 'sal
       code: 'UPDATE_FAILED',
       details: error.message
     });
+  }
+
+  // DEBUG: Log order status change details
+  console.log('🔍 ORDER STATUS UPDATE DEBUG:');
+  console.log('- Order ID:', id);
+  console.log('- New delivery_status:', delivery_status);
+  console.log('- Current order status:', currentOrder.status);
+  console.log('- Should reduce inventory?', delivery_status === 'shipped' && currentOrder.status !== 'shipped');
+
+  // If order is marked as shipped, reduce inventory
+  if (delivery_status === 'shipped' && currentOrder.status !== 'shipped') {
+    console.log('✅ INVENTORY REDUCTION TRIGGERED - Order marked as shipped');
+    
+    try {
+      // Get order items
+      console.log('📦 Fetching order items for order ID:', id);
+      const { data: orderItems, error: itemsError } = await supabaseAdmin
+        .from('sales_order_items')
+        .select('*')
+        .eq('sales_order_id', id);
+
+      if (itemsError) {
+        console.error('❌ Error fetching order items:', itemsError);
+        throw itemsError;
+      }
+
+      console.log('📦 Order items found:', orderItems?.length || 0);
+      console.log('📦 Order items data:', JSON.stringify(orderItems, null, 2));
+
+      if (orderItems && orderItems.length > 0) {
+        console.log('🔄 Processing inventory reduction for each item...');
+        
+        for (const item of orderItems) {
+          console.log(`\n--- Processing item: Product ID ${item.product_id}, Quantity: ${item.quantity} ---`);
+          
+          if (item.product_id) {
+            // Get current product stock
+            console.log('📊 Fetching current stock for product ID:', item.product_id);
+            const { data: product, error: productError } = await supabaseAdmin
+              .from('products')
+              .select('current_stock, name')
+              .eq('id', item.product_id)
+              .single();
+
+            if (productError) {
+              console.error('❌ Error fetching product:', productError);
+              continue;
+            }
+
+            if (product) {
+              console.log('📊 Current product stock:', product.current_stock);
+              console.log('📊 Product name:', product.name);
+              
+              const newStock = product.current_stock - item.quantity;
+              console.log('📊 New stock will be:', newStock);
+              
+              // Update product stock
+              console.log('💾 Updating product stock...');
+              const { error: stockError } = await supabaseAdmin
+                .from('products')
+                .update({ current_stock: newStock })
+                .eq('id', item.product_id);
+
+              if (stockError) {
+                console.error('❌ Error updating product stock:', stockError);
+                continue;
+              }
+
+              console.log('✅ Product stock updated successfully');
+
+              // Create stock movement record for actual reduction
+              console.log('📝 Creating stock movement record...');
+              const { error: movementError } = await supabaseAdmin
+                .from('stock_movements')
+                .insert({
+                  product_id: item.product_id,
+                  movement_type: 'sale',
+                  quantity: item.quantity,
+                  reference_type: 'sales_order',
+                  reference_id: order.id,
+                  notes: `Stock reduced - order ${order.order_number} shipped`,
+                  created_by: req.user.id
+                });
+
+              if (movementError) {
+                console.error('❌ Error creating stock movement:', movementError);
+              } else {
+                console.log('✅ Stock movement record created successfully');
+              }
+            } else {
+              console.log('⚠️ Product not found for ID:', item.product_id);
+            }
+          } else {
+            console.log('⚠️ Item has no product_id:', item);
+          }
+        }
+        
+        console.log('🎉 INVENTORY REDUCTION COMPLETED');
+      } else {
+        console.log('⚠️ No order items found for this order');
+      }
+    } catch (stockError) {
+      console.error('❌ CRITICAL ERROR in inventory reduction:', stockError);
+      // Don't fail the status update, just log the error
+    }
+  } else {
+    console.log('⏭️ INVENTORY REDUCTION SKIPPED - Conditions not met');
   }
 
   // If order is marked as delivered, trigger automatic invoice generation

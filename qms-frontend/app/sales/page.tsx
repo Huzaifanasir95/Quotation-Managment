@@ -214,33 +214,47 @@ export default function SalesPage() {
   };
 
   const handleUpdateDeliveryStatus = async (orderId: string, status: string, deliveryDate?: string) => {
+    console.log('🚀 FRONTEND: Starting order status update');
+    console.log('- Order ID:', orderId);
+    console.log('- New Status:', status);
+    console.log('- Should trigger inventory reduction?', status === 'shipped');
+    
     try {
+      console.log('📡 FRONTEND: Making API call to updateDeliveryStatus...');
       const response = await apiClient.updateDeliveryStatus(orderId, {
         delivery_status: status,
         delivery_date: deliveryDate || new Date().toISOString().split('T')[0],
         delivery_notes: `Status updated to ${status}`
       });
 
+      console.log('📡 FRONTEND: API response received:', response);
+
       if (response.success) {
+        console.log('✅ FRONTEND: Order status updated successfully');
+        
         if (response.data.auto_generated_invoice) {
+          console.log('📄 FRONTEND: Auto-generated invoice detected:', response.data.auto_generated_invoice.invoice_number);
           alert(`Order status updated and invoice ${response.data.auto_generated_invoice.invoice_number} was automatically generated!`);
         } else {
           alert('Order delivery status updated successfully!');
         }
         
         // Refresh orders
+        console.log('🔄 FRONTEND: Refreshing orders list...');
         const ordersResponse = await apiClient.getSalesOrders({ limit: 50 });
         if (ordersResponse.success) {
           setSalesOrders(ordersResponse.data.orders || []);
+          console.log('✅ FRONTEND: Orders list refreshed');
         }
         
         setShowUpdateDeliveryStatus(false);
         setSelectedOrder(null);
       } else {
+        console.error('❌ FRONTEND: API call failed:', response);
         alert('Failed to update delivery status');
       }
     } catch (error) {
-      console.error('Failed to update delivery status:', error);
+      console.error('❌ FRONTEND: Exception during status update:', error);
       alert('Failed to update delivery status');
     }
   };

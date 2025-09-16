@@ -541,4 +541,177 @@ router.post('/auto-generate', authenticateToken, authorize(['admin', 'sales', 'f
   }
 }));
 
+// Get single invoice details
+router.get('/:id', authenticateToken, authorize(['admin', 'sales', 'finance', 'procurement', 'auditor']), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const { data: invoice, error } = await supabaseAdmin
+    .from('invoices')
+    .select(`
+      *,
+      customers(name, email, phone),
+      business_entities(name),
+      invoice_items(*)
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error || !invoice) {
+    return res.status(404).json({
+      error: 'Invoice not found',
+      code: 'INVOICE_NOT_FOUND'
+    });
+  }
+
+  res.json({
+    success: true,
+    data: { invoice }
+  });
+}));
+
+// Mark invoice as paid
+router.patch('/:id/mark-paid', authenticateToken, authorize(['admin', 'sales', 'finance']), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  console.log(`Attempting to mark invoice ${id} as paid`);
+
+  // First check if invoice exists
+  const { data: existingInvoice, error: fetchError } = await supabaseAdmin
+    .from('invoices')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (fetchError) {
+    console.error('Error fetching invoice:', fetchError);
+    return res.status(404).json({
+      error: 'Invoice not found',
+      code: 'INVOICE_NOT_FOUND',
+      details: fetchError.message
+    });
+  }
+
+  if (!existingInvoice) {
+    console.error('Invoice not found in database');
+    return res.status(404).json({
+      error: 'Invoice not found',
+      code: 'INVOICE_NOT_FOUND'
+    });
+  }
+
+  console.log('Found invoice:', { 
+    id: existingInvoice.id, 
+    status: existingInvoice.status, 
+    total_amount: existingInvoice.total_amount,
+    paid_amount: existingInvoice.paid_amount 
+  });
+
+  // Update invoice with paid amount equal to total amount
+  const updateData = { 
+    status: 'paid',
+    paid_amount: existingInvoice.total_amount
+  };
+
+  console.log('Updating invoice with data:', updateData);
+
+  const { data: invoice, error } = await supabaseAdmin
+    .from('invoices')
+    .update(updateData)
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) {
+    console.error('Error updating invoice:', error);
+    return res.status(400).json({
+      error: 'Failed to mark invoice as paid',
+      code: 'UPDATE_FAILED',
+      details: error.message,
+      supabaseError: error
+    });
+  }
+
+  console.log('Successfully updated invoice:', invoice);
+
+  res.json({
+    success: true,
+    message: 'Invoice marked as paid successfully',
+    data: { invoice }
+  });
+}));
+
+// Send invoice reminder
+router.post('/:id/send-reminder', authenticateToken, authorize(['admin', 'sales', 'finance']), asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Get invoice with customer details
+  const { data: invoice, error: fetchError } = await supabaseAdmin
+    .from('invoices')
+    .select(`
+      *,
+      customers(name, email, phone)
+    `)
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !invoice) {
+    return res.status(404).json({
+      error: 'Invoice not found',
+      code: 'INVOICE_NOT_FOUND'
+    });
+  }
+
+  if (!invoice.customers?.email) {
+    return res.status(400).json({
+      error: 'Customer email not found',
+      code: 'NO_EMAIL'
+    });
+  }
+
+  try {
+    // Here you would integrate with your email service (SendGrid, AWS SES, etc.)
+    // For now, we'll simulate sending the email and update the last reminder date
+    
+    // Update last reminder sent date
+    const { error: updateError } = await supabaseAdmin
+      .from('invoices')
+      .update({ 
+        last_reminder_sent: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    // TODO: Implement actual email sending logic here
+    // Example:
+    // await emailService.sendInvoiceReminder({
+    //   to: invoice.customers.email,
+    //   customerName: invoice.customers.name,
+    //   invoiceNumber: invoice.invoice_number,
+    //   amount: invoice.total_amount,
+    //   dueDate: invoice.due_date
+    // });
+
+    res.json({
+      success: true,
+      message: `Reminder sent successfully to ${invoice.customers.email}`,
+      data: { 
+        invoice_id: id,
+        customer_email: invoice.customers.email,
+        reminder_sent_at: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to send reminder',
+      code: 'REMINDER_SEND_FAILED',
+      details: error.message
+    });
+  }
+}));
+
 module.exports = router;

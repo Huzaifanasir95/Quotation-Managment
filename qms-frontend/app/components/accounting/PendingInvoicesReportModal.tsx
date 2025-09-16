@@ -43,9 +43,54 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
   const [parties, setParties] = useState<string[]>(['All']);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showInvoiceDetails, setShowInvoiceDetails] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<TransformedInvoice | null>(null);
+  const [isSendingReminder, setIsSendingReminder] = useState<string | null>(null);
 
   const statuses = ['All', 'pending', 'paid', 'overdue', 'cancelled'];
   const amountRanges = ['All', 'Under Rs. 1000', 'Rs. 1000-Rs. 5000', 'Over Rs. 5000'];
+
+  // Handler functions for invoice actions
+  const handleViewInvoiceDetails = (invoice: TransformedInvoice) => {
+    setSelectedInvoice(invoice);
+    setShowInvoiceDetails(true);
+  };
+
+  const handleSendReminder = async (invoice: TransformedInvoice) => {
+    setIsSendingReminder(invoice.id);
+    try {
+      // Call API to send reminder email
+      const response = await apiClient.sendInvoiceReminder(invoice.id);
+      if (response.success) {
+        alert(`Reminder sent successfully to ${invoice.party}`);
+        // Refresh the invoices data to update last reminder date
+        fetchInvoicesData();
+      } else {
+        alert('Failed to send reminder. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error sending reminder:', error);
+      alert('Failed to send reminder. Please try again.');
+    } finally {
+      setIsSendingReminder(null);
+    }
+  };
+
+  const handleMarkAsPaid = async (invoice: TransformedInvoice) => {
+    try {
+      const response = await apiClient.markInvoiceAsPaid(invoice.id);
+      if (response.success) {
+        alert(`Invoice ${invoice.id} marked as paid successfully`);
+        // Refresh the invoices data
+        fetchInvoicesData();
+      } else {
+        alert('Failed to mark invoice as paid. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error marking invoice as paid:', error);
+      alert('Failed to mark invoice as paid. Please try again.');
+    }
+  };
 
   // Fetch invoices and parties data
   useEffect(() => {
@@ -908,15 +953,25 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
                           
                           {/* Action buttons for line view */}
                           <div className="mt-3 flex space-x-2">
-                            <button className="text-xs px-3 py-1 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors">
+                            <button 
+                              onClick={() => handleViewInvoiceDetails(invoice)}
+                              className="text-xs px-3 py-1 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors"
+                            >
                               View Details
                             </button>
-                            <button className="text-xs px-3 py-1 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors">
+                            <button 
+                              onClick={() => handleMarkAsPaid(invoice)}
+                              className="text-xs px-3 py-1 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors"
+                            >
                               Mark Paid
                             </button>
                             {invoice.daysOverdue > 3 && (
-                              <button className="text-xs px-3 py-1 bg-orange-100 text-orange-800 rounded-lg hover:bg-orange-200 transition-colors">
-                                Send Reminder
+                              <button 
+                                onClick={() => handleSendReminder(invoice)}
+                                disabled={isSendingReminder === invoice.id}
+                                className="text-xs px-3 py-1 bg-orange-100 text-orange-800 rounded-lg hover:bg-orange-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isSendingReminder === invoice.id ? 'Sending...' : 'Send Reminder'}
                               </button>
                             )}
                           </div>
@@ -940,6 +995,122 @@ export default function PendingInvoicesReportModal({ isOpen, onClose }: PendingI
           </button>
         </div>
       </div>
+
+      {/* Invoice Details Modal */}
+      {showInvoiceDetails && selectedInvoice && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Invoice Details</h2>
+              <button
+                onClick={() => {
+                  setShowInvoiceDetails(false);
+                  setSelectedInvoice(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Invoice Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-gray-900">Invoice Information</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Invoice ID:</span>
+                      <span className="font-medium">{selectedInvoice.id}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Party:</span>
+                      <span className="font-medium">{selectedInvoice.party}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Amount:</span>
+                      <span className="font-medium text-lg">Rs. {selectedInvoice.amount.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Due Date:</span>
+                      <span className="font-medium">{selectedInvoice.dueDate}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Status:</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        selectedInvoice.status === 'paid' ? 'bg-green-100 text-green-800' :
+                        selectedInvoice.status === 'overdue' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {selectedInvoice.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Details */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-gray-900">Additional Details</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Days Overdue:</span>
+                      <span className={`font-medium ${selectedInvoice.daysOverdue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {selectedInvoice.daysOverdue > 0 ? `${selectedInvoice.daysOverdue} days` : 'Not overdue'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">FBR Sync:</span>
+                      <span className="font-medium">{selectedInvoice.fbrSync}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Last Reminder:</span>
+                      <span className="font-medium">{selectedInvoice.lastReminder}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes Section */}
+              {selectedInvoice.notes && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Notes</h3>
+                  <p className="text-gray-600 bg-gray-50 p-3 rounded-lg">{selectedInvoice.notes}</p>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="mt-6 pt-6 border-t border-gray-200 flex space-x-3">
+                <button 
+                  onClick={() => handleMarkAsPaid(selectedInvoice)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Mark as Paid
+                </button>
+                {selectedInvoice.daysOverdue > 3 && (
+                  <button 
+                    onClick={() => handleSendReminder(selectedInvoice)}
+                    disabled={isSendingReminder === selectedInvoice.id}
+                    className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSendingReminder === selectedInvoice.id ? 'Sending...' : 'Send Reminder'}
+                  </button>
+                )}
+                <button 
+                  onClick={() => {
+                    setShowInvoiceDetails(false);
+                    setSelectedInvoice(null);
+                  }}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
