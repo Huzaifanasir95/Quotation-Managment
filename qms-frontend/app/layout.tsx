@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Anoosh International",
-  description: "Comprehensive Business Management System for Anoosh International",
+  description: "Comprehensive Business Management System for a Anoosh International",
   icons: {
     icon: '/Logo.png',
     shortcut: '/Logo.png',
