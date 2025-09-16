@@ -17,7 +17,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('customer');
   const [formData, setFormData] = useState({
-    customerId: '',
+    customerIds: [] as string[],
     validUntil: '',
     notes: 'NULL',
     termsConditions: ''
@@ -49,7 +49,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const resetModalState = () => {
     setActiveTab('customer');
     setFormData({
-      customerId: '',
+      customerIds: [],
       validUntil: '',
       notes: 'NULL',
       termsConditions: ''
@@ -324,8 +324,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   };
 
   const handleDownloadPDF = async () => {
-    if (!formData.customerId) {
-      alert('Please select a customer to generate PDF');
+    if (formData.customerIds.length === 0) {
+      alert('Please select at least one customer to generate PDF');
       return;
     }
     
@@ -337,8 +337,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     setIsGeneratingPDF(true);
     
     try {
-      // Find the selected customer
-      const selectedCustomer = customers.find(c => c.id === formData.customerId);
+      // Find the first selected customer for PDF generation
+      const selectedCustomer = customers.find(c => c.id === formData.customerIds[0]);
       if (!selectedCustomer) {
         throw new Error('Customer not found');
       }
@@ -388,8 +388,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   };
 
   const handleSubmit = async () => {
-    if (!formData.customerId) {
-      alert('Please select a customer');
+    if (formData.customerIds.length === 0) {
+      alert('Please select at least one customer');
       return;
     }
     
@@ -410,63 +410,70 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     setIsLoading(true);
     
     try {
-      const quotationData = {
-        customer_id: formData.customerId,
-        quotation_date: new Date().toISOString().split('T')[0],
-        valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
-        notes: formData.notes,
-        terms_conditions: formData.termsConditions,
-        items: items.map(item => ({
-          product_id: item.productId || null,
-          description: products.find(p => p.id === item.productId)?.name || 'Unknown Product',
-          quantity: item.quantity,
-          unit_price: item.unitPrice
-        }))
-      };
+      // Create separate quotations for each selected customer
+      const quotationPromises = formData.customerIds.map(async (customerId) => {
+        const quotationData = {
+          customer_id: customerId,
+          quotation_date: new Date().toISOString().split('T')[0],
+          valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+          notes: formData.notes,
+          terms_conditions: formData.termsConditions,
+          items: items.map(item => ({
+            product_id: item.productId || null,
+            description: item.description || products.find(p => p.id === item.productId)?.name || 'Custom item',
+            quantity: item.quantity,
+            unit_price: item.unitPrice
+          }))
+        };
 
-      const response = await apiClient.createQuotation(quotationData);
-      
-      if (response.success) {
-        const quotationId = response.data.quotation.id;
-        
-        // Upload attachments if any
-        if (attachments.length > 0) {
-          setIsUploading(true);
-          
-          for (const file of attachments) {
-            try {
-              const formData = new FormData();
-              formData.append('file', file);
-              formData.append('reference_type', 'quotation');
-              formData.append('reference_id', quotationId);
-              formData.append('document_type', 'quotation_attachment');
-              
-              const uploadResponse = await apiClient.uploadDocument(formData);
-            } catch (uploadError) {
-              console.error(`Failed to upload ${file.name}:`, uploadError);
-              // Continue with other files even if one fails
-              alert(`Warning: Failed to upload ${file.name}. The quotation was created successfully, but you may need to upload this file later.`);
-            }
-          }
-          
-          setIsUploading(false);
-        }
+        return apiClient.createQuotation(quotationData);
+      });
 
-        // Note: Quotations do not reduce inventory as they are estimates/proposals
-        // Inventory will be reduced when the quotation is converted to a sales order
+      const results = await Promise.all(quotationPromises);
 
-        alert('Quotation created successfully!');
-        
-        // Call callback to refresh quotation list
-        if (onQuotationCreated) {
-          onQuotationCreated();
-        }
-        
-        // Close modal and reset state
-        handleClose();
-      } else {
-        throw new Error(response.message || 'Failed to create quotation');
+      // Check if all quotations were created successfully
+      const failedResults = results.filter(result => !result.success);
+      if (failedResults.length > 0) {
+        throw new Error(`Failed to create ${failedResults.length} quotation(s)`);
       }
+
+      const successCount = results.length;
+      alert(`Successfully created ${successCount} quotation(s) for selected customers!`);
+
+      // Upload attachments for the first quotation if any
+      if (attachments.length > 0 && results[0].success) {
+        setIsUploading(true);
+        const firstQuotationId = results[0].data.quotation.id;
+        
+        for (const file of attachments) {
+          try {
+            const uploadFormData = new FormData();
+            uploadFormData.append('file', file);
+            uploadFormData.append('reference_type', 'quotation');
+            uploadFormData.append('reference_id', firstQuotationId);
+            uploadFormData.append('document_type', 'quotation_attachment');
+            
+            await apiClient.uploadDocument(uploadFormData);
+          } catch (uploadError) {
+            console.error(`Failed to upload ${file.name}:`, uploadError);
+            // Continue with other files even if one fails
+            alert(`Warning: Failed to upload ${file.name}. The quotation was created successfully, but you may need to upload this file later.`);
+          }
+        }
+        
+        setIsUploading(false);
+      }
+
+      // Note: Quotations do not reduce inventory as they are estimates/proposals
+      // Inventory will be reduced when the quotation is converted to a sales order
+      
+      // Call callback to refresh quotation list
+      if (onQuotationCreated) {
+        onQuotationCreated();
+      }
+      
+      // Close modal and reset state
+      handleClose();
     } catch (error) {
       console.error('Failed to create quotation:', error);
       alert(`Failed to create quotation: ${error instanceof Error ? error.message : 'Please try again.'}`);
@@ -587,17 +594,40 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                   <div className="bg-white border border-gray-200 rounded-lg p-6">
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Select Customer *</label>
-                        <select
-                          value={formData.customerId}
-                          onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-                          className="w-full text-black p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                        >
-                          <option value="">Choose a customer...</option>
-                          {customers.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Select Customers *</label>
+                        <div className="space-y-2">
+                          {customers.map(customer => (
+                            <label key={customer.id} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={formData.customerIds.includes(customer.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setFormData({
+                                      ...formData,
+                                      customerIds: [...formData.customerIds, customer.id]
+                                    });
+                                  } else {
+                                    setFormData({
+                                      ...formData,
+                                      customerIds: formData.customerIds.filter(id => id !== customer.id)
+                                    });
+                                  }
+                                }}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-900">{customer.name}</div>
+                                {customer.email && (
+                                  <div className="text-xs text-gray-500">{customer.email}</div>
+                                )}
+                              </div>
+                            </label>
                           ))}
-                        </select>
+                        </div>
+                        {formData.customerIds.length === 0 && (
+                          <p className="text-sm text-red-500 mt-2">Please select at least one customer</p>
+                        )}
                       </div>
                       
                       <div>
@@ -615,50 +645,51 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                   </div>
                 </div>
                 
-                {/* Customer Preview Card - Takes 1 column */}
+                {/* Selected Customers Preview Card - Takes 1 column */}
                 <div className="lg:col-span-1">
-                  {formData.customerId ? (
+                  {formData.customerIds.length > 0 ? (
                     <div className="bg-white border border-gray-200 rounded-lg p-6">
-                      <h4 className="text-sm font-medium text-gray-900 mb-4">Customer Preview</h4>
-                      {(() => {
-                        const selectedCustomer = customers.find(c => c.id === formData.customerId);
-                        return selectedCustomer ? (
-                          <div className="space-y-3">
-                            <div>
-                              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Name</span>
-                              <p className="text-sm text-gray-900 mt-1">{selectedCustomer.name}</p>
+                      <h4 className="text-sm font-medium text-gray-900 mb-4">Selected Customers ({formData.customerIds.length})</h4>
+                      <div className="space-y-3 max-h-64 overflow-y-auto">
+                        {formData.customerIds.map(customerId => {
+                          const customer = customers.find(c => c.id === customerId);
+                          return customer ? (
+                            <div key={customer.id} className="border border-gray-100 rounded-lg p-3">
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-gray-900">{customer.name}</div>
+                                  {customer.email && (
+                                    <div className="text-xs text-gray-500 mt-1">{customer.email}</div>
+                                  )}
+                                  {customer.phone && (
+                                    <div className="text-xs text-gray-500">{customer.phone}</div>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => setFormData({
+                                    ...formData,
+                                    customerIds: formData.customerIds.filter(id => id !== customerId)
+                                  })}
+                                  className="text-red-500 hover:text-red-700 ml-2"
+                                  title="Remove customer"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
                             </div>
-                            {selectedCustomer.email && (
-                              <div>
-                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Email</span>
-                                <p className="text-sm text-gray-900 mt-1">{selectedCustomer.email}</p>
-                              </div>
-                            )}
-                            {selectedCustomer.phone && (
-                              <div>
-                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Phone</span>
-                                <p className="text-sm text-gray-900 mt-1">{selectedCustomer.phone}</p>
-                              </div>
-                            )}
-                            {selectedCustomer.address && (
-                              <div>
-                                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Address</span>
-                                <p className="text-sm text-gray-900 mt-1">{selectedCustomer.address}</p>
-                              </div>
-                            )}
-                          </div>
-                        ) : null;
-                      })()}
+                          ) : null;
+                        })}
+                      </div>
                     </div>
                   ) : (
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 flex items-center justify-center">
                       <div className="text-center">
-                        <div className="text-gray-400 mb-3">
-                          <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                        </div>
-                        <p className="text-sm text-gray-500">Select a customer to see their details</p>
+                        <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <p className="text-sm text-gray-500">Select customers to see preview</p>
                       </div>
                     </div>
                   )}
@@ -1115,7 +1146,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                   {/* PDF Download Button */}
                   <button
                     onClick={handleDownloadPDF}
-                    disabled={isGeneratingPDF || !formData.customerId || items.length === 0}
+                    disabled={isGeneratingPDF || !formData.customerIds.length || items.length === 0}
                     className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
                   >
                     {isGeneratingPDF ? (
@@ -1150,16 +1181,11 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                         Customer
                       </h4>
                       <p className="text-gray-700 font-medium">
-                        {customers.find(c => c.id === formData.customerId)?.name || 'No customer selected'}
+                        {formData.customerIds.length > 0 ? `${formData.customerIds.length} customer(s) selected` : 'No customers selected'}
                       </p>
-                      {formData.customerId && (
+                      {formData.customerIds.length > 0 && (
                         <div className="mt-2 text-sm text-gray-500">
-                          {customers.find(c => c.id === formData.customerId)?.email && (
-                            <p>📧 {customers.find(c => c.id === formData.customerId)?.email}</p>
-                          )}
-                          {customers.find(c => c.id === formData.customerId)?.phone && (
-                            <p>📞 {customers.find(c => c.id === formData.customerId)?.phone}</p>
-                          )}
+                          <p>Multiple customers selected - details available in preview panel</p>
                         </div>
                       )}
                     </div>
@@ -1283,7 +1309,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                 <div className="flex space-x-2">
                   <button
                     onClick={handleDownloadPDF}
-                    disabled={isGeneratingPDF || !formData.customerId || items.length === 0}
+                    disabled={isGeneratingPDF || !formData.customerIds.length || items.length === 0}
                     className="px-4 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center text-sm"
                   >
                     {isGeneratingPDF ? (
@@ -1305,7 +1331,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                   </button>
                   <button
                     onClick={handleSubmit}
-                    disabled={isLoading || isUploading || !formData.customerId || items.length === 0}
+                    disabled={isLoading || isUploading || !formData.customerIds.length || items.length === 0}
                     className="px-4 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center text-sm"
                   >
                     {isLoading || isUploading ? (

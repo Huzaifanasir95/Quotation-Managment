@@ -88,25 +88,36 @@ router.get('/:id', authenticateToken, authorize(['admin', 'sales', 'finance', 'p
 
 // Create new quotation
 router.post('/', authenticateToken, authorize(['admin', 'sales']), validate(schemas.quotation), asyncHandler(async (req, res) => {
+  console.log('📝 Creating quotation with data:', JSON.stringify(req.body, null, 2));
   const { items, ...quotationData } = req.body;
 
-  // Generate quotation number
+  // Generate unique quotation number using timestamp + random suffix for concurrent requests
   const currentYear = new Date().getFullYear();
-  const { data: lastQuotation } = await supabaseAdmin
-    .from('quotations')
-    .select('quotation_number')
-    .like('quotation_number', `Q-${currentYear}-%`)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
+  const timestamp = Date.now();
+  const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  
+  // Try to get the next sequential number first
+  let quotation_number;
+  try {
+    const { data: lastQuotation } = await supabaseAdmin
+      .from('quotations')
+      .select('quotation_number')
+      .like('quotation_number', `Q-${currentYear}-%`)
+      .order('quotation_number', { ascending: false })
+      .limit(1)
+      .single();
 
-  let nextNumber = 1;
-  if (lastQuotation) {
-    const lastNumber = parseInt(lastQuotation.quotation_number.split('-')[2]);
-    nextNumber = lastNumber + 1;
+    let nextNumber = 1;
+    if (lastQuotation) {
+      const lastNumber = parseInt(lastQuotation.quotation_number.split('-')[2]);
+      nextNumber = lastNumber + 1;
+    }
+
+    quotation_number = `Q-${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
+  } catch (error) {
+    // Fallback to timestamp-based number if query fails
+    quotation_number = `Q-${currentYear}-${timestamp.toString().slice(-6)}`;
   }
-
-  const quotation_number = `Q-${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
 
   // Calculate totals
   let subtotal = 0;
@@ -141,14 +152,47 @@ router.post('/', authenticateToken, authorize(['admin', 'sales']), validate(sche
     created_by: req.user.id
   };
 
-  // Create quotation
-  const { data: quotation, error: quotationError } = await supabaseAdmin
-    .from('quotations')
-    .insert(finalQuotationData)
-    .select('*')
-    .single();
+  // Create quotation with retry logic for duplicate quotation numbers
+  let quotation;
+  let quotationError;
+  let retryCount = 0;
+  const maxRetries = 5;
+
+  while (retryCount < maxRetries) {
+    const result = await supabaseAdmin
+      .from('quotations')
+      .insert(finalQuotationData)
+      .select('*')
+      .single();
+    
+    quotation = result.data;
+    quotationError = result.error;
+
+    // If successful, break out of retry loop
+    if (!quotationError) {
+      break;
+    }
+
+    // If it's a duplicate key error, generate a new quotation number and retry
+    if (quotationError.code === '23505' && quotationError.message.includes('quotation_number')) {
+      retryCount++;
+      console.log(`🔄 Duplicate quotation number detected, retrying (${retryCount}/${maxRetries})...`);
+      
+      // Generate a new unique quotation number using timestamp + retry count
+      const timestamp = Date.now();
+      const uniqueSuffix = `${timestamp.toString().slice(-4)}${retryCount}`;
+      finalQuotationData.quotation_number = `Q-${currentYear}-${uniqueSuffix}`;
+      
+      // Small delay to avoid rapid retries
+      await new Promise(resolve => setTimeout(resolve, 50 * retryCount));
+    } else {
+      // For other errors, don't retry
+      break;
+    }
+  }
 
   if (quotationError) {
+    console.error('❌ Quotation creation error:', quotationError);
     return res.status(400).json({
       error: 'Failed to create quotation',
       code: 'CREATION_FAILED',
