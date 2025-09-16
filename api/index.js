@@ -926,7 +926,28 @@ app.get('/api/v1/business-entities', async (req, res) => {
 // Documents endpoints
 app.get('/api/v1/documents', async (req, res) => {
   try {
-    console.log('Documents API endpoint called with query:', req.query);
+    console.log('🏗️ Documents API endpoint called with query:', req.query);
+    console.log('🔍 Environment:', process.env.NODE_ENV || 'development');
+    console.log('🔗 Supabase URL:', process.env.SUPABASE_URL ? 'Set' : 'Missing');
+    console.log('🔑 Supabase Key:', process.env.SUPABASE_ANON_KEY ? 'Set' : 'Missing');
+    
+    // First, verify table exists by doing a simple count
+    console.log('📊 Checking if document_attachments table exists...');
+    const { count, error: countError } = await supabase
+      .from('document_attachments')
+      .select('*', { count: 'exact', head: true });
+    
+    if (countError) {
+      console.error('❌ Table access error:', countError);
+      return res.status(500).json({
+        success: false,
+        message: 'Database table access error',
+        error: countError.message,
+        details: 'document_attachments table may not exist or access is denied'
+      });
+    }
+    
+    console.log(`✅ Table exists with ${count || 0} records`);
     
     const { 
       document_type, 
@@ -986,30 +1007,37 @@ app.get('/api/v1/documents', async (req, res) => {
       query = query.lte('uploaded_at', date_to + 'T23:59:59');
     }
 
-    console.log('Executing documents query...');
+    console.log('📋 Executing documents query...');
     const { data: documents, error } = await query;
 
     if (error) {
-      console.error('Documents fetch error:', error);
+      console.error('❌ Documents fetch error:', error);
       return res.status(500).json({
         success: false,
         message: 'Failed to fetch documents',
-        error: error.message
+        error: error.message,
+        details: error.details || 'Check database permissions and table structure'
       });
     }
 
-    console.log(`Successfully fetched ${documents?.length || 0} documents`);
+    console.log(`✅ Successfully fetched ${documents?.length || 0} documents`);
 
+    // Provide helpful response even when empty
     res.json({
       success: true,
-      data: documents || []
+      data: documents || [],
+      meta: {
+        total: documents?.length || 0,
+        message: documents?.length === 0 ? 'No documents found. Upload some documents to see them here.' : `Found ${documents.length} documents`
+      }
     });
   } catch (error) {
-    console.error('Documents API error:', error);
+    console.error('💥 Documents API error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
-      error: error.message
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });

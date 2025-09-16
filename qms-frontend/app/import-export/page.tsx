@@ -33,6 +33,8 @@ export default function ImportExportPage() {
         setLoading(true);
         setError(null);
 
+        console.log('🚀 Starting Import/Export data fetch...');
+
         // Refresh token before making API calls
         await apiClient.refreshToken();
 
@@ -73,14 +75,39 @@ export default function ImportExportPage() {
           businessEntitiesCount: businessEntitiesData.length
         });
 
-        // Fetch all trade documents
+        // Fetch all trade documents with better error handling
+        console.log('📄 Fetching documents...');
         await apiClient.refreshToken();
-        const documentsResponse = await apiClient.getDocuments();
-        const documentsData = Array.isArray(documentsResponse?.data) ? documentsResponse.data : [];
-        setDocuments(documentsData);
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Failed to load data. Please try again.');
+        
+        try {
+          const documentsResponse = await apiClient.getDocuments();
+          console.log('Documents response:', documentsResponse);
+          
+          const documentsData = Array.isArray(documentsResponse?.data) ? documentsResponse.data : [];
+          setDocuments(documentsData);
+          
+          console.log(`✅ Successfully loaded ${documentsData.length} documents`);
+          
+          // If no documents found, show informative message instead of error
+          if (documentsData.length === 0) {
+            console.log('📝 No documents found - showing empty state');
+          }
+        } catch (docError: any) {
+          console.error('❌ Documents fetch failed:', docError);
+          
+          // Handle documents error more gracefully
+          if (docError.message.includes('Failed to fetch documents') || 
+              docError.message.includes('document_attachments')) {
+            console.log('📋 Setting empty documents array due to missing table or no data');
+            setDocuments([]); // Set empty array instead of throwing error
+          } else {
+            throw docError; // Re-throw other errors
+          }
+        }
+        
+      } catch (err: any) {
+        console.error('💥 Error fetching data:', err);
+        setError(`Failed to load data: ${err.message || 'Unknown error'}. Please try again.`);
       } finally {
         setLoading(false);
       }
@@ -443,8 +470,28 @@ export default function ImportExportPage() {
 
           <div className="overflow-x-auto">
             {filteredDocuments.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No trade documents found.</p>
+              <div className="text-center py-12">
+                <div className="mb-4">
+                  <svg className="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Trade Documents Found</h3>
+                <p className="text-gray-500 mb-4">
+                  {documents.length === 0 
+                    ? "You haven't uploaded any trade documents yet. Click 'Upload Trade Document' to get started."
+                    : "No documents match your current filter criteria. Try adjusting your filters."
+                  }
+                </p>
+                <button
+                  onClick={() => setShowUploadModal(true)}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Upload Your First Document
+                </button>
               </div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200">
