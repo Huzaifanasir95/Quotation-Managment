@@ -1742,6 +1742,224 @@ app.get('/api/v1/purchase-orders/:id', async (req, res) => {
   }
 });
 
+// Update purchase order
+app.patch('/api/v1/purchase-orders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { items, ...poData } = req.body;
+
+    console.log(`🔄 Purchase Order API: Updating purchase order ${id}`);
+    console.log('📦 Items to update:', items?.length || 0);
+
+    // First check if PO exists
+    const { data: existingPO, error: fetchError } = await supabase
+      .from('purchase_orders')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingPO) {
+      console.error(`❌ Purchase order ${id} not found:`, fetchError);
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase order not found',
+        code: 'PO_NOT_FOUND'
+      });
+    }
+
+    console.log(`✅ Found existing PO: ${existingPO.po_number}`);
+
+    // Calculate totals if items are provided
+    let subtotal = existingPO.subtotal;
+    let tax_amount = existingPO.tax_amount;
+    let discount_amount = existingPO.discount_amount;
+    let total_amount = existingPO.total_amount;
+
+    if (items && items.length > 0) {
+      console.log('💰 Recalculating totals with new items');
+      subtotal = 0;
+      tax_amount = 0;
+      discount_amount = 0;
+
+      const processedItems = items.map(item => {
+        const line_total = item.quantity * item.unit_price;
+        const discount = line_total * (item.discount_percent || 0) / 100;
+        const taxable_amount = line_total - discount;
+        const tax = taxable_amount * (item.tax_percent || 0) / 100;
+
+        subtotal += line_total;
+        discount_amount += discount;
+        tax_amount += tax;
+
+        return {
+          ...item,
+          line_total: taxable_amount + tax
+        };
+      });
+
+      total_amount = subtotal - discount_amount + tax_amount;
+
+      console.log('🗑️ Deleting existing items');
+      // Delete existing items
+      const { error: deleteError } = await supabase
+        .from('purchase_order_items')
+        .delete()
+        .eq('purchase_order_id', id);
+
+      if (deleteError) {
+        console.error('❌ Failed to delete existing items:', deleteError);
+        return res.status(400).json({
+          success: false,
+          message: 'Failed to update purchase order items',
+          code: 'ITEMS_UPDATE_FAILED',
+          error: deleteError.message
+        });
+      }
+
+      console.log('➕ Inserting new items');
+      // Insert new items
+      const poItems = processedItems.map(item => ({
+        ...item,
+        purchase_order_id: id
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('purchase_order_items')
+        .insert(poItems);
+
+      if (itemsError) {
+        console.error('❌ Failed to insert new items:', itemsError);
+        return res.status(400).json({
+          success: false,
+          message: 'Failed to create updated purchase order items',
+          code: 'ITEMS_CREATION_FAILED',
+          error: itemsError.message
+        });
+      }
+    }
+
+    console.log('📋 Updating purchase order data');
+    // Update purchase order
+    const finalPOData = {
+      ...poData,
+      subtotal,
+      tax_amount,
+      discount_amount,
+      total_amount,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: purchaseOrder, error: updateError } = await supabase
+      .from('purchase_orders')
+      .update(finalPOData)
+      .eq('id', id)
+      .select(`
+        *,
+        vendors(*),
+        business_entities(*),
+        purchase_order_items(*)
+      `)
+      .single();
+
+    if (updateError) {
+      console.error('❌ Failed to update purchase order:', updateError);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to update purchase order',
+        code: 'UPDATE_FAILED',
+        error: updateError.message
+      });
+    }
+
+    console.log(`✅ Purchase order ${id} updated successfully`);
+
+    res.json({
+      success: true,
+      message: 'Purchase order updated successfully',
+      data: { purchaseOrder }
+    });
+
+  } catch (error) {
+    console.error('💥 Purchase order update API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update purchase order',
+      error: error.message
+    });
+  }
+});
+
+// Update purchase order status
+app.patch('/api/v1/purchase-orders/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    console.log(`📋 Purchase Order API: Updating status of PO ${id} to ${status}`);
+
+    const validStatuses = ['draft', 'pending_approval', 'approved', 'sent', 'received', 'closed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      console.error(`❌ Invalid status: ${status}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status',
+        code: 'INVALID_STATUS',
+        valid_statuses: validStatuses
+      });
+    }
+
+    const updateData = { status };
+    if (status === 'approved') {
+      // Note: In production, we might not have req.user.id, so we'll skip this for now
+      // updateData.approved_by = req.user.id;
+      updateData.approved_at = new Date().toISOString();
+      console.log('✅ Setting approval timestamp');
+    }
+
+    const { data: purchaseOrder, error } = await supabase
+      .from('purchase_orders')
+      .update(updateData)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('❌ Failed to update purchase order status:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to update purchase order status',
+        code: 'UPDATE_FAILED',
+        error: error.message
+      });
+    }
+
+    if (!purchaseOrder) {
+      console.error('❌ Purchase order not found');
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase order not found',
+        code: 'PO_NOT_FOUND'
+      });
+    }
+
+    console.log(`✅ Purchase order ${id} status updated to ${status}`);
+
+    res.json({
+      success: true,
+      message: 'Purchase order status updated successfully',
+      data: { purchaseOrder }
+    });
+
+  } catch (error) {
+    console.error('💥 Purchase order status update API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update purchase order status',
+      error: error.message
+    });
+  }
+});
+
 // ==================== DELIVERY CHALLANS ====================
 
 // Create new delivery challan
