@@ -1749,55 +1749,55 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
   }
 });
 
-// Vendor bills endpoints
-app.get('/api/v1/vendor-bills', async (req, res) => {
+// Vendor bills endpoints - IMPORTANT: Specific routes must come BEFORE parameterized routes
+
+// Get pending purchase orders for bill creation - MUST be before /:id route
+app.get('/api/v1/vendor-bills/pending-pos', async (req, res) => {
   try {
-    const { page = 1, limit = 50, search, vendor_id, purchase_order_id } = req.query;
-    const offset = (page - 1) * limit;
+    const { vendor_id } = req.query;
 
     let query = supabase
-      .from('vendor_bills')
+      .from('purchase_orders')
       .select(`
         *,
-        vendors (name, email),
-        purchase_orders (po_number)
-      `, { count: 'exact' })
-      .range(offset, offset + limit - 1)
+        vendors(name, email),
+        purchase_order_items(*)
+      `)
+      .in('status', ['approved', 'sent', 'received'])
       .order('created_at', { ascending: false });
-
-    if (search) {
-      query = query.or(`bill_number.ilike.%${search}%`);
-    }
 
     if (vendor_id) {
       query = query.eq('vendor_id', vendor_id);
     }
 
-    if (purchase_order_id) {
-      query = query.eq('purchase_order_id', purchase_order_id);
-    }
-
-    const { data: vendorBills, error, count } = await query;
+    const { data: purchaseOrders, error } = await query;
 
     if (error) {
-      console.error('Vendor bills fetch error:', error);
+      console.error('Purchase orders fetch error:', error);
       return res.status(500).json({
         success: false,
-        message: 'Failed to fetch vendor bills'
+        message: 'Failed to fetch purchase orders'
       });
     }
+
+    // Filter out POs that already have bills
+    const { data: existingBills } = await supabase
+      .from('vendor_bills')
+      .select('purchase_order_id')
+      .not('purchase_order_id', 'is', null);
+
+    const existingPOIds = existingBills?.map(bill => bill.purchase_order_id) || [];
+    const availablePOs = purchaseOrders?.filter(po => !existingPOIds.includes(po.id)) || [];
 
     res.json({
       success: true,
       data: {
-        bills: vendorBills || [],
-        total: count || 0,
-        currentPage: parseInt(page),
-        totalPages: Math.ceil((count || 0) / limit)
+        purchaseOrders: availablePOs,
+        total: availablePOs.length
       }
     });
   } catch (error) {
-    console.error('Vendor bills error:', error);
+    console.error('Pending POs error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -1805,43 +1805,7 @@ app.get('/api/v1/vendor-bills', async (req, res) => {
   }
 });
 
-// Get vendor bill by ID
-app.get('/api/v1/vendor-bills/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const { data: vendorBill, error } = await supabase
-      .from('vendor_bills')
-      .select(`
-        *,
-        vendors(name, email, phone, gst_number, contact_person),
-        purchase_orders(po_number, status)
-      `)
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      console.error('Vendor bill fetch error:', error);
-      return res.status(404).json({
-        success: false,
-        message: 'Vendor bill not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: { vendorBill }
-    });
-  } catch (error) {
-    console.error('Vendor bill error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-});
-
-// Create vendor bill from purchase order
+// Create vendor bill from purchase order - MUST be before /:id route
 app.post('/api/v1/vendor-bills/create-from-po', async (req, res) => {
   try {
     const { purchase_order_id, bill_number, bill_date, due_date, notes } = req.body;
@@ -1942,7 +1906,7 @@ app.post('/api/v1/vendor-bills/create-from-po', async (req, res) => {
   }
 });
 
-// Create manual expense bill
+// Create manual expense bill - MUST be before /:id route
 app.post('/api/v1/vendor-bills/create-expense', async (req, res) => {
   try {
     const {
@@ -2020,53 +1984,91 @@ app.post('/api/v1/vendor-bills/create-expense', async (req, res) => {
   }
 });
 
-// Get pending purchase orders for bill creation
-app.get('/api/v1/vendor-bills/pending-pos', async (req, res) => {
+// Get all vendor bills - general list endpoint
+app.get('/api/v1/vendor-bills', async (req, res) => {
   try {
-    const { vendor_id } = req.query;
+    const { page = 1, limit = 50, search, vendor_id, purchase_order_id } = req.query;
+    const offset = (page - 1) * limit;
 
     let query = supabase
-      .from('purchase_orders')
+      .from('vendor_bills')
       .select(`
         *,
-        vendors(name, email),
-        purchase_order_items(*)
-      `)
-      .in('status', ['approved', 'sent', 'received'])
+        vendors (name, email),
+        purchase_orders (po_number)
+      `, { count: 'exact' })
+      .range(offset, offset + limit - 1)
       .order('created_at', { ascending: false });
+
+    if (search) {
+      query = query.or(`bill_number.ilike.%${search}%`);
+    }
 
     if (vendor_id) {
       query = query.eq('vendor_id', vendor_id);
     }
 
-    const { data: purchaseOrders, error } = await query;
-
-    if (error) {
-      console.error('Purchase orders fetch error:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to fetch purchase orders'
-      });
+    if (purchase_order_id) {
+      query = query.eq('purchase_order_id', purchase_order_id);
     }
 
-    // Filter out POs that already have bills
-    const { data: existingBills } = await supabase
-      .from('vendor_bills')
-      .select('purchase_order_id')
-      .not('purchase_order_id', 'is', null);
+    const { data: vendorBills, error, count } = await query;
 
-    const existingPOIds = existingBills?.map(bill => bill.purchase_order_id) || [];
-    const availablePOs = purchaseOrders?.filter(po => !existingPOIds.includes(po.id)) || [];
+    if (error) {
+      console.error('Vendor bills fetch error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch vendor bills'
+      });
+    }
 
     res.json({
       success: true,
       data: {
-        purchaseOrders: availablePOs,
-        total: availablePOs.length
+        bills: vendorBills || [],
+        total: count || 0,
+        currentPage: parseInt(page),
+        totalPages: Math.ceil((count || 0) / limit)
       }
     });
   } catch (error) {
-    console.error('Pending POs error:', error);
+    console.error('Vendor bills error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Get vendor bill by ID - MUST come AFTER all specific routes
+app.get('/api/v1/vendor-bills/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: vendorBill, error } = await supabase
+      .from('vendor_bills')
+      .select(`
+        *,
+        vendors(name, email, phone, gst_number, contact_person),
+        purchase_orders(po_number, status)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Vendor bill fetch error:', error);
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor bill not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { vendorBill }
+    });
+  } catch (error) {
+    console.error('Vendor bill error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
