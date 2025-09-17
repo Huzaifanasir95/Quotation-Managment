@@ -2025,7 +2025,7 @@ app.get('/api/v1/vendor-bills', async (req, res) => {
     res.json({
       success: true,
       data: {
-        bills: vendorBills || [],
+        vendorBills: vendorBills || [],
         total: count || 0,
         currentPage: parseInt(page),
         totalPages: Math.ceil((count || 0) / limit)
