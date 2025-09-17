@@ -1290,6 +1290,555 @@ app.get('/api/v1/purchase-orders', async (req, res) => {
   }
 });
 
+// Create new purchase order
+app.post('/api/v1/purchase-orders', async (req, res) => {
+  try {
+    const { items, ...poData } = req.body;
+
+    console.log('🛒 Purchase Order API: Creating new purchase order');
+    console.log('📦 Items:', items?.length || 0);
+    console.log('📋 PO Data:', { 
+      vendor_id: poData.vendor_id, 
+      business_entity_id: poData.business_entity_id,
+      order_date: poData.order_date 
+    });
+
+    // Generate unique PO number with retry logic for concurrent requests
+    const currentYear = new Date().getFullYear();
+    const timestamp = Date.now();
+    const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    
+    let po_number;
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount < maxRetries) {
+      try {
+        // Get the next sequential number
+        const { data: lastPO } = await supabase
+          .from('purchase_orders')
+          .select('po_number')
+          .like('po_number', `PO-${currentYear}-%`)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        let nextNumber = 1;
+        if (lastPO) {
+          const lastNumber = parseInt(lastPO.po_number.split('-')[2]);
+          nextNumber = lastNumber + 1;
+        }
+
+        // Add retry count to make it unique for concurrent requests
+        const uniqueSuffix = retryCount > 0 ? `-${retryCount}` : '';
+        po_number = `PO-${currentYear}-${nextNumber.toString().padStart(3, '0')}${uniqueSuffix}`;
+        break;
+      } catch (error) {
+        retryCount++;
+        if (retryCount >= maxRetries) {
+          // Final fallback to timestamp-based number
+          console.log('⚠️ Using timestamp-based PO number after retries failed:', error.message);
+          po_number = `PO-${currentYear}-T${timestamp.toString().slice(-6)}${randomSuffix}`;
+        } else {
+          // Small delay before retry
+          await new Promise(resolve => setTimeout(resolve, 100 * retryCount));
+        }
+      }
+    }
+
+    console.log('🔢 Generated PO Number:', po_number);
+
+    // Calculate totals
+    let subtotal = 0;
+    let tax_amount = 0;
+    let discount_amount = 0;
+
+    const processedItems = items.map(item => {
+      const line_total = item.quantity * item.unit_price;
+      const discount = line_total * (item.discount_percent || 0) / 100;
+      const taxable_amount = line_total - discount;
+      const tax = taxable_amount * (item.tax_percent || 0) / 100;
+
+      subtotal += line_total;
+      discount_amount += discount;
+      tax_amount += tax;
+
+      return {
+        ...item,
+        line_total: taxable_amount + tax
+      };
+    });
+
+    const total_amount = subtotal - discount_amount + tax_amount;
+
+    console.log('💰 Calculated totals:', { subtotal, tax_amount, discount_amount, total_amount });
+
+    const finalPOData = {
+      ...poData,
+      po_number,
+      subtotal,
+      tax_amount,
+      discount_amount,
+      total_amount,
+      notes: poData.notes || 'None',
+      terms_conditions: poData.terms_conditions || 'Standard terms and conditions apply. Payment due within 30 days of delivery. All items subject to quality inspection upon receipt.'
+    };
+
+    // Create purchase order with retry for unique constraint violations
+    let purchaseOrder;
+    let insertRetryCount = 0;
+    const maxInsertRetries = 3;
+    
+    while (insertRetryCount < maxInsertRetries) {
+      const { data, error: poError } = await supabase
+        .from('purchase_orders')
+        .insert(finalPOData)
+        .select('*')
+        .single();
+
+      if (!poError) {
+        purchaseOrder = data;
+        console.log('✅ Purchase order created successfully:', purchaseOrder.id);
+        break;
+      }
+
+      // Check if it's a unique constraint violation on po_number
+      if (poError.message.includes('duplicate key value violates unique constraint') && 
+          poError.message.includes('po_number')) {
+        insertRetryCount++;
+        if (insertRetryCount < maxInsertRetries) {
+          // Generate a new unique PO number with timestamp suffix
+          const newTimestamp = Date.now();
+          const newRandomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+          finalPOData.po_number = `PO-${currentYear}-T${newTimestamp.toString().slice(-6)}${newRandomSuffix}`;
+          console.log(`🔄 Retrying PO creation with new number: ${finalPOData.po_number}`);
+          continue;
+        }
+      }
+
+      // If it's not a duplicate key error or we've exceeded retries, return error
+      console.error('❌ Failed to create purchase order:', poError);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create purchase order',
+        code: 'CREATION_FAILED',
+        error: poError.message
+      });
+    }
+
+    // Create purchase order items
+    const poItems = processedItems.map(item => ({
+      ...item,
+      purchase_order_id: purchaseOrder.id
+    }));
+
+    console.log('📦 Creating purchase order items:', poItems.length);
+
+    const { error: itemsError } = await supabase
+      .from('purchase_order_items')
+      .insert(poItems);
+
+    if (itemsError) {
+      // Rollback PO creation
+      console.error('❌ Failed to create purchase order items, rolling back:', itemsError);
+      await supabase.from('purchase_orders').delete().eq('id', purchaseOrder.id);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create purchase order items',
+        code: 'ITEMS_CREATION_FAILED',
+        error: itemsError.message
+      });
+    }
+
+    console.log('🎉 Purchase order creation completed successfully');
+
+    res.status(201).json({
+      success: true,
+      message: 'Purchase order created successfully',
+      data: { purchaseOrder }
+    });
+
+  } catch (error) {
+    console.error('💥 Purchase order creation API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create purchase order',
+      error: error.message
+    });
+  }
+});
+
+// Get purchase order by ID
+app.get('/api/v1/purchase-orders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`🔍 Purchase Order API: Fetching purchase order ${id}`);
+
+    const { data: purchaseOrder, error } = await supabase
+      .from('purchase_orders')
+      .select(`
+        *,
+        vendors(*),
+        business_entities(*),
+        purchase_order_items(*),
+        vendor_bills(id, bill_number, status, total_amount, bill_date, due_date),
+        delivery_challans(id, challan_number, status, challan_date, delivery_date, delivery_address, notes)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error || !purchaseOrder) {
+      console.error('❌ Purchase order not found:', error?.message || 'No data');
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase order not found',
+        code: 'PO_NOT_FOUND',
+        error: error?.message
+      });
+    }
+
+    console.log('✅ Found purchase order:', { 
+      id: purchaseOrder.id, 
+      po_number: purchaseOrder.po_number,
+      items_count: purchaseOrder.purchase_order_items?.length || 0,
+      bills_count: purchaseOrder.vendor_bills?.length || 0,
+      challans_count: purchaseOrder.delivery_challans?.length || 0
+    });
+
+    res.json({
+      success: true,
+      data: { purchaseOrder }
+    });
+
+  } catch (error) {
+    console.error('💥 Purchase order fetch API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch purchase order',
+      error: error.message
+    });
+  }
+});
+
+// ==================== DELIVERY CHALLANS ====================
+
+// Create new delivery challan
+app.post('/api/v1/delivery-challans', async (req, res) => {
+  try {
+    const {
+      challan_number,
+      purchase_order_id,
+      challan_date,
+      delivery_date,
+      delivery_address,
+      contact_person,
+      phone,
+      notes
+    } = req.body;
+
+    console.log('🚚 Delivery Challan API: Creating new delivery challan');
+    console.log('📦 Request data:', { challan_number, purchase_order_id, challan_date });
+
+    // Validate required fields
+    if (!challan_number || !purchase_order_id || !challan_date) {
+      console.error('❌ Missing required fields');
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields',
+        code: 'VALIDATION_ERROR',
+        required_fields: ['challan_number', 'purchase_order_id', 'challan_date']
+      });
+    }
+
+    // Check if purchase order exists
+    const { data: purchaseOrder, error: poError } = await supabase
+      .from('purchase_orders')
+      .select('id, po_number, vendor_id, total_amount')
+      .eq('id', purchase_order_id)
+      .single();
+
+    if (poError || !purchaseOrder) {
+      console.error('❌ Purchase order not found:', poError?.message);
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase order not found',
+        code: 'PO_NOT_FOUND',
+        error: poError?.message
+      });
+    }
+
+    console.log('✅ Found purchase order:', { 
+      id: purchaseOrder.id, 
+      po_number: purchaseOrder.po_number 
+    });
+
+    const challanData = {
+      challan_number,
+      purchase_order_id,
+      challan_date,
+      delivery_date: delivery_date || null,
+      delivery_address: delivery_address || null,
+      contact_person: contact_person || null,
+      phone: phone || null,
+      notes: notes || null,
+      status: 'generated'
+    };
+
+    console.log('📝 Creating delivery challan with data:', challanData);
+
+    const { data: deliveryChallan, error } = await supabase
+      .from('delivery_challans')
+      .insert(challanData)
+      .select(`
+        *,
+        purchase_orders(po_number, vendors(name))
+      `)
+      .single();
+
+    if (error) {
+      console.error('❌ Failed to create delivery challan:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create delivery challan',
+        code: 'CREATION_FAILED',
+        error: error.message
+      });
+    }
+
+    console.log('🎉 Delivery challan created successfully:', deliveryChallan.id);
+
+    res.status(201).json({
+      success: true,
+      message: 'Delivery challan created successfully',
+      data: { deliveryChallan }
+    });
+
+  } catch (error) {
+    console.error('💥 Delivery challan creation API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create delivery challan',
+      error: error.message
+    });
+  }
+});
+
+// Get delivery challan by ID
+app.get('/api/v1/delivery-challans/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`🔍 Delivery Challan API: Fetching delivery challan ${id}`);
+
+    const { data: deliveryChallan, error } = await supabase
+      .from('delivery_challans')
+      .select(`
+        *,
+        purchase_orders(
+          po_number, 
+          status,
+          total_amount,
+          vendors(name, email, phone, contact_person),
+          purchase_order_items(quantity, description, unit_price, line_total)
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error || !deliveryChallan) {
+      console.error('❌ Delivery challan not found:', error?.message || 'No data');
+      return res.status(404).json({
+        success: false,
+        message: 'Delivery challan not found',
+        code: 'CHALLAN_NOT_FOUND',
+        error: error?.message
+      });
+    }
+
+    // Get document attachments for this challan
+    const { data: attachments, error: attachmentError } = await supabase
+      .from('document_attachments')
+      .select('*')
+      .eq('reference_type', 'delivery_challan')
+      .eq('reference_id', id)
+      .order('created_at', { ascending: false });
+
+    if (attachmentError) {
+      console.error('⚠️ Failed to fetch attachments:', attachmentError);
+      // Don't fail the request, just continue without attachments
+    }
+
+    console.log('✅ Found delivery challan:', { 
+      id: deliveryChallan.id, 
+      challan_number: deliveryChallan.challan_number,
+      attachments_count: attachments?.length || 0
+    });
+
+    res.json({
+      success: true,
+      data: {
+        deliveryChallan: {
+          ...deliveryChallan,
+          attachments: attachments || []
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('💥 Delivery challan fetch API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch delivery challan',
+      error: error.message
+    });
+  }
+});
+
+// Get purchase order by ID
+app.get('/api/v1/purchase-orders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`📋 Purchase Order API: Fetching purchase order ${id}`);
+
+    const { data: purchaseOrder, error } = await supabase
+      .from('purchase_orders')
+      .select(`
+        *,
+        vendors(*),
+        business_entities(*),
+        purchase_order_items(*),
+        vendor_bills(id, bill_number, status, total_amount, bill_date, due_date),
+        delivery_challans(id, challan_number, status, challan_date, delivery_date, delivery_address, notes)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error || !purchaseOrder) {
+      console.error(`❌ Purchase order ${id} not found:`, error);
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase order not found',
+        code: 'PO_NOT_FOUND',
+        error: error?.message
+      });
+    }
+
+    console.log(`✅ Successfully fetched purchase order ${id}`);
+
+    res.json({
+      success: true,
+      data: { purchaseOrder }
+    });
+
+  } catch (error) {
+    console.error('💥 Purchase order fetch API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch purchase order',
+      error: error.message
+    });
+  }
+});
+
+// ==================== DELIVERY CHALLANS ====================
+
+// Create new delivery challan
+app.post('/api/v1/delivery-challans', async (req, res) => {
+  try {
+    const {
+      challan_number,
+      purchase_order_id,
+      challan_date,
+      delivery_date,
+      delivery_address,
+      contact_person,
+      phone,
+      notes
+    } = req.body;
+
+    console.log('🚚 Delivery Challan API: Creating new delivery challan');
+    console.log('📋 Data:', { challan_number, purchase_order_id, challan_date });
+
+    // Validate required fields
+    if (!challan_number || !purchase_order_id || !challan_date) {
+      console.error('❌ Missing required fields');
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields',
+        code: 'VALIDATION_ERROR',
+        required_fields: ['challan_number', 'purchase_order_id', 'challan_date']
+      });
+    }
+
+    // Check if purchase order exists
+    const { data: purchaseOrder, error: poError } = await supabase
+      .from('purchase_orders')
+      .select('id, po_number, vendor_id, total_amount')
+      .eq('id', purchase_order_id)
+      .single();
+
+    if (poError || !purchaseOrder) {
+      console.error('❌ Purchase order not found:', poError);
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase order not found',
+        code: 'PO_NOT_FOUND'
+      });
+    }
+
+    console.log('✅ Purchase order found:', purchaseOrder.po_number);
+
+    const challanData = {
+      challan_number,
+      purchase_order_id,
+      challan_date,
+      delivery_date: delivery_date || null,
+      delivery_address: delivery_address || null,
+      contact_person: contact_person || null,
+      phone: phone || null,
+      notes: notes || null,
+      status: 'generated'
+    };
+
+    const { data: deliveryChallan, error } = await supabase
+      .from('delivery_challans')
+      .insert(challanData)
+      .select(`
+        *,
+        purchase_orders(po_number, vendors(name))
+      `)
+      .single();
+
+    if (error) {
+      console.error('❌ Failed to create delivery challan:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create delivery challan',
+        code: 'CREATION_FAILED',
+        error: error.message
+      });
+    }
+
+    console.log('✅ Delivery challan created successfully:', deliveryChallan.id);
+
+    res.status(201).json({
+      success: true,
+      message: 'Delivery challan created successfully',
+      data: { deliveryChallan }
+    });
+
+  } catch (error) {
+    console.error('💥 Delivery challan creation API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create delivery challan',
+      error: error.message
+    });
+  }
+});
+
 // Dashboard data endpoint
 app.get('/api/v1/dashboard', async (req, res) => {
   try {
