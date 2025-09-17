@@ -3514,6 +3514,92 @@ app.patch('/api/v1/orders/:id/delivery-status', async (req, res) => {
   }
 });
 
+// ==================== MARK INVOICE AS PAID ====================
+
+// Mark invoice as paid
+app.patch('/api/v1/invoices/:id/mark-paid', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`💰 Invoice API: Marking invoice ${id} as paid`);
+
+    // First check if invoice exists
+    const { data: existingInvoice, error: fetchError } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) {
+      console.error('❌ Error fetching invoice:', fetchError);
+      return res.status(404).json({
+        success: false,
+        message: 'Invoice not found',
+        code: 'INVOICE_NOT_FOUND',
+        error: fetchError.message
+      });
+    }
+
+    if (!existingInvoice) {
+      console.error('❌ Invoice not found in database');
+      return res.status(404).json({
+        success: false,
+        message: 'Invoice not found',
+        code: 'INVOICE_NOT_FOUND'
+      });
+    }
+
+    console.log('✅ Found invoice:', { 
+      id: existingInvoice.id, 
+      status: existingInvoice.status, 
+      total_amount: existingInvoice.total_amount,
+      paid_amount: existingInvoice.paid_amount 
+    });
+
+    // Update invoice with paid amount equal to total amount
+    const updateData = { 
+      status: 'paid',
+      paid_amount: existingInvoice.total_amount,
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('🔄 Updating invoice with data:', updateData);
+
+    const { data: invoice, error } = await supabase
+      .from('invoices')
+      .update(updateData)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('❌ Error updating invoice:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to mark invoice as paid',
+        code: 'UPDATE_FAILED',
+        error: error.message
+      });
+    }
+
+    console.log('✅ Successfully marked invoice as paid:', invoice.invoice_number);
+
+    res.json({
+      success: true,
+      message: 'Invoice marked as paid successfully',
+      data: { invoice }
+    });
+
+  } catch (error) {
+    console.error('💥 Mark as paid API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
 // Catch all other routes
 app.use('*', (req, res) => {
   res.status(404).json({
