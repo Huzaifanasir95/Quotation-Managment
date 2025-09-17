@@ -950,15 +950,16 @@ app.get('/api/v1/documents', async (req, res) => {
           tableError.message.includes('table "document_attachments" does not exist') ||
           tableError.message.includes('does not exist')
         )) {
-          console.log('📋 Table does not exist, returning empty response with helpful message');
+          console.log('📋 Table does not exist, returning empty response with setup instructions');
           return res.json({
             success: true,
             data: [],
             meta: {
               total: 0,
-              message: 'Document attachments table does not exist. Please run the database setup script.',
+              message: 'Document attachments table does not exist. The table needs to be created in your database.',
               tableExists: false,
-              setupRequired: true
+              setupRequired: true,
+              setupInstructions: 'Please run the setup-document-attachments.sql script in your Supabase SQL editor to create the required table.'
             }
           });
         }
@@ -1005,12 +1006,7 @@ app.get('/api/v1/documents', async (req, res) => {
 
     let query = supabase
       .from('document_attachments')
-      .select(`
-        *,
-        customers (id, name, email, gst_number),
-        vendors (id, name, email, gst_number),
-        business_entities (id, name, legal_name, country)
-      `)
+      .select('*')
       .order('uploaded_at', { ascending: false });
 
     // Apply range after building the query
@@ -2471,6 +2467,148 @@ app.get('/api/v1/ledger/metrics/summary', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error'
+    });
+  }
+});
+
+// Get comprehensive accounting metrics
+app.get('/api/v1/ledger/metrics/accounting', async (req, res) => {
+  try {
+    // Get pending receivable invoices (customers owe money)
+    const { data: pendingInvoices, error: invoicesError } = await supabase
+      .from('invoices')
+      .select(`
+        id,
+        invoice_number,
+        total_amount,
+        paid_amount,
+        due_date,
+        status,
+        customers(name)
+      `)
+      .neq('status', 'paid')
+      .neq('status', 'cancelled');
+
+    if (invoicesError) {
+      console.error('Failed to fetch pending invoices:', invoicesError);
+    }
+
+    // Get pending payable vendor bills (we owe money to vendors)
+    const { data: pendingVendorBills, error: vendorBillsError } = await supabase
+      .from('vendor_bills')
+      .select(`
+        id,
+        bill_number,
+        total_amount,
+        paid_amount,
+        due_date,
+        status,
+        vendors(name)
+      `)
+      .neq('status', 'paid');
+
+    if (vendorBillsError) {
+      console.error('Failed to fetch vendor bills:', vendorBillsError);
+    }
+
+    // Calculate metrics
+    const receivables = {
+      count: pendingInvoices?.length || 0,
+      totalAmount: pendingInvoices?.reduce((sum, inv) => sum + ((inv.total_amount || 0) - (inv.paid_amount || 0)), 0) || 0,
+      overdueCount: 0,
+      overdueAmount: 0
+    };
+
+    const payables = {
+      count: pendingVendorBills?.length || 0,
+      totalAmount: pendingVendorBills?.reduce((sum, bill) => sum + ((bill.total_amount || 0) - (bill.paid_amount || 0)), 0) || 0,
+      overdueCount: 0,
+      overdueAmount: 0
+    };
+
+    // Calculate overdue items
+    const today = new Date();
+    
+    if (pendingInvoices) {
+      pendingInvoices.forEach(invoice => {
+        if (invoice.due_date && new Date(invoice.due_date) < today) {
+          receivables.overdueCount++;
+          receivables.overdueAmount += (invoice.total_amount || 0) - (invoice.paid_amount || 0);
+        }
+      });
+    }
+
+    if (pendingVendorBills) {
+      pendingVendorBills.forEach(bill => {
+        if (bill.due_date && new Date(bill.due_date) < today) {
+          payables.overdueCount++;
+          payables.overdueAmount += (bill.total_amount || 0) - (bill.paid_amount || 0);
+        }
+      });
+    }
+
+    // Get ledger-based metrics for P&L
+    const { data: entries } = await supabase
+      .from('ledger_entries')
+      .select(`
+        reference_type,
+        total_debit,
+        total_credit,
+        ledger_entry_lines (
+          debit_amount,
+          credit_amount,
+          chart_of_accounts (
+            account_type
+          )
+        )
+      `);
+
+    const pnlMetrics = {
+      totalSales: 0,
+      totalPurchases: 0,
+      expenses: 0,
+      netProfit: 0
+    };
+
+    if (entries) {
+      entries.forEach(entry => {
+        entry.ledger_entry_lines?.forEach(line => {
+          const accountType = line.chart_of_accounts?.account_type;
+          if (accountType === 'revenue') {
+            pnlMetrics.totalSales += line.credit_amount || 0;
+          } else if (accountType === 'expense') {
+            pnlMetrics.expenses += line.debit_amount || 0;
+          }
+        });
+        
+        if (entry.reference_type === 'purchase_order') {
+          pnlMetrics.totalPurchases += entry.total_debit || 0;
+        }
+      });
+    }
+    
+    pnlMetrics.netProfit = pnlMetrics.totalSales - pnlMetrics.totalPurchases - pnlMetrics.expenses;
+
+    res.json({
+      success: true,
+      data: {
+        receivables,
+        payables,
+        pnl: pnlMetrics,
+        summary: {
+          totalOutstanding: receivables.totalAmount + payables.totalAmount,
+          netReceivables: receivables.totalAmount - payables.totalAmount,
+          totalOverdue: receivables.overdueAmount + payables.overdueAmount
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Accounting metrics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch accounting metrics',
+      error: error.message
     });
   }
 });
