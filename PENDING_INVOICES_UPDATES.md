@@ -10,7 +10,7 @@
 ### 2. **Made Filters Collapsible by Default**
 - Added `showFilters` state (defaults to `false`)
 - Added toggle button with expand/collapse icons (▶/▼)
-- Filters are now hidden by default to reduce visual clutter
+- Filters are now hidden by default to reduce   visual clutter
 - Users can click "Show Filters" to expand the filter section
 - Invoice count is always visible even when filters are collapsed
 
