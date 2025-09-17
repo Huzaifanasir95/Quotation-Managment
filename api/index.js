@@ -943,6 +943,157 @@ app.post('/api/v1/vendors', async (req, res) => {
   }
 });
 
+// Get vendor by ID
+app.get('/api/v1/vendors/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`🏪 Vendor API: Fetching vendor ${id}`);
+
+    const { data: vendor, error } = await supabase
+      .from('vendors')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error || !vendor) {
+      console.error(`❌ Vendor ${id} not found:`, error);
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor not found',
+        code: 'VENDOR_NOT_FOUND'
+      });
+    }
+
+    console.log(`✅ Fetched vendor ${id}`);
+
+    res.json({
+      success: true,
+      data: { vendor }
+    });
+
+  } catch (error) {
+    console.error('💥 Vendor fetch API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch vendor',
+      error: error.message
+    });
+  }
+});
+
+// Update vendor
+app.put('/api/v1/vendors/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    console.log(`🔄 Vendor API: Updating vendor ${id}`);
+    console.log('📋 Update data:', { 
+      name: updateData.name, 
+      email: updateData.email, 
+      contact_person: updateData.contact_person 
+    });
+
+    const { data: vendor, error } = await supabase
+      .from('vendors')
+      .update(updateData)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('❌ Failed to update vendor:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to update vendor',
+        code: 'UPDATE_FAILED',
+        error: error.message
+      });
+    }
+
+    if (!vendor) {
+      console.error('❌ Vendor not found for update');
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor not found',
+        code: 'VENDOR_NOT_FOUND'
+      });
+    }
+
+    console.log(`✅ Vendor ${id} updated successfully`);
+
+    res.json({
+      success: true,
+      message: 'Vendor updated successfully',
+      data: { vendor }
+    });
+
+  } catch (error) {
+    console.error('💥 Vendor update API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update vendor',
+      error: error.message
+    });
+  }
+});
+
+// Delete vendor
+app.delete('/api/v1/vendors/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`🗑️ Vendor API: Deleting vendor ${id}`);
+
+    // First check if vendor exists
+    const { data: existingVendor, error: fetchError } = await supabase
+      .from('vendors')
+      .select('id, name')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingVendor) {
+      console.error(`❌ Vendor ${id} not found for deletion:`, fetchError);
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor not found',
+        code: 'VENDOR_NOT_FOUND'
+      });
+    }
+
+    const { error } = await supabase
+      .from('vendors')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('❌ Failed to delete vendor:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to delete vendor',
+        code: 'DELETE_FAILED',
+        error: error.message
+      });
+    }
+
+    console.log(`✅ Vendor ${id} (${existingVendor.name}) deleted successfully`);
+
+    res.json({
+      success: true,
+      message: 'Vendor deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('💥 Vendor deletion API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete vendor',
+      error: error.message
+    });
+  }
+});
+
 app.get('/api/v1/business-entities', async (req, res) => {
   try {
     const { data: entities, error } = await supabase
