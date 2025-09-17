@@ -897,6 +897,52 @@ app.get('/api/v1/vendors', async (req, res) => {
   }
 });
 
+// Create new vendor
+app.post('/api/v1/vendors', async (req, res) => {
+  try {
+    const vendorData = req.body;
+
+    console.log('🏪 Vendor API: Creating new vendor');
+    console.log('📋 Vendor data:', { 
+      name: vendorData.name, 
+      email: vendorData.email, 
+      contact_person: vendorData.contact_person 
+    });
+
+    const { data: vendor, error } = await supabase
+      .from('vendors')
+      .insert(vendorData)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('❌ Failed to create vendor:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create vendor',
+        code: 'CREATION_FAILED',
+        error: error.message
+      });
+    }
+
+    console.log('✅ Vendor created successfully:', vendor.id);
+
+    res.status(201).json({
+      success: true,
+      message: 'Vendor created successfully',
+      data: { vendor }
+    });
+
+  } catch (error) {
+    console.error('💥 Vendor creation API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create vendor',
+      error: error.message
+    });
+  }
+});
+
 app.get('/api/v1/business-entities', async (req, res) => {
   try {
     const { data: entities, error } = await supabase
