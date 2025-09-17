@@ -3251,6 +3251,269 @@ app.put('/api/v1/settings', async (req, res) => {
   }
 });
 
+// ==================== INVOICE CREATION FROM SALES ORDER ====================
+
+// Create invoice from sales order
+app.post('/api/v1/invoices/create-from-order', async (req, res) => {
+  try {
+    const { sales_order_id, invoice_date, due_date, notes } = req.body;
+
+    console.log('🧾 Invoice API: Creating invoice from sales order:', { sales_order_id, invoice_date, due_date });
+
+    if (!sales_order_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sales order ID is required',
+        code: 'MISSING_SALES_ORDER_ID'
+      });
+    }
+
+    // Get the sales order with items
+    const { data: salesOrder, error: orderError } = await supabase
+      .from('sales_orders')
+      .select(`
+        *,
+        customers(*),
+        business_entities(*),
+        sales_order_items(*),
+        quotations(quotation_number)
+      `)
+      .eq('id', sales_order_id)
+      .single();
+
+    if (orderError || !salesOrder) {
+      console.error('❌ Sales order fetch error:', orderError);
+      return res.status(404).json({
+        success: false,
+        message: 'Sales order not found',
+        code: 'SALES_ORDER_NOT_FOUND'
+      });
+    }
+
+    // Check if sales order can be invoiced
+    if (salesOrder.status === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot create invoice for cancelled sales order',
+        code: 'INVALID_ORDER_STATUS'
+      });
+    }
+
+    // Check if invoice already exists for this sales order
+    const { data: existingInvoice } = await supabase
+      .from('invoices')
+      .select('invoice_number')
+      .eq('sales_order_id', sales_order_id)
+      .single();
+
+    if (existingInvoice) {
+      return res.status(400).json({
+        success: false,
+        message: `Invoice ${existingInvoice.invoice_number} already exists for this sales order`,
+        code: 'INVOICE_ALREADY_EXISTS'
+      });
+    }
+
+    // Generate invoice number
+    const currentYear = new Date().getFullYear();
+    const { data: lastInvoice } = await supabase
+      .from('invoices')
+      .select('invoice_number')
+      .like('invoice_number', `INV-${currentYear}-%`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    let nextNumber = 1;
+    if (lastInvoice) {
+      const lastNumber = parseInt(lastInvoice.invoice_number.split('-')[2]);
+      nextNumber = lastNumber + 1;
+    }
+
+    const invoice_number = `INV-${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
+
+    // Prepare invoice data
+    const finalInvoiceData = {
+      invoice_number,
+      sales_order_id: salesOrder.id,
+      customer_id: salesOrder.customer_id,
+      business_entity_id: salesOrder.business_entity_id,
+      invoice_date: invoice_date || new Date().toISOString().split('T')[0],
+      due_date: due_date || (() => {
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30); // Default 30 days
+        return dueDate.toISOString().split('T')[0];
+      })(),
+      subtotal: salesOrder.subtotal,
+      tax_amount: salesOrder.tax_amount,
+      discount_amount: salesOrder.discount_amount,
+      total_amount: salesOrder.total_amount,
+      status: 'draft',
+      notes: notes || `Invoice generated from Sales Order ${salesOrder.order_number}`
+    };
+
+    // Create invoice
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .insert(finalInvoiceData)
+      .select('*')
+      .single();
+
+    if (invoiceError) {
+      console.error('❌ Invoice creation error:', invoiceError);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create invoice',
+        code: 'INVOICE_CREATION_FAILED',
+        error: invoiceError.message
+      });
+    }
+
+    // Create invoice items from sales order items
+    const invoiceItems = salesOrder.sales_order_items.map(item => ({
+      invoice_id: invoice.id,
+      product_id: item.product_id,
+      description: item.description,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      discount_percent: item.discount_percent,
+      tax_percent: item.tax_percent,
+      line_total: item.line_total
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('invoice_items')
+      .insert(invoiceItems);
+
+    if (itemsError) {
+      console.error('❌ Invoice items creation error:', itemsError);
+      // Rollback invoice creation
+      await supabase.from('invoices').delete().eq('id', invoice.id);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create invoice items',
+        code: 'INVOICE_ITEMS_CREATION_FAILED',
+        error: itemsError.message
+      });
+    }
+
+    // Update sales order status to invoiced
+    await supabase
+      .from('sales_orders')
+      .update({ status: 'invoiced' })
+      .eq('id', sales_order_id);
+
+    console.log(`✅ Successfully created invoice ${invoice_number} from sales order ${salesOrder.order_number}`);
+
+    res.status(201).json({
+      success: true,
+      message: `Invoice ${invoice_number} created successfully from sales order ${salesOrder.order_number}`,
+      data: { 
+        invoice: {
+          ...invoice,
+          customer: salesOrder.customers,
+          business_entity: salesOrder.business_entities
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('💥 Invoice creation API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
+// ==================== SALES ORDER DELIVERY STATUS UPDATE ====================
+
+// Update sales order delivery status
+app.patch('/api/v1/orders/:id/delivery-status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { delivery_status, delivery_date, delivery_notes } = req.body;
+
+    console.log('🚚 Orders API: Updating delivery status for order:', { id, delivery_status, delivery_date });
+
+    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(delivery_status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid delivery status',
+        code: 'INVALID_DELIVERY_STATUS',
+        valid_statuses: validStatuses
+      });
+    }
+
+    // Get current order
+    const { data: currentOrder, error: fetchError } = await supabase
+      .from('sales_orders')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !currentOrder) {
+      console.error('❌ Sales order fetch error:', fetchError);
+      return res.status(404).json({
+        success: false,
+        message: 'Sales order not found',
+        code: 'ORDER_NOT_FOUND'
+      });
+    }
+
+    const updateData = { 
+      status: delivery_status,
+      updated_at: new Date().toISOString()
+    };
+
+    // Store delivery info in the notes field
+    if (delivery_notes && delivery_status === 'delivered') {
+      updateData.notes = currentOrder.notes 
+        ? `${currentOrder.notes}\n\nDelivery Update: ${delivery_notes} (${new Date().toLocaleDateString()})`
+        : `Delivery Update: ${delivery_notes} (${new Date().toLocaleDateString()})`;
+    }
+
+    const { data: order, error } = await supabase
+      .from('sales_orders')
+      .update(updateData)
+      .eq('id', id)
+      .select(`
+        *,
+        customers(name, email),
+        business_entities(name)
+      `)
+      .single();
+
+    if (error) {
+      console.error('❌ Delivery status update error:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to update delivery status',
+        code: 'UPDATE_FAILED',
+        error: error.message
+      });
+    }
+
+    console.log(`✅ Successfully updated delivery status for order ${id} to ${delivery_status}`);
+
+    res.json({
+      success: true,
+      message: `Order delivery status updated to ${delivery_status}`,
+      data: { order }
+    });
+
+  } catch (error) {
+    console.error('💥 Delivery status update API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
 // Catch all other routes
 app.use('*', (req, res) => {
   res.status(404).json({
