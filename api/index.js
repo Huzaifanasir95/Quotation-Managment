@@ -3514,6 +3514,188 @@ app.patch('/api/v1/orders/:id/delivery-status', async (req, res) => {
   }
 });
 
+// ==================== AUTO-GENERATE INVOICES ====================
+
+// Auto-generate invoices for completed deliveries
+app.post('/api/v1/invoices/auto-generate', async (req, res) => {
+  try {
+    console.log('🤖 Invoice API: Starting auto-generation of invoices');
+
+    // Get all delivered sales orders that don't have invoices yet
+    const { data: deliveredOrders, error: orderError } = await supabase
+      .from('sales_orders')
+      .select(`
+        *,
+        customers(*),
+        business_entities(*),
+        sales_order_items(*),
+        quotations(quotation_number)
+      `)
+      .eq('status', 'delivered')
+      .is('invoice_generated', false);
+
+    if (orderError) {
+      console.error('❌ Failed to fetch delivered orders:', orderError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch delivered orders',
+        code: 'FETCH_ORDERS_FAILED',
+        error: orderError.message
+      });
+    }
+
+    if (!deliveredOrders || deliveredOrders.length === 0) {
+      console.log('ℹ️ No delivered orders found that need invoicing');
+      return res.json({
+        success: true,
+        message: 'No delivered orders found that need invoicing',
+        data: { generatedInvoices: [] }
+      });
+    }
+
+    console.log(`📦 Found ${deliveredOrders.length} delivered orders to check`);
+
+    // Filter out orders that already have invoices
+    const ordersNeedingInvoices = [];
+    for (const order of deliveredOrders) {
+      const { data: existingInvoice } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('sales_order_id', order.id)
+        .single();
+
+      if (!existingInvoice) {
+        ordersNeedingInvoices.push(order);
+      }
+    }
+
+    console.log(`💡 Found ${ordersNeedingInvoices.length} orders needing invoices`);
+
+    const generatedInvoices = [];
+
+    // Generate invoices for each delivered order
+    for (const salesOrder of ordersNeedingInvoices) {
+      try {
+        console.log(`📝 Generating invoice for order ${salesOrder.order_number}`);
+
+        // Generate invoice number
+        const currentYear = new Date().getFullYear();
+        const { data: lastInvoice } = await supabase
+          .from('invoices')
+          .select('invoice_number')
+          .like('invoice_number', `INV-${currentYear}-%`)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        let nextNumber = 1;
+        if (lastInvoice) {
+          const lastNumber = parseInt(lastInvoice.invoice_number.split('-')[2]);
+          nextNumber = lastNumber + 1;
+        }
+
+        const invoice_number = `INV-${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
+
+        // Calculate due date (30 days from delivery)
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30);
+
+        // Prepare invoice data
+        const finalInvoiceData = {
+          invoice_number,
+          sales_order_id: salesOrder.id,
+          customer_id: salesOrder.customer_id,
+          business_entity_id: salesOrder.business_entity_id,
+          invoice_date: new Date().toISOString().split('T')[0],
+          due_date: dueDate.toISOString().split('T')[0],
+          subtotal: salesOrder.subtotal,
+          tax_amount: salesOrder.tax_amount,
+          discount_amount: salesOrder.discount_amount,
+          total_amount: salesOrder.total_amount,
+          status: 'sent',
+          notes: `Auto-generated invoice for delivered order ${salesOrder.order_number}`
+        };
+
+        console.log(`📄 Creating invoice ${invoice_number} for order ${salesOrder.order_number}`);
+
+        // Create invoice
+        const { data: invoice, error: invoiceError } = await supabase
+          .from('invoices')
+          .insert(finalInvoiceData)
+          .select('*')
+          .single();
+
+        if (invoiceError) {
+          console.error(`❌ Failed to create invoice for order ${salesOrder.order_number}:`, invoiceError);
+          continue;
+        }
+
+        // Create invoice items from sales order items
+        const invoiceItems = salesOrder.sales_order_items.map(item => ({
+          invoice_id: invoice.id,
+          product_id: item.product_id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_percent: item.discount_percent,
+          tax_percent: item.tax_percent,
+          line_total: item.line_total
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('invoice_items')
+          .insert(invoiceItems);
+
+        if (itemsError) {
+          // Rollback invoice creation
+          await supabase.from('invoices').delete().eq('id', invoice.id);
+          console.error(`❌ Failed to create invoice items for order ${salesOrder.order_number}:`, itemsError);
+          continue;
+        }
+
+        // Mark sales order as invoiced
+        await supabase
+          .from('sales_orders')
+          .update({ 
+            status: 'invoiced',
+            invoice_generated: true
+          })
+          .eq('id', salesOrder.id);
+
+        generatedInvoices.push({
+          invoice_number,
+          order_number: salesOrder.order_number,
+          customer_name: salesOrder.customers?.name,
+          total_amount: salesOrder.total_amount
+        });
+
+        console.log(`✅ Successfully generated invoice ${invoice_number} for order ${salesOrder.order_number}`);
+
+      } catch (error) {
+        console.error(`❌ Error generating invoice for order ${salesOrder.order_number}:`, error);
+        continue;
+      }
+    }
+
+    console.log(`🎉 Auto-generation complete: Generated ${generatedInvoices.length} invoice(s)`);
+
+    res.json({
+      success: true,
+      message: `Successfully generated ${generatedInvoices.length} invoice(s) from delivered orders`,
+      data: { generatedInvoices }
+    });
+
+  } catch (error) {
+    console.error('💥 Auto-generate invoices API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to auto-generate invoices',
+      code: 'AUTO_GENERATION_FAILED',
+      error: error.message
+    });
+  }
+});
+
 // ==================== MARK INVOICE AS PAID ====================
 
 // Mark invoice as paid
