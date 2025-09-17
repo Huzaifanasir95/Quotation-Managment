@@ -1749,7 +1749,7 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
   }
 });
 
-// Vendor bills endpoint
+// Vendor bills endpoints
 app.get('/api/v1/vendor-bills', async (req, res) => {
   try {
     const { page = 1, limit = 50, search, vendor_id, purchase_order_id } = req.query;
@@ -1798,6 +1798,465 @@ app.get('/api/v1/vendor-bills', async (req, res) => {
     });
   } catch (error) {
     console.error('Vendor bills error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Get vendor bill by ID
+app.get('/api/v1/vendor-bills/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: vendorBill, error } = await supabase
+      .from('vendor_bills')
+      .select(`
+        *,
+        vendors(name, email, phone, gst_number, contact_person),
+        purchase_orders(po_number, status)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Vendor bill fetch error:', error);
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor bill not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { vendorBill }
+    });
+  } catch (error) {
+    console.error('Vendor bill error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Create vendor bill from purchase order
+app.post('/api/v1/vendor-bills/create-from-po', async (req, res) => {
+  try {
+    const { purchase_order_id, bill_number, bill_date, due_date, notes } = req.body;
+
+    if (!purchase_order_id || !bill_number || !bill_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: purchase_order_id, bill_number, bill_date'
+      });
+    }
+
+    // Get the purchase order
+    const { data: purchaseOrder, error: poError } = await supabase
+      .from('purchase_orders')
+      .select(`
+        *,
+        vendors(*),
+        purchase_order_items(*)
+      `)
+      .eq('id', purchase_order_id)
+      .single();
+
+    if (poError || !purchaseOrder) {
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase order not found'
+      });
+    }
+
+    // Check if bill already exists for this PO
+    const { data: existingBill } = await supabase
+      .from('vendor_bills')
+      .select('id, bill_number')
+      .eq('purchase_order_id', purchase_order_id)
+      .single();
+
+    if (existingBill) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vendor bill already exists for this purchase order'
+      });
+    }
+
+    // Set due date (30 days from bill date if not provided)
+    const dueDateFinal = due_date || (() => {
+      const date = new Date(bill_date);
+      date.setDate(date.getDate() + 30);
+      return date.toISOString().split('T')[0];
+    })();
+
+    // Create vendor bill
+    const billData = {
+      bill_number,
+      purchase_order_id,
+      vendor_id: purchaseOrder.vendor_id,
+      business_entity_id: purchaseOrder.business_entity_id,
+      bill_date,
+      due_date: dueDateFinal,
+      status: 'pending',
+      subtotal: purchaseOrder.subtotal || 0,
+      tax_amount: purchaseOrder.tax_amount || 0,
+      total_amount: purchaseOrder.total_amount || 0,
+      paid_amount: 0,
+      created_at: new Date().toISOString()
+    };
+
+    const { data: vendorBill, error: billError } = await supabase
+      .from('vendor_bills')
+      .insert(billData)
+      .select(`
+        *,
+        vendors(name, email),
+        purchase_orders(po_number)
+      `)
+      .single();
+
+    if (billError) {
+      console.error('Vendor bill creation error:', billError);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create vendor bill',
+        error: billError.message
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Vendor bill created from purchase order successfully',
+      data: { vendorBill }
+    });
+
+  } catch (error) {
+    console.error('Create vendor bill error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Create manual expense bill
+app.post('/api/v1/vendor-bills/create-expense', async (req, res) => {
+  try {
+    const {
+      bill_number,
+      vendor_id,
+      bill_date,
+      due_date,
+      expense_category,
+      description,
+      subtotal,
+      tax_amount = 0,
+      total_amount,
+      notes
+    } = req.body;
+
+    if (!bill_number || !vendor_id || !bill_date || !total_amount || !expense_category) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: bill_number, vendor_id, bill_date, total_amount, expense_category'
+      });
+    }
+
+    // Set due date (30 days from bill date if not provided)
+    const dueDateFinal = due_date || (() => {
+      const date = new Date(bill_date);
+      date.setDate(date.getDate() + 30);
+      return date.toISOString().split('T')[0];
+    })();
+
+    // Create expense bill
+    const billData = {
+      bill_number,
+      vendor_id,
+      purchase_order_id: null,
+      bill_date,
+      due_date: dueDateFinal,
+      status: 'pending',
+      subtotal: subtotal || total_amount,
+      tax_amount,
+      total_amount,
+      paid_amount: 0,
+      created_at: new Date().toISOString()
+    };
+
+    const { data: vendorBill, error: billError } = await supabase
+      .from('vendor_bills')
+      .insert(billData)
+      .select(`
+        *,
+        vendors(name, email)
+      `)
+      .single();
+
+    if (billError) {
+      console.error('Expense bill creation error:', billError);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create expense bill',
+        error: billError.message
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Expense bill created successfully',
+      data: { vendorBill }
+    });
+
+  } catch (error) {
+    console.error('Create expense bill error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Get pending purchase orders for bill creation
+app.get('/api/v1/vendor-bills/pending-pos', async (req, res) => {
+  try {
+    const { vendor_id } = req.query;
+
+    let query = supabase
+      .from('purchase_orders')
+      .select(`
+        *,
+        vendors(name, email),
+        purchase_order_items(*)
+      `)
+      .in('status', ['approved', 'sent', 'received'])
+      .order('created_at', { ascending: false });
+
+    if (vendor_id) {
+      query = query.eq('vendor_id', vendor_id);
+    }
+
+    const { data: purchaseOrders, error } = await query;
+
+    if (error) {
+      console.error('Purchase orders fetch error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch purchase orders'
+      });
+    }
+
+    // Filter out POs that already have bills
+    const { data: existingBills } = await supabase
+      .from('vendor_bills')
+      .select('purchase_order_id')
+      .not('purchase_order_id', 'is', null);
+
+    const existingPOIds = existingBills?.map(bill => bill.purchase_order_id) || [];
+    const availablePOs = purchaseOrders?.filter(po => !existingPOIds.includes(po.id)) || [];
+
+    res.json({
+      success: true,
+      data: {
+        purchaseOrders: availablePOs,
+        total: availablePOs.length
+      }
+    });
+  } catch (error) {
+    console.error('Pending POs error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Update vendor bill payment
+app.patch('/api/v1/vendor-bills/:id/payment', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { paid_amount, payment_date, payment_method, payment_reference } = req.body;
+
+    if (!paid_amount || paid_amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment amount'
+      });
+    }
+
+    // Get current bill
+    const { data: currentBill, error: fetchError } = await supabase
+      .from('vendor_bills')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !currentBill) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor bill not found'
+      });
+    }
+
+    const newPaidAmount = (currentBill.paid_amount || 0) + paid_amount;
+    const newStatus = newPaidAmount >= currentBill.total_amount ? 'paid' : 'approved';
+
+    const updateData = {
+      paid_amount: newPaidAmount,
+      status: newStatus,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: vendorBill, error } = await supabase
+      .from('vendor_bills')
+      .update(updateData)
+      .eq('id', id)
+      .select(`
+        *,
+        vendors(name, email)
+      `)
+      .single();
+
+    if (error) {
+      console.error('Payment update error:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to update payment'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Payment of ${paid_amount} recorded successfully`,
+      data: { 
+        vendorBill,
+        payment_amount: paid_amount,
+        remaining_amount: vendorBill.total_amount - vendorBill.paid_amount
+      }
+    });
+
+  } catch (error) {
+    console.error('Payment update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Create new vendor bill
+app.post('/api/v1/vendor-bills', async (req, res) => {
+  try {
+    const {
+      bill_number,
+      purchase_order_id,
+      vendor_id,
+      bill_date,
+      due_date,
+      subtotal,
+      tax_amount,
+      total_amount,
+      notes
+    } = req.body;
+
+    if (!bill_number || !vendor_id || !bill_date || !total_amount) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: bill_number, vendor_id, bill_date, total_amount'
+      });
+    }
+
+    const billData = {
+      bill_number,
+      purchase_order_id: purchase_order_id || null,
+      vendor_id,
+      bill_date,
+      due_date: due_date || null,
+      status: 'pending',
+      subtotal: subtotal || 0,
+      tax_amount: tax_amount || 0,
+      total_amount,
+      paid_amount: 0,
+      created_at: new Date().toISOString()
+    };
+
+    const { data: vendorBill, error } = await supabase
+      .from('vendor_bills')
+      .insert(billData)
+      .select(`
+        *,
+        vendors(name, email),
+        purchase_orders(po_number)
+      `)
+      .single();
+
+    if (error) {
+      console.error('Vendor bill creation error:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create vendor bill',
+        error: error.message
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Vendor bill created successfully',
+      data: { vendorBill }
+    });
+
+  } catch (error) {
+    console.error('Vendor bill creation error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Update vendor bill status
+app.patch('/api/v1/vendor-bills/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ['pending', 'approved', 'paid', 'overdue'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status. Valid statuses: ' + validStatuses.join(', ')
+      });
+    }
+
+    const { data: vendorBill, error } = await supabase
+      .from('vendor_bills')
+      .update({ 
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('Status update error:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to update vendor bill status'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Vendor bill status updated successfully',
+      data: { vendorBill }
+    });
+
+  } catch (error) {
+    console.error('Status update error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
