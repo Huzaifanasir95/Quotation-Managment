@@ -64,7 +64,7 @@ export default function TopBar({ onSidebarToggle }: TopBarProps) {
 
   return (
     <div
-      className="fixed top-0 right-0 h-16 shadow-sm border-b border-[#6b5b7a] z-40 w-full md:ml-64 transition-all duration-300"
+      className="fixed top-0 left-0 md:left-64 right-0 h-16 shadow-sm border-b border-[#6b5b7a] z-30 transition-all duration-300"
       style={{ backgroundColor: '#56425b' }}
     >
       <div className="flex items-center justify-between h-full px-4 md:px-6">

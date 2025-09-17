@@ -75,7 +75,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   // Show loading state while checking authentication
   if (loading) {
     return (
-      <div className="fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-50">
+      <div className="fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-40">
         <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a] px-4">
           <div className="flex items-center space-x-2">
             <Image
@@ -98,7 +98,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   // If no user after loading, still show sidebar with minimal content
   if (!user) {
     return (
-      <div className="fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-50">
+      <div className="fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-40">
         <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a] px-4">
           <div className="flex items-center space-x-2">
             <Image
@@ -130,13 +130,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   // Responsive: show sidebar on md+ always, on mobile only if open
   return (
     <div
-      className={`fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-50
+      className={`fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-40
         transition-transform duration-300
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0
         md:block
       `}
-      style={{ zIndex: 10 }}
     >
       {/* Mobile close button */}
       <div className="md:hidden flex justify-end p-2">

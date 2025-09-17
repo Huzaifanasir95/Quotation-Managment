@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AppLayout from '../components/AppLayout';
 import { apiClient } from '../lib/api';
+import { whatsappService, type InvoiceData } from '../lib/whatsapp';
 
 interface Invoice {
   id: string;
@@ -15,7 +16,7 @@ interface Invoice {
   total_amount: number;
   paid_amount: number;
   fbr_sync_status: 'pending' | 'synced' | 'failed';
-  customers?: { name: string; email: string };
+  customers?: { name: string; email: string; phone?: string };
   created_at: string;
 }
 
@@ -51,6 +52,7 @@ const InvoicePage = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
 
   // Create invoice form data
   const [invoiceFormData, setInvoiceFormData] = useState({
@@ -207,6 +209,75 @@ const InvoicePage = () => {
       setError(err.message || 'Failed to mark invoice as paid');
     } finally {
       setIsMarkingPaid(false);
+    }
+  };
+
+  const handleSendViaWhatsApp = async (invoice: Invoice) => {
+    try {
+      setIsSendingWhatsApp(true);
+
+      // Prepare invoice data for WhatsApp
+      const invoiceData: InvoiceData = {
+        id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        customer_name: invoice.customers?.name || 'Unknown Customer',
+        customer_phone: invoice.customers?.phone,
+        total_amount: invoice.total_amount,
+        due_date: invoice.due_date,
+        status: invoice.status
+      };
+
+      // Send via WhatsApp (will open WhatsApp with or without phone number)
+      await whatsappService.sendInvoiceViaWhatsApp(invoiceData);
+      
+      // Show success message
+      const message = invoice.customers?.phone 
+        ? `Invoice ${invoice.invoice_number} sent via WhatsApp to ${invoice.customers?.name}`
+        : `WhatsApp opened with invoice ${invoice.invoice_number} details. Please select the contact manually.`;
+      alert(message);
+      
+    } catch (error: any) {
+      console.error('Error sending invoice via WhatsApp:', error);
+      alert(error.message || 'Failed to open WhatsApp');
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
+  };
+
+  const handleSendReminderViaWhatsApp = async () => {
+    if (!selectedInvoice) return;
+
+    try {
+      setIsSendingWhatsApp(true);
+      
+      // Check if customer has phone number
+      if (!selectedInvoice.customers?.phone) {
+        alert('Customer phone number is not available. Please update customer information first.');
+        return;
+      }
+
+      // Prepare invoice data for WhatsApp reminder
+      const invoiceData: InvoiceData = {
+        id: selectedInvoice.id,
+        invoice_number: selectedInvoice.invoice_number,
+        customer_name: selectedInvoice.customers?.name || 'Unknown Customer',
+        customer_phone: selectedInvoice.customers?.phone,
+        total_amount: selectedInvoice.total_amount,
+        due_date: selectedInvoice.due_date,
+        status: selectedInvoice.status
+      };
+
+      // Send reminder via WhatsApp
+      await whatsappService.sendInvoiceReminder(invoiceData);
+      
+      // Show success message
+      alert(`Payment reminder sent via WhatsApp to ${selectedInvoice.customers?.name}`);
+      
+    } catch (error: any) {
+      console.error('Error sending reminder via WhatsApp:', error);
+      alert(error.message || 'Failed to send reminder via WhatsApp');
+    } finally {
+      setIsSendingWhatsApp(false);
     }
   };
 
@@ -536,7 +607,7 @@ const InvoicePage = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getFBRStatusColor(invoice.fbr_sync_status)}`}>
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(invoice.fbr_sync_status)}`}>
                           {invoice.fbr_sync_status}
                         </span>
                       </td>
@@ -550,8 +621,16 @@ const InvoicePage = () => {
                         >
                           View
                         </button>
-                        <button className="text-green-600 hover:text-green-700">
-                          Send
+                        <button 
+                          onClick={() => handleSendViaWhatsApp(invoice)}
+                          disabled={isSendingWhatsApp}
+                          className="text-green-600 hover:text-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                          title={invoice.customers?.phone ? `Send via WhatsApp to ${invoice.customers.name}` : 'Open WhatsApp to send invoice'}
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.109"/>
+                          </svg>
+                          {isSendingWhatsApp ? 'Sending...' : 'WhatsApp'}
                         </button>
                       </td>
                     </tr>
