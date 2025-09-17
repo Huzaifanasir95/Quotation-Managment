@@ -152,6 +152,61 @@ class ApiClient {
     return this.request('/auth/profile');
   }
 
+  // User management methods
+  async getUsers(params?: { page?: number; limit?: number; search?: string; role?: string; status?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.role) queryParams.append('role', params.role);
+    if (params?.status) queryParams.append('status', params.status);
+    
+    const endpoint = `/users${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request(endpoint);
+  }
+
+  async createUser(userData: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    password: string;
+    role: string;
+  }) {
+    return this.request('/users', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async updateUser(id: string, userData: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    role?: string;
+  }) {
+    return this.request(`/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async deleteUser(id: string) {
+    return this.request(`/users/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleUserStatus(id: string, status: 'active' | 'inactive') {
+    return this.request(`/users/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: status === 'active' }),
+    });
+  }
+
+  async getUserById(id: string) {
+    return this.request(`/users/${id}`);
+  }
+
   // Sales methods
   async getSalesDashboard() {
     return this.request('/sales/dashboard');

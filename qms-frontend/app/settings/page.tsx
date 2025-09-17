@@ -8,11 +8,14 @@ import { apiClient } from '../lib/api';
 
 
 interface UserData {
-  id: number;
-  name: string;
+  id: string;
+  first_name: string;
+  last_name: string;
   email: string;
   role: string;
-  status: 'active' | 'inactive';
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface VendorData {
@@ -56,12 +59,37 @@ export default function SettingsPage() {
   // Mock data
 
 
-  const [users, setUsers] = useState<UserData[]>([
-    { id: 1, name: 'Admin User', email: 'admin@qms.com', role: 'Admin', status: 'active' },
-    { id: 2, name: 'Sales Manager', email: 'sales@qms.com', role: 'Sales', status: 'active' },
-    { id: 3, name: 'Finance Officer', email: 'finance@qms.com', role: 'Finance', status: 'active' },
-    { id: 4, name: 'Procurement Lead', email: 'procurement@qms.com', role: 'Procurement', status: 'inactive' }
-  ]);
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  // Load users from API
+  useEffect(() => {
+    const loadUsers = async () => {
+      setUsersLoading(true);
+      try {
+        const response = await apiClient.getUsers();
+        if (response && response.success) {
+          if (response.data && Array.isArray(response.data.users)) {
+            setUsers(response.data.users);
+          } else if (Array.isArray(response.data)) {
+            setUsers(response.data);
+          } else {
+            setUsers([]);
+          }
+        } else {
+          console.error('Failed to load users:', response?.message || 'Unknown error');
+          setUsers([]);
+        }
+      } catch (error) {
+        console.error('Error loading users:', error);
+        setUsers([]);
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+
+    loadUsers();
+  }, []);
 
   const [vendors, setVendors] = useState<VendorData[]>([]);
 
@@ -86,7 +114,7 @@ export default function SettingsPage() {
 
 
 
-  const { register: registerUser, handleSubmit: handleUserSubmit, reset: resetUser } = useForm<Omit<UserData, 'id' | 'status'>>();
+  const { register: registerUser, handleSubmit: handleUserSubmit, reset: resetUser } = useForm<Omit<UserData, 'id' | 'is_active' | 'created_at' | 'updated_at'>>();
 
   const { register: registerVendor, handleSubmit: handleVendorSubmit, reset: resetVendor } = useForm<Omit<VendorData, 'id' | 'status'>>();
 
@@ -138,28 +166,61 @@ export default function SettingsPage() {
     { id: 'integrations', name: 'Integrations', icon: '🔗' }
   ];
 
-  const roles = ['Admin', 'Sales', 'Procurement', 'Finance', 'Auditor'];
+  const roles = ['admin', 'sales', 'procurement', 'finance', 'auditor'];
 
 
 
-  const onUserSubmit = (data: Omit<UserData, 'id' | 'status'>) => {
-    if (editingUser) {
-      setUsers(users.map(user => 
-        user.id === editingUser.id 
-          ? { ...user, ...data }
-          : user
-      ));
-      setEditingUser(null);
-    } else {
-      const newUser: UserData = {
-        ...data,
-        id: Math.max(...users.map(u => u.id)) + 1,
-        status: 'active'
-      };
-      setUsers([...users, newUser]);
+  const onUserSubmit = async (data: Omit<UserData, 'id' | 'is_active' | 'created_at' | 'updated_at'>) => {
+    setLoading(true);
+    try {
+      if (editingUser) {
+        // Update existing user
+        const response = await apiClient.updateUser(editingUser.id, data);
+        if (response && response.success) {
+          const updatedUser = response.data?.user || { ...editingUser, ...data };
+          setUsers(users.map(user => 
+            user.id === editingUser.id 
+              ? updatedUser
+              : user
+          ));
+          setEditingUser(null);
+          alert('User updated successfully!');
+        } else {
+          alert('Failed to update user: ' + (response?.message || 'Unknown error'));
+        }
+      } else {
+        // Create new user - need to add password for new users
+        const userDataWithPassword = {
+          ...data,
+          password: 'defaultPassword123!' // You might want to make this configurable
+        };
+        const response = await apiClient.createUser(userDataWithPassword);
+        if (response && response.success) {
+          const newUser = response.data?.user;
+          if (newUser) {
+            setUsers([...users, newUser]);
+            alert('User created successfully! Default password is: defaultPassword123!');
+          } else {
+            const fallbackUser: UserData = {
+              ...data,
+              id: Date.now().toString(),
+              is_active: true
+            };
+            setUsers([...users, fallbackUser]);
+            alert('User created successfully!');
+          }
+        } else {
+          alert('Failed to create user: ' + (response?.message || 'Unknown error'));
+        }
+      }
+      setShowAddUser(false);
+      resetUser();
+    } catch (error) {
+      console.error('Error saving user:', error);
+      alert('An error occurred while saving the user. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setShowAddUser(false);
-    resetUser();
   };
 
   const onVendorSubmit = async (data: Omit<VendorData, 'id' | 'status'>) => {
@@ -226,17 +287,44 @@ export default function SettingsPage() {
     alert('Terms & Conditions saved successfully!');
   };
 
-  const toggleUserStatus = (userId: number) => {
-    setUsers(users.map(user => 
-      user.id === userId 
-        ? { ...user, status: user.status === 'active' ? 'inactive' : 'active' }
-        : user
-    ));
+  const toggleUserStatus = async (userId: string) => {
+    try {
+      const user = users.find(u => u.id === userId);
+      if (!user) return;
+      
+      const newStatus = user.is_active ? 'inactive' : 'active';
+      const response = await apiClient.toggleUserStatus(userId, newStatus);
+      
+      if (response && response.success) {
+        setUsers(users.map(user => 
+          user.id === userId 
+            ? { ...user, is_active: !user.is_active }
+            : user
+        ));
+        alert(`User ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
+      } else {
+        alert('Failed to update user status: ' + (response?.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      alert('An error occurred while updating user status.');
+    }
   };
 
-  const deleteUser = (userId: number) => {
-    if (confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(user => user.id !== userId));
+  const deleteUser = async (userId: string) => {
+    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      try {
+        const response = await apiClient.deleteUser(userId);
+        if (response && response.success) {
+          setUsers(users.filter(user => user.id !== userId));
+          alert('User deleted successfully!');
+        } else {
+          alert('Failed to delete user: ' + (response?.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('An error occurred while deleting the user.');
+      }
     }
   };
 
@@ -339,26 +427,27 @@ export default function SettingsPage() {
                         <tr key={user.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div>
-                              <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                              <div className="text-sm font-medium text-gray-900">{user.first_name} {user.last_name}</div>
                               <div className="text-sm text-gray-500">{user.email}</div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              user.role === 'Admin' ? 'bg-purple-100 text-purple-800' :
-                              user.role === 'Sales' ? 'bg-green-100 text-green-800' :
-                              user.role === 'Finance' ? 'bg-blue-100 text-blue-800' :
-                              user.role === 'Procurement' ? 'bg-orange-100 text-orange-800' :
+                              user.role === 'admin' ? 'bg-purple-100 text-purple-800' :
+                              user.role === 'sales' ? 'bg-green-100 text-green-800' :
+                              user.role === 'finance' ? 'bg-blue-100 text-blue-800' :
+                              user.role === 'procurement' ? 'bg-orange-100 text-orange-800' :
+                              user.role === 'auditor' ? 'bg-indigo-100 text-indigo-800' :
                               'bg-gray-100 text-gray-800'
                             }`}>
-                              {user.role}
+                              {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                             }`}>
-                              {user.status}
+                              {user.is_active ? 'Active' : 'Inactive'}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -375,7 +464,7 @@ export default function SettingsPage() {
                               onClick={() => toggleUserStatus(user.id)}
                               className="text-yellow-600 hover:text-yellow-700 mr-3"
                             >
-                              {user.status === 'active' ? 'Deactivate' : 'Activate'}
+                              {user.is_active ? 'Deactivate' : 'Activate'}
                             </button>
                             <button
                               onClick={() => deleteUser(user.id)}
@@ -399,11 +488,20 @@ export default function SettingsPage() {
                       </h3>
                       <form onSubmit={handleUserSubmit(onUserSubmit)} className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                           <input
-                            {...registerUser('name', { required: 'Name is required' })}
+                            {...registerUser('first_name', { required: 'First name is required' })}
                             type="text"
-                            defaultValue={editingUser?.name || ''}
+                            defaultValue={editingUser?.first_name || ''}
+                            className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                          <input
+                            {...registerUser('last_name', { required: 'Last name is required' })}
+                            type="text"
+                            defaultValue={editingUser?.last_name || ''}
                             className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           />
                         </div>
@@ -425,7 +523,7 @@ export default function SettingsPage() {
                           >
                             <option value="">Select Role</option>
                             {roles.map(role => (
-                              <option key={role} value={role}>{role}</option>
+                              <option key={role} value={role}>{role.charAt(0).toUpperCase() + role.slice(1)}</option>
                             ))}
                           </select>
                         </div>

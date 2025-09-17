@@ -8,6 +8,7 @@ const { errorHandler, logger } = require('./middleware/errorHandler');
 
 // Import routes
 const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
 const customerRoutes = require('./routes/customers');
 const vendorRoutes = require('./routes/vendors');
 const productRoutes = require('./routes/products');
@@ -108,6 +109,7 @@ const apiRouter = express.Router();
 
 // Mount API routes
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/customers', customerRoutes);
 app.use('/api/v1/vendors', vendorRoutes);
 app.use('/api/v1/products', productRoutes);
