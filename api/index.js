@@ -3381,6 +3381,230 @@ app.get('/api/v1/ledger/metrics/accounting', async (req, res) => {
   }
 });
 
+// Get chart of accounts
+app.get('/api/v1/ledger/accounts/chart', async (req, res) => {
+  try {
+    console.log('📊 Ledger API: Fetching chart of accounts');
+
+    const { data: accounts, error } = await supabase
+      .from('chart_of_accounts')
+      .select('*')
+      .eq('is_active', true)
+      .order('account_code', { ascending: true });
+
+    if (error) {
+      console.error('❌ Failed to fetch chart of accounts:', error);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to fetch chart of accounts',
+        code: 'FETCH_FAILED',
+        error: error.message
+      });
+    }
+
+    console.log(`✅ Fetched ${accounts?.length || 0} accounts`);
+
+    res.json({
+      success: true,
+      data: { accounts }
+    });
+
+  } catch (error) {
+    console.error('💥 Chart of accounts API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch chart of accounts',
+      error: error.message
+    });
+  }
+});
+
+// Get ledger entry by ID
+app.get('/api/v1/ledger/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`📋 Ledger API: Fetching ledger entry ${id}`);
+
+    const { data: entry, error } = await supabase
+      .from('ledger_entries')
+      .select(`
+        *,
+        ledger_entry_lines (
+          id,
+          account_id,
+          debit_amount,
+          credit_amount,
+          description,
+          chart_of_accounts (
+            account_code,
+            account_name,
+            account_type
+          )
+        ),
+        users!created_by (
+          first_name,
+          last_name
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error || !entry) {
+      console.error(`❌ Ledger entry ${id} not found:`, error);
+      return res.status(404).json({
+        success: false,
+        message: 'Ledger entry not found',
+        code: 'ENTRY_NOT_FOUND'
+      });
+    }
+
+    console.log(`✅ Fetched ledger entry ${id}`);
+
+    res.json({
+      success: true,
+      data: { entry }
+    });
+
+  } catch (error) {
+    console.error('💥 Ledger entry fetch API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch ledger entry',
+      error: error.message
+    });
+  }
+});
+
+// Create new ledger entry
+app.post('/api/v1/ledger', async (req, res) => {
+  try {
+    const {
+      entry_date,
+      reference_type,
+      reference_id,
+      reference_number,
+      description,
+      lines
+    } = req.body;
+
+    console.log('📝 Ledger API: Creating new ledger entry');
+    console.log('📋 Entry data:', { entry_date, reference_type, description, lines: lines?.length });
+
+    // Validate that debits equal credits
+    const totalDebits = lines.reduce((sum, line) => sum + (line.debit_amount || 0), 0);
+    const totalCredits = lines.reduce((sum, line) => sum + (line.credit_amount || 0), 0);
+
+    if (Math.abs(totalDebits - totalCredits) > 0.01) {
+      console.error('❌ Unbalanced entry:', { totalDebits, totalCredits });
+      return res.status(400).json({
+        success: false,
+        message: 'Debits must equal credits',
+        code: 'UNBALANCED_ENTRY',
+        details: { totalDebits, totalCredits }
+      });
+    }
+
+    // Generate entry number
+    const currentYear = new Date().getFullYear();
+    const { data: lastEntry } = await supabase
+      .from('ledger_entries')
+      .select('entry_number')
+      .like('entry_number', `LE-${currentYear}-%`)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    let entryNumber = `LE-${currentYear}-001`;
+    if (lastEntry) {
+      const lastNumber = parseInt(lastEntry.entry_number.split('-')[2]);
+      entryNumber = `LE-${currentYear}-${String(lastNumber + 1).padStart(3, '0')}`;
+    }
+
+    console.log('🔢 Generated entry number:', entryNumber);
+
+    // Create ledger entry
+    const { data: entry, error: entryError } = await supabase
+      .from('ledger_entries')
+      .insert({
+        entry_number: entryNumber,
+        entry_date,
+        reference_type,
+        reference_id,
+        reference_number,
+        description,
+        total_debit: totalDebits,
+        total_credit: totalCredits
+      })
+      .select()
+      .single();
+
+    if (entryError) {
+      console.error('❌ Failed to create ledger entry:', entryError);
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create ledger entry',
+        code: 'CREATION_FAILED',
+        error: entryError.message
+      });
+    }
+
+    console.log('✅ Ledger entry created:', entry.id);
+
+    // Create ledger entry lines
+    const linesWithEntryId = lines.map(line => ({
+      ...line,
+      ledger_entry_id: entry.id
+    }));
+
+    const { data: entryLines, error: linesError } = await supabase
+      .from('ledger_entry_lines')
+      .insert(linesWithEntryId)
+      .select(`
+        *,
+        chart_of_accounts (
+          account_code,
+          account_name,
+          account_type
+        )
+      `);
+
+    if (linesError) {
+      // Rollback the entry if lines creation fails
+      console.error('❌ Failed to create ledger entry lines, rolling back:', linesError);
+      await supabase.from('ledger_entries').delete().eq('id', entry.id);
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Failed to create ledger entry lines',
+        code: 'LINES_CREATION_FAILED',
+        error: linesError.message
+      });
+    }
+
+    console.log('✅ Ledger entry lines created:', entryLines?.length);
+
+    res.status(201).json({
+      success: true,
+      message: 'Ledger entry created successfully',
+      data: { 
+        entry: {
+          ...entry,
+          ledger_entry_lines: entryLines
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('💥 Ledger entry creation API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create ledger entry',
+      error: error.message
+    });
+  }
+});
+
 // ==================== USER MANAGEMENT ENDPOINTS ====================
 
 // Get all users with pagination and filtering
