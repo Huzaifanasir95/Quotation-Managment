@@ -1,6 +1,7 @@
 // Real API with Supabase connection for Vercel
 const express = require('express');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -2751,7 +2752,6 @@ app.post('/api/v1/users', async (req, res) => {
     }
 
     // Hash password
-    const bcrypt = require('bcryptjs');
     const saltRounds = 10;
     const password_hash = await bcrypt.hash(password, saltRounds);
 
