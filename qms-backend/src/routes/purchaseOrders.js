@@ -94,23 +94,48 @@ router.get('/:id', authenticateToken, authorize(['admin', 'procurement', 'financ
 router.post('/', authenticateToken, authorize(['admin', 'procurement']), validate(schemas.purchaseOrder), asyncHandler(async (req, res) => {
   const { items, ...poData } = req.body;
 
-  // Generate PO number
+  // Generate unique PO number with retry logic for concurrent requests
   const currentYear = new Date().getFullYear();
-  const { data: lastPO } = await supabaseAdmin
-    .from('purchase_orders')
-    .select('po_number')
-    .like('po_number', `PO-${currentYear}-%`)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
+  const timestamp = Date.now();
+  const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+  
+  let po_number;
+  let retryCount = 0;
+  const maxRetries = 3;
+  
+  while (retryCount < maxRetries) {
+    try {
+      // Get the next sequential number
+      const { data: lastPO } = await supabaseAdmin
+        .from('purchase_orders')
+        .select('po_number')
+        .like('po_number', `PO-${currentYear}-%`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
 
-  let nextNumber = 1;
-  if (lastPO) {
-    const lastNumber = parseInt(lastPO.po_number.split('-')[2]);
-    nextNumber = lastNumber + 1;
+      let nextNumber = 1;
+      if (lastPO) {
+        const lastNumber = parseInt(lastPO.po_number.split('-')[2]);
+        nextNumber = lastNumber + 1;
+      }
+
+      // Add retry count to make it unique for concurrent requests
+      const uniqueSuffix = retryCount > 0 ? `-${retryCount}` : '';
+      po_number = `PO-${currentYear}-${nextNumber.toString().padStart(3, '0')}${uniqueSuffix}`;
+      break;
+    } catch (error) {
+      retryCount++;
+      if (retryCount >= maxRetries) {
+        // Final fallback to timestamp-based number
+        console.log('Using timestamp-based PO number after retries failed:', error.message);
+        po_number = `PO-${currentYear}-T${timestamp.toString().slice(-6)}${randomSuffix}`;
+      } else {
+        // Small delay before retry
+        await new Promise(resolve => setTimeout(resolve, 100 * retryCount));
+      }
+    }
   }
-
-  const po_number = `PO-${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
 
   // Calculate totals
   let subtotal = 0;
@@ -142,17 +167,43 @@ router.post('/', authenticateToken, authorize(['admin', 'procurement']), validat
     tax_amount,
     discount_amount,
     total_amount,
+    notes: poData.notes || 'None',
+    terms_conditions: poData.terms_conditions || 'Standard terms and conditions apply. Payment due within 30 days of delivery. All items subject to quality inspection upon receipt.',
     created_by: req.user.id
   };
 
-  // Create purchase order
-  const { data: purchaseOrder, error: poError } = await supabaseAdmin
-    .from('purchase_orders')
-    .insert(finalPOData)
-    .select('*')
-    .single();
+  // Create purchase order with retry for unique constraint violations
+  let purchaseOrder;
+  let insertRetryCount = 0;
+  const maxInsertRetries = 3;
+  
+  while (insertRetryCount < maxInsertRetries) {
+    const { data, error: poError } = await supabaseAdmin
+      .from('purchase_orders')
+      .insert(finalPOData)
+      .select('*')
+      .single();
 
-  if (poError) {
+    if (!poError) {
+      purchaseOrder = data;
+      break;
+    }
+
+    // Check if it's a unique constraint violation on po_number
+    if (poError.message.includes('duplicate key value violates unique constraint') && 
+        poError.message.includes('po_number')) {
+      insertRetryCount++;
+      if (insertRetryCount < maxInsertRetries) {
+        // Generate a new unique PO number with timestamp suffix
+        const newTimestamp = Date.now();
+        const newRandomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        finalPOData.po_number = `PO-${currentYear}-T${newTimestamp.toString().slice(-6)}${newRandomSuffix}`;
+        console.log(`Retrying PO creation with new number: ${finalPOData.po_number}`);
+        continue;
+      }
+    }
+
+    // If it's not a duplicate key error or we've exceeded retries, return error
     return res.status(400).json({
       error: 'Failed to create purchase order',
       code: 'CREATION_FAILED',

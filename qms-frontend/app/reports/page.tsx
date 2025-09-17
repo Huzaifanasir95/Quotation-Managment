@@ -125,14 +125,38 @@ export default function ReportsPage() {
           purchaseOrdersResponse,
           salesOrdersResponse
         ] = await Promise.all([
-          apiClient.getQuotations({ limit: 1000 }),
-          apiClient.getReceivableInvoices({ limit: 1000 }), // Sales receivableInvoices - money coming IN
-          apiClient.getProducts({ limit: 1000 }),
-          apiClient.getCustomers({ limit: 1000 }),
-          apiClient.getVendors({ limit: 1000 }),
-          apiClient.getPayableInvoices({ limit: 1000 }), // Vendor bills - money going OUT
-          apiClient.getPurchaseOrders({ limit: 1000 }),
-          apiClient.getOrders({ limit: 1000 }).catch(() => ({ data: [] }))
+          apiClient.getQuotations({ limit: 1000 }).catch(err => {
+            console.error('Failed to fetch quotations:', err);
+            return { data: { quotations: [] } };
+          }),
+          apiClient.getReceivableInvoices({ limit: 1000 }).catch(err => {
+            console.error('Failed to fetch receivable invoices:', err);
+            return { data: { invoices: [] } };
+          }),
+          apiClient.getProducts({ limit: 1000 }).catch(err => {
+            console.error('Failed to fetch products:', err);
+            return { data: { products: [] } };
+          }),
+          apiClient.getCustomers({ limit: 1000 }).catch(err => {
+            console.error('Failed to fetch customers:', err);
+            return { data: { customers: [] } };
+          }),
+          apiClient.getVendors({ limit: 1000 }).catch(err => {
+            console.error('Failed to fetch vendors:', err);
+            return { data: { vendors: [] } };
+          }),
+          apiClient.getPayableInvoices({ limit: 1000 }).catch(err => {
+            console.error('Failed to fetch payable invoices:', err);
+            return { data: { vendorBills: [] } };
+          }),
+          apiClient.getPurchaseOrders({ limit: 1000 }).catch(err => {
+            console.error('Failed to fetch purchase orders:', err);
+            return { data: { purchaseOrders: [] } };
+          }),
+          apiClient.getOrders({ limit: 1000 }).catch(err => {
+            console.error('Failed to fetch sales orders:', err);
+            return { data: { orders: [] } };
+          })
         ]);
 
         // Process KPI data - handle different response structures
@@ -140,32 +164,32 @@ export default function ReportsPage() {
                           Array.isArray(quotationsResponse?.data?.quotations) ? quotationsResponse.data.quotations :
                           Array.isArray(quotationsResponse) ? quotationsResponse : [];
         
-        const receivableInvoicesData = Array.isArray(receivableInvoicesResponse?.data) ? receivableInvoicesResponse.data : 
-                                      Array.isArray(receivableInvoicesResponse?.data?.receivableInvoices) ? receivableInvoicesResponse.data.receivableInvoices :
+        const receivableInvoicesData = Array.isArray(receivableInvoicesResponse?.data?.invoices) ? receivableInvoicesResponse.data.invoices :
+                                      Array.isArray(receivableInvoicesResponse?.data) ? receivableInvoicesResponse.data : 
                                       Array.isArray(receivableInvoicesResponse) ? receivableInvoicesResponse : [];
         
-        const products = Array.isArray(productsResponse?.data) ? productsResponse.data : 
-                        Array.isArray(productsResponse?.data?.products) ? productsResponse.data.products :
+        const products = Array.isArray(productsResponse?.data?.products) ? productsResponse.data.products :
+                        Array.isArray(productsResponse?.data) ? productsResponse.data : 
                         Array.isArray(productsResponse) ? productsResponse : [];
         
-        const customers = Array.isArray(customersResponse?.data) ? customersResponse.data : 
-                         Array.isArray(customersResponse?.data?.customers) ? customersResponse.data.customers :
+        const customers = Array.isArray(customersResponse?.data?.customers) ? customersResponse.data.customers :
+                         Array.isArray(customersResponse?.data) ? customersResponse.data : 
                          Array.isArray(customersResponse) ? customersResponse : [];
         
-        const vendors = Array.isArray(vendorsResponse?.data) ? vendorsResponse.data : 
-                       Array.isArray(vendorsResponse?.data?.vendors) ? vendorsResponse.data.vendors :
+        const vendors = Array.isArray(vendorsResponse?.data?.vendors) ? vendorsResponse.data.vendors :
+                       Array.isArray(vendorsResponse?.data) ? vendorsResponse.data : 
                        Array.isArray(vendorsResponse) ? vendorsResponse : [];
         
-        const payableInvoicesData = Array.isArray(payableInvoicesResponse?.data) ? payableInvoicesResponse.data : 
-                                   Array.isArray(payableInvoicesResponse?.data?.bills) ? payableInvoicesResponse.data.bills :
+        const payableInvoicesData = Array.isArray(payableInvoicesResponse?.data?.vendorBills) ? payableInvoicesResponse.data.vendorBills :
+                                   Array.isArray(payableInvoicesResponse?.data) ? payableInvoicesResponse.data : 
                                    Array.isArray(payableInvoicesResponse) ? payableInvoicesResponse : [];
 
         // Set state variables for use in JSX
         setReceivableInvoices(receivableInvoicesData);
         setPayableInvoices(payableInvoicesData);
         
-        const purchaseOrders = Array.isArray(purchaseOrdersResponse?.data) ? purchaseOrdersResponse.data : 
-                              Array.isArray(purchaseOrdersResponse?.data?.orders) ? purchaseOrdersResponse.data.orders :
+        const purchaseOrders = Array.isArray(purchaseOrdersResponse?.data?.purchaseOrders) ? purchaseOrdersResponse.data.purchaseOrders :
+                              Array.isArray(purchaseOrdersResponse?.data) ? purchaseOrdersResponse.data : 
                               Array.isArray(purchaseOrdersResponse) ? purchaseOrdersResponse : [];
 
         const salesOrders = Array.isArray(salesOrdersResponse?.data?.orders) ? salesOrdersResponse.data.orders :
@@ -181,6 +205,13 @@ export default function ReportsPage() {
           payableInvoices: payableInvoicesData.length, 
           purchaseOrders: purchaseOrders.length,
           salesOrders: salesOrders.length
+        });
+
+        console.log('Sample data:', {
+          sampleReceivableInvoice: receivableInvoicesData[0],
+          samplePayableInvoice: payableInvoicesData[0],
+          receivableInvoicesResponse: receivableInvoicesResponse,
+          payableInvoicesResponse: payableInvoicesResponse
         });
 
         // Calculate KPIs
@@ -493,9 +524,11 @@ export default function ReportsPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-lg text-gray-600">Loading reports data...</div>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading financial reports data...</p>
+            <p className="mt-2 text-sm text-gray-500">Fetching invoices, bills, and analytics...</p>
           </div>
         </div>
       </AppLayout>
@@ -656,7 +689,7 @@ export default function ReportsPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Pending Invoices</span>
                   <span className="font-semibold text-yellow-600">
-                    {receivableInvoices.filter((inv: any) => inv.status === 'draft' || inv.status === 'sent').length}
+                    {receivableInvoices.filter((inv: any) => inv.status === 'pending' || inv.status === 'draft' || inv.status === 'sent').length}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -688,7 +721,7 @@ export default function ReportsPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Pending Bills</span>
                   <span className="font-semibold text-yellow-600">
-                    {payableInvoices.filter((bill: any) => bill.status === 'draft' || bill.status === 'sent').length}
+                    {payableInvoices.filter((bill: any) => bill.status === 'pending' || bill.status === 'draft' || bill.status === 'approved').length}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">

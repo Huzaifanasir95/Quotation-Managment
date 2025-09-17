@@ -33,10 +33,10 @@ interface POItem {
 
 export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated }: CreatePurchaseOrderModalProps) {
   const [formData, setFormData] = useState({
-    vendorId: '',
+    vendorIds: [] as string[],
     expectedDelivery: '',
-    notes: '',
-    terms: ''
+    notes: 'None',
+    terms: 'Standard terms and conditions apply. Payment due within 30 days of delivery. All items subject to quality inspection upon receipt.'
   });
   const [items, setItems] = useState<POItem[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -52,10 +52,10 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
       loadProducts();
       // Reset form when modal opens
       setFormData({
-        vendorId: '',
+        vendorIds: [],
         expectedDelivery: '',
-        notes: '',
-        terms: ''
+        notes: 'None',
+        terms: 'Standard terms and conditions apply. Payment due within 30 days of delivery. All items subject to quality inspection upon receipt.'
       });
       setItems([]);
     }
@@ -160,8 +160,8 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
   };
 
   const handleSubmit = async () => {
-    if (!formData.vendorId) {
-      alert('Please select a vendor.');
+    if (formData.vendorIds.length === 0) {
+      alert('Please select at least one vendor.');
       return;
     }
     
@@ -180,52 +180,58 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
     setIsLoading(true);
     
     try {
-      const poData = {
-        vendor_id: formData.vendorId,
-        po_date: new Date().toISOString().split('T')[0],
-        expected_delivery_date: formData.expectedDelivery || null,
-        status: action === 'approve' ? 'approved' : 'draft',
-        notes: formData.notes || null,
-        terms_conditions: formData.terms || null,
-        items: items.map(item => ({
-          product_id: item.productId || null,
-          description: item.description,
-          quantity: item.quantity,
-          unit_price: item.unitPrice,
-          discount_percent: item.discount,
-          tax_percent: item.tax
-        }))
-      };
-      
-      console.log('Submitting PO data:', poData);
-      
-      const response = await apiClient.createPurchaseOrder(poData);
-      
-      if (response.success) {
-        if (action === 'approve') {
-          alert('Purchase order created and approved successfully!');
-        } else {
-          alert('Purchase order saved as draft successfully!');
-        }
+      // Create separate purchase orders for each selected vendor
+      const poPromises = formData.vendorIds.map(async (vendorId) => {
+        const poData = {
+          vendor_id: vendorId,
+          po_date: new Date().toISOString().split('T')[0],
+          expected_delivery_date: formData.expectedDelivery || null,
+          status: action === 'approve' ? 'approved' : 'draft',
+          notes: formData.notes || null,
+          terms_conditions: formData.terms || null,
+          items: items.map(item => ({
+            product_id: item.productId || null,
+            description: item.description,
+            quantity: item.quantity,
+            unit_price: item.unitPrice,
+            discount_percent: item.discount,
+            tax_percent: item.tax
+          }))
+        };
         
-        // Reset form
-        setFormData({
-          vendorId: '',
-          expectedDelivery: '',
-          notes: '',
-          terms: ''
-        });
-        setItems([]);
-        setAction('save');
-        
-        onClose();
-        
-        // Call callback to refresh purchase orders list
-        if (onPOCreated) {
-          onPOCreated();
-        }
+        return apiClient.createPurchaseOrder(poData);
+      });
+      
+      const results = await Promise.all(poPromises);
+      
+      // Check if all purchase orders were created successfully
+      const failedResults = results.filter(result => !result.success);
+      if (failedResults.length > 0) {
+        throw new Error(`Failed to create ${failedResults.length} purchase order(s)`);
+      }
+      
+      const successCount = results.length;
+      if (action === 'approve') {
+        alert(`Successfully created and approved ${successCount} purchase order(s) for selected vendors!`);
       } else {
-        throw new Error(response.message || 'Failed to create purchase order');
+        alert(`Successfully saved ${successCount} purchase order(s) as draft for selected vendors!`);
+      }
+      
+      // Reset form
+      setFormData({
+        vendorIds: [],
+        expectedDelivery: '',
+        notes: 'None',
+        terms: 'Standard terms and conditions apply. Payment due within 30 days of delivery. All items subject to quality inspection upon receipt.'
+      });
+      setItems([]);
+      setAction('save');
+      
+      onClose();
+      
+      // Call callback to refresh purchase orders list
+      if (onPOCreated) {
+        onPOCreated();
       }
     } catch (error) {
       console.error('Failed to create purchase order:', error);
@@ -241,40 +247,131 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4 pointer-events-none">
       <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-y-auto pointer-events-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-xl">
-          <h2 className="text-2xl font-bold">Create New Purchase Order</h2>
+          <h2 className="text-2xl font-bold">Create Multi-Vendor Purchase Orders</h2>
           <button onClick={onClose} className="text-white hover:text-gray-200 transition-colors duration-200 text-2xl font-light">✕</button>
         </div>
 
         <div className="p-6">
-          {/* Vendor and Basic Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Vendor *</label>
-              <select
-                value={formData.vendorId}
-                onChange={(e) => {
-                  console.log('Selected vendor ID:', e.target.value);
-                  setFormData({ ...formData, vendorId: e.target.value });
-                }}
-                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Choose a vendor</option>
-                {vendors.length > 0 ? (
-                  vendors.map((vendor) => (
-                    <option key={vendor.id} value={vendor.id}>
-                      {vendor.name}{vendor.gst_number ? ` - ${vendor.gst_number}` : ''}
-                    </option>
-                  ))
+          {/* Vendor Selection Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            {/* Vendor Selection - Takes 2 columns */}
+            <div className="lg:col-span-2">
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <svg className="w-6 h-6 text-purple-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Select Vendors *
+                  </h3>
+                  {formData.vendorIds.length > 0 && (
+                    <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+                      {formData.vendorIds.length} vendor{formData.vendorIds.length > 1 ? 's' : ''} selected
+                    </span>
+                  )}
+                </div>
+                
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <svg className="animate-spin w-8 h-8 text-purple-600" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="ml-3 text-gray-600">Loading vendors...</span>
+                  </div>
                 ) : (
-                  <option value="" disabled>Loading vendors...</option>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {vendors.map(vendor => (
+                      <label key={vendor.id} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.vendorIds.includes(vendor.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({
+                                ...formData,
+                                vendorIds: [...formData.vendorIds, vendor.id]
+                              });
+                            } else {
+                              setFormData({
+                                ...formData,
+                                vendorIds: formData.vendorIds.filter(id => id !== vendor.id)
+                              });
+                            }
+                          }}
+                          className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-gray-900">{vendor.name}</h4>
+                            {vendor.contact_person && <span className="text-sm text-gray-500">{vendor.contact_person}</span>}
+                          </div>
+                          <p className="text-sm text-gray-600">{vendor.email}</p>
+                          {vendor.gst_number && <p className="text-sm text-gray-500">GST: {vendor.gst_number}</p>}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
                 )}
-              </select>
-              {vendors.length === 0 && (
-                <p className="mt-1 text-sm text-gray-500">
-                  {isLoading ? 'Loading vendors...' : 'No vendors available. Please add vendors first.'}
-                </p>
+                
+                {formData.vendorIds.length === 0 && !isLoading && (
+                  <p className="text-sm text-red-500 mt-2">Please select at least one vendor</p>
+                )}
+                
+                {vendors.length === 0 && !isLoading && (
+                  <p className="text-sm text-gray-500 mt-2">No vendors available. Please add vendors first.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Selected Vendors Preview - Takes 1 column */}
+            <div className="lg:col-span-1">
+              {formData.vendorIds.length > 0 ? (
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h4 className="text-sm font-medium text-gray-900 mb-4">Selected Vendors ({formData.vendorIds.length})</h4>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {formData.vendorIds.map(vendorId => {
+                      const vendor = vendors.find(v => v.id === vendorId);
+                      return vendor ? (
+                        <div key={vendor.id} className="border border-gray-100 rounded-lg p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <h5 className="font-medium text-gray-900 truncate">{vendor.name}</h5>
+                              {vendor.contact_person && <p className="text-sm text-gray-600 truncate">{vendor.contact_person}</p>}
+                              <p className="text-xs text-gray-500 truncate">{vendor.email}</p>
+                            </div>
+                            <button
+                              onClick={() => setFormData({
+                                ...formData,
+                                vendorIds: formData.vendorIds.filter(id => id !== vendorId)
+                              })}
+                              className="text-red-500 hover:text-red-700 ml-2"
+                              title="Remove vendor"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+                  <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <p className="text-gray-500 text-sm">No vendors selected</p>
+                  <p className="text-gray-400 text-xs mt-1">Select vendors from the left panel</p>
+                </div>
               )}
             </div>
+          </div>
+
+          {/* Basic Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Expected Delivery</label>
@@ -285,6 +382,8 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
                 className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
+
+            <div></div> {/* Empty div to maintain grid layout */}
 
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
