@@ -445,6 +445,138 @@ app.post('/api/v1/quotations', async (req, res) => {
   }
 });
 
+// Get individual quotation by ID
+app.get('/api/v1/quotations/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const { data: quotation, error } = await supabase
+      .from('quotations')
+      .select(`
+        *,
+        customers (name, email, phone, address),
+        quotation_items (
+          id,
+          product_id,
+          quantity,
+          unit_price,
+          total_price,
+          description,
+          products (name, sku, unit_of_measure)
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Quotation fetch error:', error);
+      return res.status(404).json({
+        success: false,
+        message: 'Quotation not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { quotation }
+    });
+  } catch (error) {
+    console.error('Quotation by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Update quotation endpoint
+app.put('/api/v1/quotations/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const quotationData = req.body;
+
+    // Extract items from the quotation data
+    const { items, ...quotationFields } = quotationData;
+
+    // Validate required fields
+    if (!quotationFields.customer_id || !quotationFields.quotation_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Customer ID and quotation date are required'
+      });
+    }
+
+    // Update quotation
+    const { data: updatedQuotation, error: quotationError } = await supabase
+      .from('quotations')
+      .update({
+        ...quotationFields,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (quotationError) {
+      console.error('Quotation update error:', quotationError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update quotation'
+      });
+    }
+
+    // If items are provided, update them
+    if (items && Array.isArray(items)) {
+      // Delete existing items
+      const { error: deleteError } = await supabase
+        .from('quotation_items')
+        .delete()
+        .eq('quotation_id', id);
+
+      if (deleteError) {
+        console.error('Delete quotation items error:', deleteError);
+      }
+
+      // Insert new items
+      if (items.length > 0) {
+        const itemsToInsert = items.map(item => ({
+          quotation_id: id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.total_price,
+          description: item.description || null
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('quotation_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) {
+          console.error('Quotation items insert error:', itemsError);
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to update quotation items'
+          });
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Quotation updated successfully',
+      data: { quotation: updatedQuotation }
+    });
+
+  } catch (error) {
+    console.error('Quotation update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 // Update quotation status endpoint
 app.patch('/api/v1/quotations/:id/status', async (req, res) => {
   try {
@@ -1345,6 +1477,41 @@ app.get('/api/v1/documents/download/:id', async (req, res) => {
       success: false,
       message: 'Internal server error',
       error: error.message
+    });
+  }
+});
+
+// Get quotation attachments
+app.get('/api/v1/documents/quotation/attachments', async (req, res) => {
+  try {
+    const { quotation_id } = req.query;
+    
+    if (!quotation_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'quotation_id query parameter is required'
+      });
+    }
+
+    // For now, return an empty array since this is a demo
+    // In a real implementation, you would query the documents table
+    const { data: attachments, error } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('reference_type', 'quotation')
+      .eq('reference_id', quotation_id);
+
+    res.json({
+      success: true,
+      data: {
+        attachments: attachments || []
+      }
+    });
+  } catch (error) {
+    console.error('Quotation attachments error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
     });
   }
 });
