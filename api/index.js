@@ -1521,7 +1521,44 @@ app.get('/api/v1/documents/download/:id', async (req, res) => {
   }
 });
 
-// Get quotation attachments
+// Get documents for an entity (matching localhost pattern)
+app.get('/api/v1/documents/:entityType/:entityId', async (req, res) => {
+  try {
+    const { entityType, entityId } = req.params;
+    
+    console.log(`📁 Getting documents for ${entityType}:${entityId}`);
+
+    const { data: documents, error } = await supabase
+      .from('document_attachments')
+      .select('*')
+      .eq('reference_type', entityType)
+      .eq('reference_id', entityId)
+      .order('uploaded_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error fetching documents:', error);
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    console.log(`✅ Found ${documents?.length || 0} documents for ${entityType}:${entityId}`);
+
+    res.json({
+      success: true,
+      data: documents || []
+    });
+  } catch (error) {
+    console.error('💥 Documents fetch error:', error);
+    res.json({
+      success: true,
+      data: []
+    });
+  }
+});
+
+// Get quotation attachments (legacy endpoint for compatibility)
 app.get('/api/v1/documents/quotation/attachments', async (req, res) => {
   try {
     const { quotation_id } = req.query;
@@ -1569,6 +1606,43 @@ app.get('/api/v1/documents/quotation/attachments', async (req, res) => {
       data: {
         attachments: []
       }
+    });
+  }
+});
+
+// Alternative endpoint pattern that frontend might be calling
+app.get('/api/v1/documents/quotation/:quotationId', async (req, res) => {
+  try {
+    const { quotationId } = req.params;
+    
+    console.log(`📁 Getting quotation documents for: ${quotationId}`);
+
+    const { data: documents, error } = await supabase
+      .from('document_attachments')
+      .select('*')
+      .eq('reference_type', 'quotation')
+      .eq('reference_id', quotationId)
+      .order('uploaded_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error fetching quotation documents:', error);
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    console.log(`✅ Found ${documents?.length || 0} documents for quotation ${quotationId}`);
+
+    res.json({
+      success: true,
+      data: documents || []
+    });
+  } catch (error) {
+    console.error('💥 Quotation documents fetch error:', error);
+    res.json({
+      success: true,
+      data: []
     });
   }
 });
