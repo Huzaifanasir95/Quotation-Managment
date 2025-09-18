@@ -30,6 +30,14 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Import route modules
+const customersRoutes = require('./routes/customers');
+const documentsRoutes = require('./routes/documents');
+
+// Use route modules
+app.use('/api/v1/customers', customersRoutes);
+app.use('/api/documents', documentsRoutes);
+
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {
   res.json({
