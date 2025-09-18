@@ -353,28 +353,18 @@ app.post('/api/v1/quotations', async (req, res) => {
     let discount_amount = 0;
 
     const processedItems = items?.map(item => {
-      const quantity = Number(item.quantity) || 0;
-      const unitPrice = Number(item.unit_price) || 0;
-      const discountPercent = Number(item.discount_percent) || 0;
-      const taxPercent = Number(item.tax_percent) || 0;
-
-      const line_total = quantity * unitPrice;
-      const discount = line_total * (discountPercent / 100);
+      const line_total = item.quantity * item.unit_price;
+      const discount = line_total * (item.discount_percent || 0) / 100;
       const taxable_amount = line_total - discount;
-      const tax = taxable_amount * (taxPercent / 100);
+      const tax = taxable_amount * (item.tax_percent || 0) / 100;
 
       subtotal += line_total;
       discount_amount += discount;
       tax_amount += tax;
 
       return {
-        description: item.description || '',
-        quantity,
-        unit_price: unitPrice,
-        discount_percent: discountPercent,
-        tax_percent: taxPercent,
-        line_total: taxable_amount + tax,
-        total_price: taxable_amount + tax
+        ...item,
+        line_total: taxable_amount + tax
       };
     }) || [];
 
@@ -383,13 +373,12 @@ app.post('/api/v1/quotations', async (req, res) => {
     const finalQuotationData = {
       ...quotationData,
       quotation_number,
-      subtotal: Number(subtotal.toFixed(2)),
-      tax_amount: Number(tax_amount.toFixed(2)),
-      discount_amount: Number(discount_amount.toFixed(2)),
-      total_amount: Number(total_amount.toFixed(2)),
+      subtotal,
+      tax_amount,
+      discount_amount,
+      total_amount,
       status: 'draft',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      created_at: new Date().toISOString()
     };
 
     console.log('Final quotation data:', finalQuotationData);
