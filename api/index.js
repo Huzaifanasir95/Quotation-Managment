@@ -14,7 +14,13 @@ const supabase = createClient(
 
 // CORS configuration
 app.use(cors({
-  origin: ['https://qms-azure.vercel.app', 'https://qms-*.vercel.app'],
+  origin: [
+    'https://qms-azure.vercel.app', 
+    'https://qms-*.vercel.app',
+    'https://qms-gkv7ritb5-huzaifa-nasirs-projects-70949826.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -450,38 +456,58 @@ app.get('/api/v1/quotations/:id', async (req, res) => {
   try {
     const { id } = req.params;
     
+    console.log(`🔍 Quotations API: Fetching quotation ${id}`);
+    
     const { data: quotation, error } = await supabase
       .from('quotations')
       .select(`
         *,
-        customers (name, email, phone, address),
+        customers (id, name, email, phone, address, contact_person),
         quotation_items (
           id,
           product_id,
           quantity,
           unit_price,
+          discount_percent,
+          tax_percent,
+          line_total,
           total_price,
           description,
-          products (name, sku, unit_of_measure)
+          products (id, name, sku, unit_of_measure)
         )
       `)
       .eq('id', id)
       .single();
 
     if (error) {
-      console.error('Quotation fetch error:', error);
+      console.error('❌ Quotation fetch error:', error);
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          message: 'Quotation not found'
+        });
+      }
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch quotation'
+      });
+    }
+
+    if (!quotation) {
       return res.status(404).json({
         success: false,
         message: 'Quotation not found'
       });
     }
 
+    console.log(`✅ Successfully fetched quotation: ${quotation.quotation_number || id}`);
+
     res.json({
       success: true,
       data: { quotation }
     });
   } catch (error) {
-    console.error('Quotation by ID error:', error);
+    console.error('💥 Quotation by ID error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -1486,20 +1512,35 @@ app.get('/api/v1/documents/quotation/attachments', async (req, res) => {
   try {
     const { quotation_id } = req.query;
     
+    console.log('📎 Documents API: Getting quotation attachments for:', quotation_id);
+    
     if (!quotation_id) {
       return res.status(400).json({
         success: false,
-        message: 'quotation_id query parameter is required'
+        message: 'Quotation ID is required'
       });
     }
 
-    // For now, return an empty array since this is a demo
-    // In a real implementation, you would query the documents table
+    // Try to get attachments from document_attachments table
     const { data: attachments, error } = await supabase
-      .from('documents')
+      .from('document_attachments')
       .select('*')
       .eq('reference_type', 'quotation')
-      .eq('reference_id', quotation_id);
+      .eq('reference_id', quotation_id)
+      .order('uploaded_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Quotation attachments error:', error);
+      // Return empty array instead of error for missing table
+      return res.json({
+        success: true,
+        data: {
+          attachments: []
+        }
+      });
+    }
+
+    console.log(`✅ Found ${attachments?.length || 0} attachments for quotation ${quotation_id}`);
 
     res.json({
       success: true,
@@ -1508,10 +1549,12 @@ app.get('/api/v1/documents/quotation/attachments', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Quotation attachments error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
+    console.error('💥 Quotation attachments error:', error);
+    res.json({
+      success: true,
+      data: {
+        attachments: []
+      }
     });
   }
 });
