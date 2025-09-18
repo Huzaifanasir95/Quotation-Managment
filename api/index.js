@@ -327,54 +327,7 @@ app.get('/api/v1/quotations', async (req, res) => {
 app.post('/api/v1/quotations', async (req, res) => {
   try {
     const { items, ...quotationData } = req.body;
-    
-    console.log('🔍 Creating quotation with data:', { 
-      quotationData, 
-      itemsCount: items?.length,
-      customer_id: quotationData.customer_id,
-      customer_id_type: typeof quotationData.customer_id
-    });
-
-    // Validate required fields
-    if (!quotationData.customer_id) {
-      return res.status(400).json({
-        success: false,
-        message: 'Customer ID is required'
-      });
-    }
-
-    if (!quotationData.quotation_date) {
-      return res.status(400).json({
-        success: false,
-        message: 'Quotation date is required'
-      });
-    }
-
-    // Ensure customer_id is a number
-    const customer_id = parseInt(quotationData.customer_id);
-    if (isNaN(customer_id)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid customer ID format'
-      });
-    }
-
-    // Verify customer exists
-    const { data: customer, error: customerError } = await supabase
-      .from('customers')
-      .select('id')
-      .eq('id', customer_id)
-      .single();
-
-    if (customerError || !customer) {
-      console.error('❌ Customer validation error:', customerError);
-      return res.status(400).json({
-        success: false,
-        message: 'Customer not found'
-      });
-    }
-
-    console.log('✅ Customer validated:', customer_id);
+    console.log('Creating quotation with data:', { quotationData, itemsCount: items?.length });
 
     // Generate quotation number
     const currentYear = new Date().getFullYear();
@@ -421,19 +374,15 @@ app.post('/api/v1/quotations', async (req, res) => {
         discount_percent: discountPercent,
         tax_percent: taxPercent,
         line_total: taxable_amount + tax,
-        total_price: taxable_amount + tax // Add this field for compatibility
+        total_price: taxable_amount + tax
       };
     }) || [];
 
     const total_amount = subtotal - discount_amount + tax_amount;
 
     const finalQuotationData = {
-      customer_id, // Use the validated customer_id
+      ...quotationData,
       quotation_number,
-      quotation_date: quotationData.quotation_date,
-      valid_until: quotationData.valid_until,
-      terms_conditions: quotationData.terms_conditions || null,
-      notes: quotationData.notes || null,
       subtotal: Number(subtotal.toFixed(2)),
       tax_amount: Number(tax_amount.toFixed(2)),
       discount_amount: Number(discount_amount.toFixed(2)),
@@ -443,7 +392,7 @@ app.post('/api/v1/quotations', async (req, res) => {
       updated_at: new Date().toISOString()
     };
 
-    console.log('📝 Final quotation data:', finalQuotationData);
+    console.log('Final quotation data:', finalQuotationData);
 
     // Create quotation
     const { data: quotation, error: quotationError } = await supabase
@@ -453,16 +402,15 @@ app.post('/api/v1/quotations', async (req, res) => {
       .single();
 
     if (quotationError) {
-      console.error('❌ Quotation creation error:', quotationError);
+      console.error('Quotation creation error:', quotationError);
       return res.status(400).json({
         success: false,
         message: 'Failed to create quotation',
-        error: quotationError.message,
-        details: quotationError.details || 'Check database constraints'
+        error: quotationError.message
       });
     }
 
-    console.log('✅ Quotation created successfully:', quotation.id);
+    console.log('Quotation created successfully:', quotation);
 
     // Create quotation items if there are any
     if (processedItems.length > 0) {
@@ -471,21 +419,20 @@ app.post('/api/v1/quotations', async (req, res) => {
         quotation_id: quotation.id
       }));
 
-      console.log('📦 Creating quotation items:', quotationItems.length);
+      console.log('Creating quotation items:', quotationItems);
 
       const { error: itemsError } = await supabase
         .from('quotation_items')
         .insert(quotationItems);
 
       if (itemsError) {
-        console.error('❌ Quotation items creation error:', itemsError);
+        console.error('Quotation items creation error:', itemsError);
         // Rollback quotation creation
         await supabase.from('quotations').delete().eq('id', quotation.id);
         return res.status(400).json({
           success: false,
           message: 'Failed to create quotation items',
-          error: itemsError.message,
-          details: itemsError.details || 'Check quotation_items table constraints'
+          error: itemsError.message
         });
       }
     }
@@ -497,7 +444,7 @@ app.post('/api/v1/quotations', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('💥 Quotation creation error:', error);
+    console.error('Quotation creation error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
