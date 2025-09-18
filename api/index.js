@@ -329,6 +329,24 @@ app.post('/api/v1/quotations', async (req, res) => {
     const { items, ...quotationData } = req.body;
     console.log('Creating quotation with data:', { quotationData, itemsCount: items?.length });
 
+    // Handle customer_id - convert to proper format
+    let customer_id = quotationData.customer_id;
+    
+    // If customer_id is a string that looks like a number, convert it
+    if (typeof customer_id === 'string' && /^\d+$/.test(customer_id)) {
+      customer_id = parseInt(customer_id, 10);
+    }
+    // If customer_id is already a number, keep it as is
+    else if (typeof customer_id === 'number') {
+      customer_id = customer_id;
+    }
+    // For UUID strings, keep as string (this handles localhost compatibility)
+    else {
+      customer_id = customer_id;
+    }
+
+    console.log('Processed customer_id:', customer_id, 'Type:', typeof customer_id);
+
     // Generate quotation number
     const currentYear = new Date().getFullYear();
     const { data: lastQuotation } = await supabase
@@ -370,8 +388,13 @@ app.post('/api/v1/quotations', async (req, res) => {
 
     const total_amount = subtotal - discount_amount + tax_amount;
 
+    // Build final quotation data with processed customer_id
     const finalQuotationData = {
-      ...quotationData,
+      customer_id, // Use the processed customer_id
+      quotation_date: quotationData.quotation_date,
+      valid_until: quotationData.valid_until,
+      terms_conditions: quotationData.terms_conditions,
+      notes: quotationData.notes,
       quotation_number,
       subtotal,
       tax_amount,
