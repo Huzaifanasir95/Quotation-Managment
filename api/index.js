@@ -476,46 +476,40 @@ app.get('/api/v1/quotations/:id', async (req, res) => {
       .from('quotations')
       .select(`
         *,
-        customers (id, name, email, phone, address, contact_person),
-        quotation_items (
-          id,
-          product_id,
-          quantity,
-          unit_price,
-          discount_percent,
-          tax_percent,
-          line_total,
-          total_price,
-          description,
-          products (id, name, sku, unit_of_measure)
-        )
+        customers(*),
+        quotation_items(*)
       `)
       .eq('id', id)
       .single();
 
     if (error) {
       console.error('❌ Quotation fetch error:', error);
-      if (error.code === 'PGRST116') {
+      if (error.code === 'PGRST116' || error.message?.includes('No rows found')) {
         return res.status(404).json({
           success: false,
-          message: 'Quotation not found'
+          error: 'Quotation not found',
+          code: 'QUOTATION_NOT_FOUND'
         });
       }
       return res.status(500).json({
         success: false,
-        message: 'Failed to fetch quotation'
+        error: 'Failed to fetch quotation',
+        code: 'FETCH_FAILED',
+        details: error.message
       });
     }
 
     if (!quotation) {
       return res.status(404).json({
         success: false,
-        message: 'Quotation not found'
+        error: 'Quotation not found',
+        code: 'QUOTATION_NOT_FOUND'
       });
     }
 
     console.log(`✅ Successfully fetched quotation: ${quotation.quotation_number || id}`);
 
+    // Match localhost response format exactly
     res.json({
       success: true,
       data: { quotation }
@@ -524,7 +518,9 @@ app.get('/api/v1/quotations/:id', async (req, res) => {
     console.error('💥 Quotation by ID error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      error: 'Internal server error',
+      code: 'INTERNAL_ERROR',
+      details: error.message
     });
   }
 });
@@ -533,86 +529,136 @@ app.get('/api/v1/quotations/:id', async (req, res) => {
 app.put('/api/v1/quotations/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const quotationData = req.body;
+    const { items, ...quotationData } = req.body;
 
-    // Extract items from the quotation data
-    const { items, ...quotationFields } = quotationData;
+    console.log(`📝 Updating quotation ${id} with data:`, { quotationData, itemsCount: items?.length });
 
-    // Validate required fields
-    if (!quotationFields.customer_id || !quotationFields.quotation_date) {
-      return res.status(400).json({
+    // Check if quotation exists
+    const { data: existingQuotation, error: fetchError } = await supabase
+      .from('quotations')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingQuotation) {
+      return res.status(404).json({
         success: false,
-        message: 'Customer ID and quotation date are required'
+        error: 'Quotation not found',
+        code: 'QUOTATION_NOT_FOUND'
       });
     }
 
+    // Calculate totals if items are provided
+    let subtotal = 0;
+    let tax_amount = 0;
+    let discount_amount = 0;
+    let processedItems = [];
+
+    if (items && Array.isArray(items)) {
+      processedItems = items.map(item => {
+        const line_total = item.quantity * item.unit_price;
+        const discount = line_total * (item.discount_percent || 0) / 100;
+        const taxable_amount = line_total - discount;
+        const tax = taxable_amount * (item.tax_percent || 0) / 100;
+
+        subtotal += line_total;
+        discount_amount += discount;
+        tax_amount += tax;
+
+        return {
+          ...item,
+          line_total: taxable_amount + tax
+        };
+      });
+    }
+
+    const total_amount = subtotal - discount_amount + tax_amount;
+
+    const finalQuotationData = {
+      ...quotationData,
+      subtotal,
+      tax_amount,
+      discount_amount,
+      total_amount,
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('📝 Final update data:', finalQuotationData);
+
     // Update quotation
-    const { data: updatedQuotation, error: quotationError } = await supabase
+    const { data: quotation, error: quotationError } = await supabase
       .from('quotations')
-      .update({
-        ...quotationFields,
-        updated_at: new Date().toISOString()
-      })
+      .update(finalQuotationData)
       .eq('id', id)
-      .select()
+      .select('*')
       .single();
 
     if (quotationError) {
-      console.error('Quotation update error:', quotationError);
-      return res.status(500).json({
+      console.error('❌ Quotation update error:', quotationError);
+      return res.status(400).json({
         success: false,
-        message: 'Failed to update quotation'
+        error: 'Failed to update quotation',
+        code: 'UPDATE_FAILED',
+        details: quotationError.message
       });
     }
 
-    // If items are provided, update them
-    if (items && Array.isArray(items)) {
-      // Delete existing items
-      const { error: deleteError } = await supabase
+    // Update quotation items if provided
+    if (processedItems.length > 0) {
+      // Delete existing quotation items
+      const { error: deleteItemsError } = await supabase
         .from('quotation_items')
         .delete()
         .eq('quotation_id', id);
 
-      if (deleteError) {
-        console.error('Delete quotation items error:', deleteError);
+      if (deleteItemsError) {
+        console.error('❌ Delete items error:', deleteItemsError);
+        return res.status(400).json({
+          success: false,
+          error: 'Failed to update quotation items',
+          code: 'ITEMS_UPDATE_FAILED',
+          details: deleteItemsError.message
+        });
       }
 
-      // Insert new items
-      if (items.length > 0) {
-        const itemsToInsert = items.map(item => ({
-          quotation_id: id,
-          product_id: item.product_id,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          total_price: item.total_price,
-          description: item.description || null
-        }));
+      // Create new quotation items
+      const quotationItems = processedItems.map(item => ({
+        ...item,
+        quotation_id: id
+      }));
 
-        const { error: itemsError } = await supabase
-          .from('quotation_items')
-          .insert(itemsToInsert);
+      console.log('📦 Inserting new items:', quotationItems.length);
 
-        if (itemsError) {
-          console.error('Quotation items insert error:', itemsError);
-          return res.status(500).json({
-            success: false,
-            message: 'Failed to update quotation items'
-          });
-        }
+      const { error: itemsError } = await supabase
+        .from('quotation_items')
+        .insert(quotationItems);
+
+      if (itemsError) {
+        console.error('❌ Items insert error:', itemsError);
+        return res.status(400).json({
+          success: false,
+          error: 'Failed to create quotation items',
+          code: 'ITEMS_CREATION_FAILED',
+          details: itemsError.message
+        });
       }
     }
+
+    console.log('✅ Quotation updated successfully:', id);
 
     res.json({
       success: true,
       message: 'Quotation updated successfully',
-      data: { quotation: updatedQuotation }
+      data: { quotation }
     });
 
   } catch (error) {
-    console.error('Quotation update error:', error);
+    console.error('💥 Quotation update error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      error: 'Internal server error',
+      code: 'INTERNAL_ERROR',
+      details: error.message
     });
   }
 });
