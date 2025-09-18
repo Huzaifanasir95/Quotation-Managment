@@ -175,12 +175,42 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
+    console.log(`🗑️ Attempting to delete customer: ${id}`);
+
+    // First check if customer has any linked quotations
+    const { data: quotations, error: quotationCheckError } = await supabase
+      .from('quotations')
+      .select('id, quotation_number')
+      .eq('customer_id', id)
+      .limit(5); // Just check first few
+
+    if (quotationCheckError) {
+      console.error('❌ Error checking quotations:', quotationCheckError);
+      return res.status(500).json({
+        error: 'Failed to check customer dependencies',
+        code: 'DEPENDENCY_CHECK_FAILED',
+        details: quotationCheckError.message
+      });
+    }
+
+    if (quotations && quotations.length > 0) {
+      console.log(`⚠️ Customer ${id} has ${quotations.length} linked quotations`);
+      return res.status(400).json({
+        error: 'Cannot delete customer with existing quotations',
+        code: 'HAS_DEPENDENCIES',
+        details: `This customer has ${quotations.length} quotation(s) linked. Please delete or reassign the quotations first.`,
+        linkedQuotations: quotations.map(q => q.quotation_number)
+      });
+    }
+
+    // If no quotations found, proceed with deletion
     const { error } = await supabase
       .from('customers')
       .delete()
       .eq('id', id);
 
     if (error) {
+      console.error('❌ Customer deletion error:', error);
       return res.status(400).json({
         error: 'Failed to delete customer',
         code: 'DELETE_FAILED',
@@ -188,12 +218,14 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
+    console.log(`✅ Customer deleted successfully: ${id}`);
+
     res.json({
       success: true,
       message: 'Customer deleted successfully'
     });
   } catch (error) {
-    console.error('Customer deletion error:', error);
+    console.error('💥 Customer delete error:', error);
     res.status(500).json({
       error: 'Internal server error',
       details: error.message
