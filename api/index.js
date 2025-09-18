@@ -477,31 +477,15 @@ app.get('/api/v1/quotations/:id', async (req, res) => {
       .select(`
         *,
         customers(*),
+        business_entities(*),
         quotation_items(*)
       `)
       .eq('id', id)
       .single();
 
-    if (error) {
+    if (error || !quotation) {
       console.error('❌ Quotation fetch error:', error);
-      if (error.code === 'PGRST116' || error.message?.includes('No rows found')) {
-        return res.status(404).json({
-          success: false,
-          error: 'Quotation not found',
-          code: 'QUOTATION_NOT_FOUND'
-        });
-      }
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to fetch quotation',
-        code: 'FETCH_FAILED',
-        details: error.message
-      });
-    }
-
-    if (!quotation) {
       return res.status(404).json({
-        success: false,
         error: 'Quotation not found',
         code: 'QUOTATION_NOT_FOUND'
       });
@@ -509,7 +493,6 @@ app.get('/api/v1/quotations/:id', async (req, res) => {
 
     console.log(`✅ Successfully fetched quotation: ${quotation.quotation_number || id}`);
 
-    // Match localhost response format exactly
     res.json({
       success: true,
       data: { quotation }
@@ -517,7 +500,6 @@ app.get('/api/v1/quotations/:id', async (req, res) => {
   } catch (error) {
     console.error('💥 Quotation by ID error:', error);
     res.status(500).json({
-      success: false,
       error: 'Internal server error',
       code: 'INTERNAL_ERROR',
       details: error.message
@@ -531,7 +513,7 @@ app.put('/api/v1/quotations/:id', async (req, res) => {
     const { id } = req.params;
     const { items, ...quotationData } = req.body;
 
-    console.log(`📝 Updating quotation ${id} with data:`, { quotationData, itemsCount: items?.length });
+    console.log(`📝 Updating quotation ${id}`);
 
     // Check if quotation exists
     const { data: existingQuotation, error: fetchError } = await supabase
@@ -542,35 +524,31 @@ app.put('/api/v1/quotations/:id', async (req, res) => {
 
     if (fetchError || !existingQuotation) {
       return res.status(404).json({
-        success: false,
         error: 'Quotation not found',
         code: 'QUOTATION_NOT_FOUND'
       });
     }
 
-    // Calculate totals if items are provided
+    // Calculate totals
     let subtotal = 0;
     let tax_amount = 0;
     let discount_amount = 0;
-    let processedItems = [];
 
-    if (items && Array.isArray(items)) {
-      processedItems = items.map(item => {
-        const line_total = item.quantity * item.unit_price;
-        const discount = line_total * (item.discount_percent || 0) / 100;
-        const taxable_amount = line_total - discount;
-        const tax = taxable_amount * (item.tax_percent || 0) / 100;
+    const processedItems = items.map(item => {
+      const line_total = item.quantity * item.unit_price;
+      const discount = line_total * (item.discount_percent || 0) / 100;
+      const taxable_amount = line_total - discount;
+      const tax = taxable_amount * (item.tax_percent || 0) / 100;
 
-        subtotal += line_total;
-        discount_amount += discount;
-        tax_amount += tax;
+      subtotal += line_total;
+      discount_amount += discount;
+      tax_amount += tax;
 
-        return {
-          ...item,
-          line_total: taxable_amount + tax
-        };
-      });
-    }
+      return {
+        ...item,
+        line_total: taxable_amount + tax
+      };
+    });
 
     const total_amount = subtotal - discount_amount + tax_amount;
 
@@ -583,8 +561,6 @@ app.put('/api/v1/quotations/:id', async (req, res) => {
       updated_at: new Date().toISOString()
     };
 
-    console.log('📝 Final update data:', finalQuotationData);
-
     // Update quotation
     const { data: quotation, error: quotationError } = await supabase
       .from('quotations')
@@ -594,57 +570,44 @@ app.put('/api/v1/quotations/:id', async (req, res) => {
       .single();
 
     if (quotationError) {
-      console.error('❌ Quotation update error:', quotationError);
       return res.status(400).json({
-        success: false,
         error: 'Failed to update quotation',
         code: 'UPDATE_FAILED',
         details: quotationError.message
       });
     }
 
-    // Update quotation items if provided
-    if (processedItems.length > 0) {
-      // Delete existing quotation items
-      const { error: deleteItemsError } = await supabase
-        .from('quotation_items')
-        .delete()
-        .eq('quotation_id', id);
+    // Delete existing quotation items
+    const { error: deleteItemsError } = await supabase
+      .from('quotation_items')
+      .delete()
+      .eq('quotation_id', id);
 
-      if (deleteItemsError) {
-        console.error('❌ Delete items error:', deleteItemsError);
-        return res.status(400).json({
-          success: false,
-          error: 'Failed to update quotation items',
-          code: 'ITEMS_UPDATE_FAILED',
-          details: deleteItemsError.message
-        });
-      }
-
-      // Create new quotation items
-      const quotationItems = processedItems.map(item => ({
-        ...item,
-        quotation_id: id
-      }));
-
-      console.log('📦 Inserting new items:', quotationItems.length);
-
-      const { error: itemsError } = await supabase
-        .from('quotation_items')
-        .insert(quotationItems);
-
-      if (itemsError) {
-        console.error('❌ Items insert error:', itemsError);
-        return res.status(400).json({
-          success: false,
-          error: 'Failed to create quotation items',
-          code: 'ITEMS_CREATION_FAILED',
-          details: itemsError.message
-        });
-      }
+    if (deleteItemsError) {
+      return res.status(400).json({
+        error: 'Failed to update quotation items',
+        code: 'ITEMS_UPDATE_FAILED',
+        details: deleteItemsError.message
+      });
     }
 
-    console.log('✅ Quotation updated successfully:', id);
+    // Create new quotation items
+    const quotationItems = processedItems.map(item => ({
+      ...item,
+      quotation_id: id
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('quotation_items')
+      .insert(quotationItems);
+
+    if (itemsError) {
+      return res.status(400).json({
+        error: 'Failed to create quotation items',
+        code: 'ITEMS_CREATION_FAILED',
+        details: itemsError.message
+      });
+    }
 
     res.json({
       success: true,
@@ -655,7 +618,6 @@ app.put('/api/v1/quotations/:id', async (req, res) => {
   } catch (error) {
     console.error('💥 Quotation update error:', error);
     res.status(500).json({
-      success: false,
       error: 'Internal server error',
       code: 'INTERNAL_ERROR',
       details: error.message
