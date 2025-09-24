@@ -98,7 +98,30 @@ app.post('/api/v1/auth/login', async (req, res) => {
 
 app.get('/api/v1/auth/profile', async (req, res) => {
   try {
-    // For demo purposes, return a default admin user
+    // Get the authorization header
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'No valid authorization token provided'
+      });
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    
+    console.log('🔐 Profile endpoint: Received token:', token ? 'present' : 'missing');
+
+    // For demo purposes, accept any non-empty token as valid
+    // In a real app, you would verify the JWT token here
+    if (!token || token.trim() === '') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+
+    // Return a default admin user for valid tokens
     res.json({
       success: true,
       data: {
@@ -113,7 +136,7 @@ app.get('/api/v1/auth/profile', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Profile error:', error);
+    console.error('❌ Profile error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'

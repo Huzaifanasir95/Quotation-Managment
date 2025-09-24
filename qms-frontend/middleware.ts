@@ -17,18 +17,30 @@ const protectedRoutes = [
   '/import-export'
 ];
 
-async function verifyToken(token: string): Promise<boolean> {
+async function verifyToken(token: string, request: NextRequest): Promise<boolean> {
   try {
+    // Determine API base URL based on environment
+    let apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL;
+    
+    // If no environment variable is set, determine from the current request
+    if (!apiBaseUrl) {
+      const { protocol, host } = request.nextUrl;
+      apiBaseUrl = `${protocol}//${host}/api/v1`;
+    }
+    
+    console.log('🔍 Verifying token with API:', apiBaseUrl);
+    
     // Validate token with backend only (no JWT verification in edge runtime)
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api/v1'}/auth/profile`, {
+    const response = await fetch(`${apiBaseUrl}/auth/profile`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     });
     
+    console.log('🔐 Token verification response:', response.status, response.ok);
     return response.ok;
   } catch (error) {
-    console.error('Token verification failed:', error);
+    console.error('❌ Token verification failed:', error);
     return false;
   }
 }
@@ -36,8 +48,12 @@ async function verifyToken(token: string): Promise<boolean> {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
+  console.log('🛡️ Middleware: Processing request to:', pathname);
+  
   // Get auth token from cookie
   const authToken = request.cookies.get('auth_token')?.value;
+  
+  console.log('🍪 Middleware: Auth token:', authToken ? 'present' : 'missing');
 
   // Check if the current path is a protected route
   const isProtectedRoute = protectedRoutes.some(route => 
@@ -47,30 +63,43 @@ export async function middleware(request: NextRequest) {
   // Check if the current path is a public route
   const isPublicRoute = publicRoutes.includes(pathname);
 
+  console.log('🔒 Middleware: Route status:', {
+    path: pathname,
+    isProtected: isProtectedRoute,
+    isPublic: isPublicRoute
+  });
+
   // If it's a protected route, check authentication
   if (isProtectedRoute) {
     if (!authToken) {
+      console.log('❌ Middleware: No auth token for protected route, redirecting to login');
       const loginUrl = new URL('/', request.url);
       loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
 
     // Verify token server-side
-    const isValidToken = await verifyToken(authToken);
+    console.log('🔍 Middleware: Verifying token for protected route');
+    const isValidToken = await verifyToken(authToken, request);
     if (!isValidToken) {
+      console.log('❌ Middleware: Invalid token, clearing and redirecting to login');
       // Clear invalid token and redirect to login
       const response = NextResponse.redirect(new URL('/', request.url));
       response.cookies.delete('auth_token');
       return response;
     }
+    console.log('✅ Middleware: Valid token, allowing access to protected route');
   }
 
   // If user is authenticated and trying to access login page, redirect to dashboard
   if (isPublicRoute && authToken && pathname === '/') {
-    const isValidToken = await verifyToken(authToken);
+    console.log('🔍 Middleware: Checking token for redirect to dashboard');
+    const isValidToken = await verifyToken(authToken, request);
     if (isValidToken) {
+      console.log('✅ Middleware: Valid token on login page, redirecting to dashboard');
       return NextResponse.redirect(new URL('/dashboard', request.url));
     } else {
+      console.log('❌ Middleware: Invalid token on login page, clearing token');
       // Clear invalid token
       const response = NextResponse.next();
       response.cookies.delete('auth_token');
@@ -78,6 +107,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  console.log('➡️ Middleware: Allowing request to proceed');
   return NextResponse.next();
 }
 
