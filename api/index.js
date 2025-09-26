@@ -383,9 +383,18 @@ app.post('/api/v1/quotations', async (req, res) => {
       customerIds = [quotationData.customer_id];
       console.log('👤 Single customer mode:', customerIds);
     } else {
+      console.error('❌ No customers provided in request body:', { customers, customer_id: quotationData.customer_id });
       return res.status(400).json({
         success: false,
-        message: 'No customers provided. Please select at least one customer.'
+        message: 'No customers provided. Please select at least one customer.',
+        debug: {
+          hasCustomers: !!customers,
+          customersType: typeof customers,
+          customersLength: customers?.length,
+          hasCustomerId: !!quotationData.customer_id,
+          customerIdType: typeof quotationData.customer_id,
+          receivedBody: req.body
+        }
       });
     }
 
@@ -456,18 +465,23 @@ app.post('/api/v1/quotations', async (req, res) => {
 
         const total_amount = subtotal - discount_amount + tax_amount;
 
+        // Validate required fields
+        if (!quotationData.quotation_date) {
+          throw new Error('quotation_date is required');
+        }
+
         // Build final quotation data with processed customer_id
         const finalQuotationData = {
           customer_id, // Use the processed customer_id
           quotation_date: quotationData.quotation_date,
-          valid_until: quotationData.valid_until,
-          terms_conditions: quotationData.terms_conditions,
-          notes: quotationData.notes,
+          valid_until: quotationData.valid_until || null,
+          terms_conditions: quotationData.terms_conditions || null,
+          notes: quotationData.notes || null,
           quotation_number,
-          subtotal,
-          tax_amount,
-          discount_amount,
-          total_amount,
+          subtotal: Number(subtotal) || 0,
+          tax_amount: Number(tax_amount) || 0,
+          discount_amount: Number(discount_amount) || 0,
+          total_amount: Number(total_amount) || 0,
           status: 'draft',
           created_at: new Date().toISOString()
         };
@@ -483,9 +497,12 @@ app.post('/api/v1/quotations', async (req, res) => {
 
         if (quotationError) {
           console.error('❌ Quotation creation error for customer', customer_id, ':', quotationError);
+          console.error('❌ Failed quotation data:', finalQuotationData);
           errors.push({
             customer_id,
-            error: quotationError.message
+            error: quotationError.message,
+            details: quotationError.details || quotationError.hint || null,
+            code: quotationError.code || null
           });
           continue;
         }
@@ -495,8 +512,14 @@ app.post('/api/v1/quotations', async (req, res) => {
         // Create quotation items if there are any
         if (processedItems.length > 0) {
           const quotationItems = processedItems.map(item => ({
-            ...item,
-            quotation_id: quotation.id
+            quotation_id: quotation.id,
+            product_id: item.product_id || null,
+            description: item.description || 'No description',
+            quantity: Number(item.quantity) || 1,
+            unit_price: Number(item.unit_price) || 0,
+            discount_percent: Number(item.discount_percent) || 0,
+            tax_percent: Number(item.tax_percent) || 0,
+            line_total: Number(item.line_total) || (Number(item.quantity) || 1) * (Number(item.unit_price) || 0)
           }));
 
           console.log('📦 Creating quotation items for quotation', quotation.id, ':', quotationItems);
