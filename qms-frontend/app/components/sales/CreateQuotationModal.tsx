@@ -37,6 +37,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [itemsViewMode, setItemsViewMode] = useState<'grid' | 'list'>('grid'); // Default to grid view
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle mounting for portal
@@ -60,6 +61,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     setIsUploading(false);
     setDragActive(false);
     setItemsViewMode('grid'); // Reset to grid view
+    setCustomerSearchTerm(''); // Clear customer search
     setError(null);
   };
 
@@ -628,8 +630,47 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Select Customers *</label>
-                        <div className="space-y-2">
-                          {customers.map(customer => (
+                        
+                        {/* Search Bar */}
+                        <div className="mb-4">
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                              </svg>
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Search customers by name or email..."
+                              value={customerSearchTerm}
+                              onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500 text-sm text-black"
+                            />
+                            {customerSearchTerm && (
+                              <button
+                                onClick={() => setCustomerSearchTerm('')}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                              >
+                                <svg className="h-4 w-4 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Customer List with Scrolling */}
+                        <div className="space-y-2 max-h-80 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                          {customers
+                            .filter(customer => {
+                              if (!customerSearchTerm) return true;
+                              const searchLower = customerSearchTerm.toLowerCase();
+                              return (
+                                customer.name.toLowerCase().includes(searchLower) ||
+                                (customer.email && customer.email.toLowerCase().includes(searchLower))
+                              );
+                            })
+                            .map(customer => (
                             <label key={customer.id} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                               <input
                                 type="checkbox"
@@ -657,7 +698,31 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                               </div>
                             </label>
                           ))}
+                          
+                          {/* No customers found message */}
+                          {customers.filter(customer => {
+                            if (!customerSearchTerm) return true;
+                            const searchLower = customerSearchTerm.toLowerCase();
+                            return (
+                              customer.name.toLowerCase().includes(searchLower) ||
+                              (customer.email && customer.email.toLowerCase().includes(searchLower))
+                            );
+                          }).length === 0 && (
+                            <div className="text-center py-8 text-gray-500">
+                              <svg className="w-12 h-12 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                              <p className="text-sm">No customers found matching "{customerSearchTerm}"</p>
+                              <button
+                                onClick={() => setCustomerSearchTerm('')}
+                                className="text-blue-600 hover:text-blue-700 text-sm mt-2"
+                              >
+                                Clear search
+                              </button>
+                            </div>
+                          )}
                         </div>
+                        
                         {formData.customerIds.length === 0 && (
                           <p className="text-sm text-red-500 mt-2">Please select at least one customer</p>
                         )}
