@@ -11,6 +11,7 @@ import ViewCustomerQuotesModal from '../components/sales/ViewCustomerQuotesModal
 import QuotationTrendsModal from '../components/sales/QuotationTrendsModal';
 import TopCustomersModal from '../components/sales/TopCustomersModal';
 import { apiClient, type SalesDashboardData, type QuotationTrend, type Customer } from '../lib/api';
+import { loadJsPDF, loadXLSX } from '../../lib/dynamicImports';
 
 interface SalesOrder {
   id: string;
@@ -258,6 +259,211 @@ export default function SalesPage() {
       alert('Failed to update delivery status');
     }
   };
+
+  // Export customers to Excel
+  const exportToExcel = async () => {
+    try {
+      const XLSX = await loadXLSX();
+      
+      // Prepare data for export - ALL customer fields
+      const exportData = filteredCustomers.map(customer => ({
+        'Customer Name': customer.name,
+        'Customer Ref No': customer.customer_ref_no || 'N/A',
+        'Customer Type': customer.customer_type || 'N/A',
+        'Email': customer.email || 'N/A',
+        'Phone': customer.phone || 'N/A',
+        'FAX': customer.fax || 'N/A',
+        'Website': customer.website || 'N/A',
+        'Contact Person': customer.contact_person || 'N/A',
+        'Designation': customer.designation || 'N/A',
+        'Department': customer.department || 'N/A',
+        'Address': customer.address || 'N/A',
+        'City': customer.city || 'N/A',
+        'State': customer.state || 'N/A',
+        'Country': customer.country || 'N/A',
+        'Postal Code': customer.postal_code || 'N/A',
+        'GST/Tax Number': customer.gst_number || 'N/A',
+        'Credit Limit': customer.credit_limit ? `Rs. ${customer.credit_limit.toLocaleString()}` : 'N/A',
+        'Payment Term': customer.payment_terms || 'N/A',
+        'Total Quotes Value': `Rs. ${(customer.totalQuotes || 0).toLocaleString()}`,
+        'Number of Quotes': customer.quotesCount || 0,
+        'Status': customer.status,
+        'Notes': customer.notes || 'N/A'
+      }));
+
+      // Create workbook and worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Customers');
+
+      // Set column widths
+      const wscols = [
+        { wch: 30 }, // Customer Name
+        { wch: 20 }, // Customer Ref No
+        { wch: 20 }, // Customer Type
+        { wch: 30 }, // Email
+        { wch: 15 }, // Phone
+        { wch: 15 }, // FAX
+        { wch: 35 }, // Website
+        { wch: 25 }, // Contact Person
+        { wch: 20 }, // Designation
+        { wch: 20 }, // Department
+        { wch: 40 }, // Address
+        { wch: 15 }, // City
+        { wch: 15 }, // State
+        { wch: 15 }, // Country
+        { wch: 12 }, // Postal Code
+        { wch: 20 }, // GST/Tax Number
+        { wch: 18 }, // Credit Limit
+        { wch: 18 }, // Payment Terms
+        { wch: 18 }, // Total Quotes Value
+        { wch: 15 }, // Number of Quotes
+        { wch: 10 }, // Status
+        { wch: 50 }  // Notes
+      ];
+      ws['!cols'] = wscols;
+
+      // Generate filename with current date
+      const filename = `Customers_Export_${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      // Save file
+      XLSX.writeFile(wb, filename);
+      alert('Customers exported to Excel successfully!');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('Failed to export customers to Excel. Please try again.');
+    }
+  };
+
+  // Export customers to PDF
+  const exportToPDF = async () => {
+    try {
+      const jsPDF = await loadJsPDF();
+      if (!jsPDF) {
+        alert('PDF library failed to load. Please try again.');
+        return;
+      }
+
+      const doc = new jsPDF('landscape');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      
+      // Add title
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Customer List', pageWidth / 2, 15, { align: 'center' });
+      
+      // Add export date
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Export Date: ${new Date().toLocaleDateString()}`, pageWidth / 2, 22, { align: 'center' });
+      
+      // Prepare table data with ALL fields
+      const tableData = filteredCustomers.map(customer => [
+        customer.name,
+        customer.customer_ref_no || 'N/A',
+        customer.customer_type || 'N/A',
+        customer.email || 'N/A',
+        customer.phone || 'N/A',
+        customer.contact_person || 'N/A',
+        customer.designation || 'N/A',
+        customer.city || 'N/A',
+        customer.state || 'N/A',
+        customer.gst_number || 'N/A',
+        customer.credit_limit ? `Rs. ${customer.credit_limit.toLocaleString()}` : 'N/A',
+        customer.payment_terms || 'N/A',
+        `Rs. ${(customer.totalQuotes || 0).toLocaleString()}`,
+        customer.status
+      ]);
+
+      // Add table using autoTable (if available) or manual rendering
+      const startY = 30;
+      const headers = [['Name', 'Ref No', 'Type', 'Email', 'Phone', 'Contact', 'Designation', 'City', 'State', 'GST', 'Credit Limit', 'Payment Term', 'Total Quotes', 'Status']];
+      
+      // Check if autoTable is available (jspdf-autotable plugin)
+      if (typeof (doc as any).autoTable === 'function') {
+        (doc as any).autoTable({
+          startY: startY,
+          head: headers,
+          body: tableData,
+          theme: 'grid',
+          headStyles: { fillColor: [59, 130, 246], fontSize: 7, fontStyle: 'bold' },
+          bodyStyles: { fontSize: 6 },
+          alternateRowStyles: { fillColor: [245, 247, 250] },
+          margin: { left: 5, right: 5 },
+          columnStyles: {
+            0: { cellWidth: 25 },  // Name
+            1: { cellWidth: 15 },  // Ref No
+            2: { cellWidth: 15 },  // Type
+            3: { cellWidth: 25 },  // Email
+            4: { cellWidth: 18 },  // Phone
+            5: { cellWidth: 20 },  // Contact
+            6: { cellWidth: 18 },  // Designation
+            7: { cellWidth: 15 },  // City
+            8: { cellWidth: 15 },  // State
+            9: { cellWidth: 18 },  // GST
+            10: { cellWidth: 18 }, // Credit Limit
+            11: { cellWidth: 15 }, // Payment Terms
+            12: { cellWidth: 18 }, // Total Quotes
+            13: { cellWidth: 12 }  // Status
+          }
+        });
+      } else {
+        // Manual table rendering as fallback
+        doc.setFontSize(6);
+        let y = startY;
+        const lineHeight = 5;
+        const colWidths = [25, 15, 15, 25, 18, 20, 18, 15, 15, 18, 18, 15, 18, 12];
+        let x = 5;
+
+        // Draw headers
+        doc.setFont('helvetica', 'bold');
+        headers[0].forEach((header, i) => {
+          doc.text(header, x, y);
+          x += colWidths[i];
+        });
+        y += lineHeight;
+
+        // Draw data
+        doc.setFont('helvetica', 'normal');
+        tableData.forEach(row => {
+          if (y > pageHeight - 20) {
+            doc.addPage();
+            y = 20;
+          }
+          x = 5;
+          row.forEach((cell, i) => {
+            doc.text(String(cell).substring(0, 15), x, y); // Truncate long text
+            x += colWidths[i];
+          });
+          y += lineHeight;
+        });
+      }
+      
+      // Add footer
+      const totalPages = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.text(
+          `Page ${i} of ${totalPages}`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: 'center' }
+        );
+      }
+
+      // Generate filename with current date
+      const filename = `Customers_Export_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      // Save file
+      doc.save(filename);
+      alert('Customers exported to PDF successfully!');
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      alert('Failed to export customers to PDF. Please try again.');
+    }
+  };
   
   // Error state
   if (error) {
@@ -409,6 +615,30 @@ export default function SalesPage() {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Customers</h3>
               <div className="flex items-center space-x-4">
+                {/* Export Buttons */}
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={exportToExcel}
+                    className="flex items-center px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors duration-200 shadow-sm"
+                    title="Export to Excel"
+                  >
+                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Excel
+                  </button>
+                  <button
+                    onClick={exportToPDF}
+                    className="flex items-center px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors duration-200 shadow-sm"
+                    title="Export to PDF"
+                  >
+                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    PDF
+                  </button>
+                </div>
+
                 {/* View Mode Toggles */}
                 <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
                   <button

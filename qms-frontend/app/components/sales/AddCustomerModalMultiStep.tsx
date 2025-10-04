@@ -23,13 +23,14 @@ export default function AddCustomerModalMultiStep({ isOpen, onClose, onCustomerA
     name: '',
     email: '',
     phone: '',
-    alternatePhone: '',
+    fax: '',
     gst: '',
     panNumber: '',
     contactPerson: '',
     designation: '',
     department: '',
     website: '',
+    customerRefNo: '',
     address: '',
     city: '',
     state: '',
@@ -37,7 +38,7 @@ export default function AddCustomerModalMultiStep({ isOpen, onClose, onCustomerA
     country: '',
     creditLimit: '',
     paymentTerms: '30',
-    customerType: 'regular',
+    customerType: '',
     notes: ''
   });
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -104,13 +105,14 @@ export default function AddCustomerModalMultiStep({ isOpen, onClose, onCustomerA
       name: '',
       email: '',
       phone: '',
-      alternatePhone: '',
+      fax: '',
       gst: '',
       panNumber: '',
       contactPerson: '',
       designation: '',
       department: '',
       website: '',
+      customerRefNo: '',
       address: '',
       city: '',
       state: '',
@@ -118,7 +120,7 @@ export default function AddCustomerModalMultiStep({ isOpen, onClose, onCustomerA
       country: '',
       creditLimit: '',
       paymentTerms: '30',
-      customerType: 'regular',
+      customerType: '',
       notes: ''
     });
     setErrors({});
@@ -131,7 +133,6 @@ export default function AddCustomerModalMultiStep({ isOpen, onClose, onCustomerA
     switch (activeTab) {
       case 'basic':
         if (!formData.name.trim()) newErrors.name = 'Customer name is required';
-        if (!formData.email.trim()) newErrors.email = 'Email is required';
         if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
           newErrors.email = 'Invalid email format';
         }
@@ -329,25 +330,33 @@ export default function AddCustomerModalMultiStep({ isOpen, onClose, onCustomerA
 
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Customer Type
+                      Customer Ref No.
                     </label>
-                    <select
-                      value={formData.customerType}
-                      onChange={(e) => handleInputChange('customerType', e.target.value)}
+                    <input
+                      type="text"
+                      value={formData.customerRefNo}
+                      onChange={(e) => handleInputChange('customerRefNo', e.target.value)}
                       className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    >
-                      <option value="regular">Regular Customer</option>
-                      <option value="vip">VIP Customer</option>
-                      <option value="corporate">Corporate</option>
-                      <option value="government">Government</option>
-                      <option value="distributor">Distributor</option>
-                      <option value="reseller">Reseller</option>
-                    </select>
+                      placeholder="REF-12345"
+                    />
                   </div>
 
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email Address *
+                      Customer Type
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.customerType}
+                      onChange={(e) => handleInputChange('customerType', e.target.value)}
+                      className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="e.g., Regular, VIP, Corporate, Government"
+                    />
+                  </div>
+
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email Address
                     </label>
                     <input
                       type="email"
@@ -417,14 +426,14 @@ export default function AddCustomerModalMultiStep({ isOpen, onClose, onCustomerA
 
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Alternate Phone
+                      FAX
                     </label>
                     <input
                       type="tel"
-                      value={formData.alternatePhone}
-                      onChange={(e) => handleInputChange('alternatePhone', e.target.value)}
+                      value={formData.fax}
+                      onChange={(e) => handleInputChange('fax', e.target.value)}
                       className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      placeholder="+92 300 1234567"
+                      placeholder="+92 42 111-222-333"
                     />
                   </div>
 
@@ -698,9 +707,11 @@ export default function AddCustomerModalMultiStep({ isOpen, onClose, onCustomerA
                     <h4 className="text-sm font-semibold text-gray-900 mb-3 pb-2 border-b border-gray-200">Basic & Contact Information</h4>
                     <div className="space-y-2 text-sm">
                       <div className="text-gray-800"><span className="font-medium text-gray-900">Name:</span> {formData.name || 'Not provided'}</div>
-                      <div className="text-gray-800"><span className="font-medium text-gray-900">Type:</span> {formData.customerType}</div>
+                      {formData.customerRefNo && <div className="text-gray-800"><span className="font-medium text-gray-900">Ref No.:</span> {formData.customerRefNo}</div>}
+                      {formData.customerType && <div className="text-gray-800"><span className="font-medium text-gray-900">Type:</span> {formData.customerType}</div>}
                       <div className="text-gray-800"><span className="font-medium text-gray-900">Email:</span> {formData.email || 'Not provided'}</div>
                       <div className="text-gray-800"><span className="font-medium text-gray-900">Phone:</span> {formData.phone || 'Not provided'}</div>
+                      {formData.fax && <div className="text-gray-800"><span className="font-medium text-gray-900">FAX:</span> {formData.fax}</div>}
                       <div className="text-gray-800"><span className="font-medium text-gray-900">Contact Person:</span> {formData.contactPerson || 'Not provided'}</div>
                       {formData.website && <div className="text-gray-800"><span className="font-medium text-gray-900">Website:</span> {formData.website}</div>}
                     </div>

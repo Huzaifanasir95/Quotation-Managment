@@ -15,6 +15,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
     email: '',
     phone: '',
     fax: '',
+    customerRefNo: '',
     panNumber: '',
     contactPerson: '',
     designation: '',
@@ -27,7 +28,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
     country: '',
     creditLimit: '',
     paymentTerms: '30',
-    customerType: 'regular',
+    customerType: '',
     notes: ''
   });
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -46,6 +47,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
       email: '',
       phone: '',
       fax: '',
+      customerRefNo: '',
       panNumber: '',
       contactPerson: '',
       designation: '',
@@ -58,7 +60,7 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
       country: '',
       creditLimit: '',
       paymentTerms: '30',
-      customerType: 'regular',
+      customerType: '',
       notes: ''
     });
     setErrors({});
@@ -69,11 +71,10 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
 
     // Required fields
     if (!formData.name.trim()) newErrors.name = 'Customer name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
     if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
     if (!formData.contactPerson.trim()) newErrors.contactPerson = 'Contact person is required';
     
-    // Email validation
+    // Email validation (only if provided)
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Invalid email format';
     }
@@ -220,25 +221,33 @@ export default function AddCustomerModal({ isOpen, onClose, onCustomerAdded }: A
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Customer Type
+                    Customer Ref No.
                   </label>
-                  <select
-                    value={formData.customerType}
-                    onChange={(e) => handleInputChange('customerType', e.target.value)}
+                  <input
+                    type="text"
+                    value={formData.customerRefNo}
+                    onChange={(e) => handleInputChange('customerRefNo', e.target.value)}
                     className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-all duration-200"
-                  >
-                    <option value="regular">Regular Customer</option>
-                    <option value="vip">VIP Customer</option>
-                    <option value="corporate">Corporate</option>
-                    <option value="government">Government</option>
-                    <option value="distributor">Distributor</option>
-                    <option value="reseller">Reseller</option>
-                  </select>
+                    placeholder="REF-12345"
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address *
+                    Customer Type
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.customerType}
+                    onChange={(e) => handleInputChange('customerType', e.target.value)}
+                    className="w-full text-black px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-all duration-200"
+                    placeholder="e.g., Regular, VIP, Corporate, Government"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email Address
                   </label>
                   <input
                     type="email"

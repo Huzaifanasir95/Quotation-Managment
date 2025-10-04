@@ -15,6 +15,9 @@ export default function EditCustomerModal({ isOpen, onClose, onCustomerUpdated, 
     name: '',
     email: '',
     phone: '',
+    fax: '',
+    customerRefNo: '',
+    customerType: '',
     address: '',
     city: '',
     state: '',
@@ -33,6 +36,9 @@ export default function EditCustomerModal({ isOpen, onClose, onCustomerUpdated, 
         name: customer.name || '',
         email: customer.email || '',
         phone: customer.phone || '',
+        fax: customer.fax || '',
+        customerRefNo: customer.customer_ref_no || '',
+        customerType: customer.customer_type || '',
         address: customer.address || '',
         city: customer.city || '',
         state: customer.state || '',
@@ -58,6 +64,9 @@ export default function EditCustomerModal({ isOpen, onClose, onCustomerUpdated, 
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
+        fax: formData.fax || null,
+        customer_ref_no: formData.customerRefNo || null,
+        customer_type: formData.customerType || null,
         address: formData.address,
         city: formData.city,
         state: formData.state,
@@ -136,14 +145,13 @@ export default function EditCustomerModal({ isOpen, onClose, onCustomerUpdated, 
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email *
+                Email
               </label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
               />
             </div>
@@ -158,6 +166,46 @@ export default function EditCustomerModal({ isOpen, onClose, onCustomerUpdated, 
                 value={formData.phone}
                 onChange={handleChange}
                 required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                FAX
+              </label>
+              <input
+                type="tel"
+                name="fax"
+                value={formData.fax}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Customer Ref No.
+              </label>
+              <input
+                type="text"
+                name="customerRefNo"
+                value={formData.customerRefNo}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Customer Type
+              </label>
+              <input
+                type="text"
+                name="customerType"
+                value={formData.customerType}
+                onChange={handleChange}
+                placeholder="e.g., Regular, VIP, Corporate, Government"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
               />
             </div>

@@ -53,18 +53,18 @@ CREATE TABLE public.chart_of_accounts (
   account_code character varying NOT NULL UNIQUE,
   account_name character varying NOT NULL,
   account_type character varying NOT NULL CHECK (account_type::text = ANY (ARRAY['asset'::character varying, 'liability'::character varying, 'equity'::character varying, 'revenue'::character varying, 'expense'::character varying]::text[])),
-  parent_id uuid,
-  is_active boolean DEFAULT true,
-  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT chart_of_accounts_pkey PRIMARY KEY (id),
   CONSTRAINT chart_of_accounts_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.chart_of_accounts(id)
-);
+;
 CREATE TABLE public.customers (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name character varying NOT NULL,
   contact_person character varying,
   email character varying,
   phone character varying,
+  fax character varying,
+  customer_ref_no character varying,
+  customer_type character varying,
   address text,
   city character varying,
   state character varying,
@@ -73,17 +73,6 @@ CREATE TABLE public.customers (
   credit_limit numeric DEFAULT 0,
   payment_terms integer DEFAULT 30,
   status character varying DEFAULT 'active'::character varying CHECK (status::text = ANY (ARRAY['active'::character varying, 'inactive'::character varying, 'suspended'::character varying]::text[])),
-  created_by uuid,
-  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-  updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-  fax character varying,
-  CONSTRAINT customers_pkey PRIMARY KEY (id),
-  CONSTRAINT customers_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
-);
-CREATE TABLE public.delivery_challans (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  challan_number character varying NOT NULL UNIQUE,
-  purchase_order_id uuid NOT NULL,
   challan_date date NOT NULL,
   delivery_date date,
   delivery_address text,

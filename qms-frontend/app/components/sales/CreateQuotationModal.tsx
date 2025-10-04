@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { apiClient, Customer } from '../../lib/api';
 import { generateQuotationPDF } from '../../../lib/pdfUtils';
+import { loadJsPDF, loadXLSX } from '../../../lib/dynamicImports';
 
 interface CreateQuotationModalProps {
   isOpen: boolean;
@@ -211,11 +212,33 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   };
 
   const addItem = () => {
-    setItems([...items, { id: Date.now(), productId: '', quantity: 1, unitPrice: 0, isCustom: false, customDescription: '' }]);
+    setItems([...items, { 
+      id: Date.now(), 
+      productId: '', 
+      quantity: 1, 
+      unitPrice: 0, 
+      isCustom: false, 
+      customDescription: '',
+      category: '',
+      serialNo: '',
+      itemName: '',
+      auField: 'No' // A/U field with default "No"
+    }]);
   };
 
   const addCustomItem = () => {
-    setItems([...items, { id: Date.now(), productId: null, quantity: 1, unitPrice: 0, isCustom: true, customDescription: '' }]);
+    setItems([...items, { 
+      id: Date.now(), 
+      productId: null, 
+      quantity: 1, 
+      unitPrice: 0, 
+      isCustom: true, 
+      customDescription: '',
+      category: '',
+      serialNo: '',
+      itemName: '',
+      auField: 'No' // A/U field with default "No"
+    }]);
   };
 
   const removeItem = (index: number) => {
@@ -390,6 +413,183 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       alert(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally {
       setIsGeneratingPDF(false);
+    }
+  };
+
+  // Export items to Excel
+  const exportItemsToExcel = async () => {
+    try {
+      const XLSX = await loadXLSX();
+      
+      // Prepare data for export - ALL item fields
+      const exportData = items.map((item, index) => {
+        const product = products.find(p => p.id === item.productId);
+        return {
+          'S.No': index + 1,
+          'Category': item.category || 'N/A',
+          'Serial No': item.serialNo || 'N/A',
+          'Item Name': item.itemName || (item.isCustom ? item.customDescription : product?.name) || 'N/A',
+          'A/U': item.auField || 'No',
+          'Description': item.isCustom ? item.customDescription : product?.name || 'N/A',
+          'Quantity': item.quantity,
+          'Unit Price': `Rs. ${item.unitPrice.toLocaleString()}`,
+          'Total': `Rs. ${(item.quantity * item.unitPrice).toLocaleString()}`,
+          'Type': item.isCustom ? 'Custom' : 'Inventory'
+        };
+      });
+
+      // Create workbook and worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Quotation Items');
+
+      // Set column widths
+      const wscols = [
+        { wch: 8 },  // S.No
+        { wch: 20 }, // Category
+        { wch: 15 }, // Serial No
+        { wch: 30 }, // Item Name
+        { wch: 8 },  // A/U
+        { wch: 40 }, // Description
+        { wch: 12 }, // Quantity
+        { wch: 15 }, // Unit Price
+        { wch: 15 }, // Total
+        { wch: 12 }  // Type
+      ];
+      ws['!cols'] = wscols;
+
+      // Generate filename with current date
+      const filename = `Quotation_Items_${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      // Save file
+      XLSX.writeFile(wb, filename);
+      alert('Items exported to Excel successfully!');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      alert('Failed to export items to Excel. Please try again.');
+    }
+  };
+
+  // Export items to PDF
+  const exportItemsToPDF = async () => {
+    try {
+      const jsPDF = await loadJsPDF();
+      if (!jsPDF) {
+        alert('PDF library failed to load. Please try again.');
+        return;
+      }
+
+      const doc = new jsPDF('landscape');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      
+      // Add title
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Quotation Items List', pageWidth / 2, 15, { align: 'center' });
+      
+      // Add export date
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Export Date: ${new Date().toLocaleDateString()}`, pageWidth / 2, 22, { align: 'center' });
+      
+      // Prepare table data
+      const tableData = items.map((item, index) => {
+        const product = products.find(p => p.id === item.productId);
+        return [
+          (index + 1).toString(),
+          item.category || 'N/A',
+          item.serialNo || 'N/A',
+          item.itemName || (item.isCustom ? item.customDescription : product?.name) || 'N/A',
+          item.auField || 'No',
+          item.quantity.toString(),
+          `Rs. ${item.unitPrice.toLocaleString()}`,
+          `Rs. ${(item.quantity * item.unitPrice).toLocaleString()}`,
+          item.isCustom ? 'Custom' : 'Inventory'
+        ];
+      });
+
+      // Add table using autoTable (if available) or manual rendering
+      const startY = 30;
+      const headers = [['S.No', 'Category', 'Serial No', 'Item Name', 'A/U', 'Qty', 'Unit Price', 'Total', 'Type']];
+      
+      // Check if autoTable is available (jspdf-autotable plugin)
+      if (typeof (doc as any).autoTable === 'function') {
+        (doc as any).autoTable({
+          startY: startY,
+          head: headers,
+          body: tableData,
+          theme: 'grid',
+          headStyles: { fillColor: [59, 130, 246], fontSize: 9, fontStyle: 'bold' },
+          bodyStyles: { fontSize: 8 },
+          alternateRowStyles: { fillColor: [245, 247, 250] },
+          margin: { left: 10, right: 10 },
+          columnStyles: {
+            0: { cellWidth: 15 },  // S.No
+            1: { cellWidth: 25 },  // Category
+            2: { cellWidth: 20 },  // Serial No
+            3: { cellWidth: 40 },  // Item Name
+            4: { cellWidth: 15 },  // A/U
+            5: { cellWidth: 15 },  // Qty
+            6: { cellWidth: 25 },  // Unit Price
+            7: { cellWidth: 25 },  // Total
+            8: { cellWidth: 20 }   // Type
+          }
+        });
+      } else {
+        // Manual table rendering as fallback
+        doc.setFontSize(8);
+        let y = startY;
+        const lineHeight = 6;
+        const colWidths = [15, 25, 20, 40, 15, 15, 25, 25, 20];
+        let x = 10;
+
+        // Draw headers
+        doc.setFont('helvetica', 'bold');
+        headers[0].forEach((header, i) => {
+          doc.text(header, x, y);
+          x += colWidths[i];
+        });
+        y += lineHeight;
+
+        // Draw data
+        doc.setFont('helvetica', 'normal');
+        tableData.forEach(row => {
+          if (y > pageHeight - 20) {
+            doc.addPage();
+            y = 20;
+          }
+          x = 10;
+          row.forEach((cell, i) => {
+            doc.text(String(cell).substring(0, 20), x, y); // Truncate long text
+            x += colWidths[i];
+          });
+          y += lineHeight;
+        });
+      }
+      
+      // Add footer
+      const totalPages = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.text(
+          `Page ${i} of ${totalPages}`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: 'center' }
+        );
+      }
+
+      // Generate filename with current date
+      const filename = `Quotation_Items_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      // Save file
+      doc.save(filename);
+      alert('Items exported to PDF successfully!');
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      alert('Failed to export items to PDF. Please try again.');
     }
   };
 
@@ -739,6 +939,17 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                         />
                         <p className="text-sm text-gray-500 mt-1">If not specified, default is 30 days from today</p>
                       </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Reference No.</label>
+                        <input
+                          type="text"
+                          value={formData.referenceNo || ''}
+                          onChange={(e) => setFormData({ ...formData, referenceNo: e.target.value })}
+                          className="w-full text-black p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                          placeholder="Enter reference number"
+                        />
+                        <p className="text-sm text-gray-500 mt-1">Optional reference number for this quotation</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -802,6 +1013,32 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                 <h3 className="text-lg font-medium text-gray-900">Quotation Items</h3>
                 
                 <div className="flex items-center space-x-4">
+                  {/* Export Buttons */}
+                  {items.length > 0 && (
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={exportItemsToExcel}
+                        className="flex items-center px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors duration-200 shadow-sm"
+                        title="Export Items to Excel"
+                      >
+                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Excel
+                      </button>
+                      <button
+                        onClick={exportItemsToPDF}
+                        className="flex items-center px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors duration-200 shadow-sm"
+                        title="Export Items to PDF"
+                      >
+                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        PDF
+                      </button>
+                    </div>
+                  )}
+
                   {/* View Mode Toggle */}
                   <div className="flex border border-gray-300 rounded-lg overflow-hidden">
                     <button
@@ -910,7 +1147,107 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                       rows={2}
                                     />
                                   </div>
-                                  
+                                                                    
+                                  {/* New Fields */}
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+                                      <input
+                                        type="text"
+                                        value={item.category || ''}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          newItems[index] = { ...item, category: e.target.value };
+                                          setItems(newItems);
+                                        }}
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="Category"
+                                      />
+                                    </div>
+                                    
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">Serial No</label>
+                                      <input
+                                        type="text"
+                                        value={item.serialNo || ''}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          newItems[index] = { ...item, serialNo: e.target.value };
+                                          setItems(newItems);
+                                        }}
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="Serial Number"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">Item Name</label>
+                                      <input
+                                        type="text"
+                                        value={item.itemName || ''}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          newItems[index] = { ...item, itemName: e.target.value };
+                                          setItems(newItems);
+                                        }}
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="Item Name"
+                                      />
+                                    </div>
+                                    
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">A/U</label>
+                                      <select
+                                        value={item.auField || 'No'}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          newItems[index] = { ...item, auField: e.target.value };
+                                          setItems(newItems);
+                                        }}
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                      >
+                                        <option value="No">No</option>
+                                        <option value="Yes">Yes</option>
+                                      </select>
+                                    </div>
+                                  <div className="grid grid-cols-1 gap-2">
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">UOM (Unit of Measure)</label>
+                                      <input
+                                        type="text"
+                                        value={item.uom || ''}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          newItems[index] = { ...item, uom: e.target.value };
+                                          setItems(newItems);
+                                        }}
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="e.g., pcs, kg, ltr, m, etc."
+                                      />
+                                    </div>
+                                  <div className="grid grid-cols-1 gap-2">
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">GST %</label>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        max="100"
+                                        value={item.gstPercentage || ''}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          newItems[index] = { ...item, gstPercentage: Number(e.target.value) };
+                                          setItems(newItems);
+                                        }}
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="e.g., 18, 12, 5"
+                                      />
+                                    </div>
+                                  </div>
+                                  </div>
+                                  </div>
                                   <div className="grid grid-cols-2 gap-2">
                                     <div>
                                       <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
@@ -971,6 +1308,41 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         <option key={p.id} value={p.id}>{p.name} - Rs. {p.price} (Stock: {p.stock})</option>
                                       ))}
                                     </select>
+                                  <div className="grid grid-cols-1 gap-2">
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">UOM (Unit of Measure)</label>
+                                      <input
+                                        type="text"
+                                        value={item.uom || ''}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          newItems[index] = { ...item, uom: e.target.value };
+                                          setItems(newItems);
+                                        }}
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="e.g., pcs, kg, ltr, m, etc."
+                                      />
+                                    </div>
+                                  <div className="grid grid-cols-1 gap-2">
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">GST %</label>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        max="100"
+                                        value={item.gstPercentage || ''}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          newItems[index] = { ...item, gstPercentage: Number(e.target.value) };
+                                          setItems(newItems);
+                                        }}
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="e.g., 18, 12, 5"
+                                      />
+                                    </div>
+                                  </div>
+                                  </div>
                                   </div>
                                   
                                   <div className="grid grid-cols-2 gap-2">
