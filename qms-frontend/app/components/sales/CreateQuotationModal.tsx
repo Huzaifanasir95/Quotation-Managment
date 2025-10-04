@@ -209,7 +209,11 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   };
 
   const addItem = () => {
-    setItems([...items, { id: Date.now(), productId: '', quantity: 1, unitPrice: 0 }]);
+    setItems([...items, { id: Date.now(), productId: '', quantity: 1, unitPrice: 0, isCustom: false, customDescription: '' }]);
+  };
+
+  const addCustomItem = () => {
+    setItems([...items, { id: Date.now(), productId: null, quantity: 1, unitPrice: 0, isCustom: true, customDescription: '' }]);
   };
 
   const removeItem = (index: number) => {
@@ -398,12 +402,27 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       return;
     }
 
-    // Validate stock before submission
+    // Validate items
     for (const item of items) {
-      const product = products.find(p => p.id === item.productId);
-      if (product && item.quantity > product.stock) {
-        alert(`Insufficient stock for ${product.name}. Available: ${product.stock}`);
+      // Validate custom items have description
+      if (item.isCustom && (!item.customDescription || item.customDescription.trim() === '')) {
+        alert('Please provide a description for all custom items');
         return;
+      }
+      
+      // Validate inventory items have product selected
+      if (!item.isCustom && !item.productId) {
+        alert('Please select a product for all inventory items');
+        return;
+      }
+      
+      // Validate stock for inventory items
+      if (!item.isCustom && item.productId) {
+        const product = products.find(p => p.id === item.productId);
+        if (product && item.quantity > product.stock) {
+          alert(`Insufficient stock for ${product.name}. Available: ${product.stock}`);
+          return;
+        }
       }
     }
 
@@ -418,12 +437,26 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
           notes: formData.notes,
           terms_conditions: formData.termsConditions,
-          items: items.map(item => ({
-            product_id: item.productId || null,
-            description: item.description || products.find(p => p.id === item.productId)?.name || 'Custom item',
-            quantity: item.quantity,
-            unit_price: item.unitPrice
-          }))
+          items: items.map(item => {
+            if (item.isCustom) {
+              // Custom item - no product_id
+              return {
+                product_id: null,
+                description: item.customDescription || 'Custom item',
+                quantity: item.quantity,
+                unit_price: item.unitPrice
+              };
+            } else {
+              // Inventory item - with product_id
+              const product = products.find(p => p.id === item.productId);
+              return {
+                product_id: item.productId,
+                description: product?.name || 'Product',
+                quantity: item.quantity,
+                unit_price: item.unitPrice
+              };
+            }
+          })
         };
 
         return apiClient.createQuotation(quotationData);
@@ -734,9 +767,22 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                   
                   <button 
                     onClick={addItem} 
-                    className="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900"
+                    className="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 flex items-center space-x-2"
                   >
-                    Add Item
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                    <span>From Inventory</span>
+                  </button>
+                  
+                  <button 
+                    onClick={addCustomItem} 
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Custom Item</span>
                   </button>
                 </div>
               </div>
@@ -760,10 +806,17 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                         const selectedProduct = products.find(p => p.id === item.productId);
                         const availableStock = selectedProduct?.stock || 0;
                         const isOverStock = item.quantity > availableStock;
+                        const isCustomItem = item.isCustom === true;
+                        
                         return (
                           <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-4">
                             <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-medium text-gray-900">Item #{index + 1}</h4>
+                              <div className="flex items-center space-x-2">
+                                <h4 className="font-medium text-gray-900">Item #{index + 1}</h4>
+                                {isCustomItem && (
+                                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">Custom</span>
+                                )}
+                              </div>
                               <button
                                 onClick={() => removeItem(index)}
                                 className="text-red-500 hover:text-red-700 p-1 rounded"
@@ -775,70 +828,133 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                             </div>
                             
                             <div className="space-y-3">
-                              <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Product</label>
-                                <select
-                                  value={item.productId}
-                                  onChange={(e) => {
-                                    const product = products.find(p => p.id === e.target.value);
-                                    const newItems = [...items];
-                                    newItems[index] = { ...item, productId: e.target.value, unitPrice: product?.price || 0 };
-                                    setItems(newItems);
-                                  }}
-                                  className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                >
-                                  <option value="">Select product...</option>
-                                  {products.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name} - Rs. {p.price} (Stock: {p.stock})</option>
-                                  ))}
-                                </select>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={item.quantity}
-                                    onChange={(e) => {
-                                      const newItems = [...items];
-                                      newItems[index] = { ...item, quantity: Number(e.target.value) };
-                                      setItems(newItems);
-                                    }}
-                                    className={`w-full text-black p-2 border rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500 ${isOverStock ? 'border-red-500' : 'border-gray-300'}`}
-                                    placeholder="Qty"
-                                  />
-                                  {isOverStock && <p className="text-red-500 text-xs mt-1">Insufficient stock</p>}
-                                </div>
-                                
-                                <div>
-                                  <label className="block text-xs font-medium text-gray-700 mb-1">Price</label>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    value={item.unitPrice}
-                                    onChange={(e) => {
-                                      const newItems = [...items];
-                                      newItems[index] = { ...item, unitPrice: Number(e.target.value) };
-                                      setItems(newItems);
-                                    }}
-                                    className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                    placeholder="Price"
-                                  />
-                                </div>
-                              </div>
-                              
-                              {item.productId && (
+                              {isCustomItem ? (
                                 <>
-                                  <div className="text-sm text-gray-500">
-                                    Available stock: {availableStock}
+                                  {/* Custom Item Fields */}
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                                    <textarea
+                                      value={item.customDescription || ''}
+                                      onChange={(e) => {
+                                        const newItems = [...items];
+                                        newItems[index] = { ...item, customDescription: e.target.value };
+                                        setItems(newItems);
+                                      }}
+                                      className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                      placeholder="Enter item description"
+                                      rows={2}
+                                    />
                                   </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={item.quantity}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          newItems[index] = { ...item, quantity: Number(e.target.value) };
+                                          setItems(newItems);
+                                        }}
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="Qty"
+                                      />
+                                    </div>
+                                    
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">Price</label>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        value={item.unitPrice}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          newItems[index] = { ...item, unitPrice: Number(e.target.value) };
+                                          setItems(newItems);
+                                        }}
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="Price"
+                                      />
+                                    </div>
+                                  </div>
+                                  
                                   <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
                                     <p className="text-sm text-gray-900">
                                       <span className="font-medium">Total:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
                                     </p>
                                   </div>
+                                </>
+                              ) : (
+                                <>
+                                  {/* Inventory Item Fields */}
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Product</label>
+                                    <select
+                                      value={item.productId}
+                                      onChange={(e) => {
+                                        const product = products.find(p => p.id === e.target.value);
+                                        const newItems = [...items];
+                                        newItems[index] = { ...item, productId: e.target.value, unitPrice: product?.price || 0 };
+                                        setItems(newItems);
+                                      }}
+                                      className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                    >
+                                      <option value="">Select product...</option>
+                                      {products.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name} - Rs. {p.price} (Stock: {p.stock})</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={item.quantity}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          newItems[index] = { ...item, quantity: Number(e.target.value) };
+                                          setItems(newItems);
+                                        }}
+                                        className={`w-full text-black p-2 border rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500 ${isOverStock ? 'border-red-500' : 'border-gray-300'}`}
+                                        placeholder="Qty"
+                                      />
+                                      {isOverStock && <p className="text-red-500 text-xs mt-1">Insufficient stock</p>}
+                                    </div>
+                                    
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">Price</label>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        value={item.unitPrice}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          newItems[index] = { ...item, unitPrice: Number(e.target.value) };
+                                          setItems(newItems);
+                                        }}
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="Price"
+                                      />
+                                    </div>
+                                  </div>
+                                  
+                                  {item.productId && (
+                                    <>
+                                      <div className="text-sm text-gray-500">
+                                        Available stock: {availableStock}
+                                      </div>
+                                      <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
+                                        <p className="text-sm text-gray-900">
+                                          <span className="font-medium">Total:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
+                                        </p>
+                                      </div>
+                                    </>
+                                  )}
                                 </>
                               )}
                             </div>
@@ -853,10 +969,17 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                         const selectedProduct = products.find(p => p.id === item.productId);
                         const availableStock = selectedProduct?.stock || 0;
                         const isOverStock = item.quantity > availableStock;
+                        const isCustomItem = item.isCustom === true;
+                        
                         return (
                           <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-4">
                             <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-medium text-gray-900">Item #{index + 1}</h4>
+                              <div className="flex items-center space-x-2">
+                                <h4 className="font-medium text-gray-900">Item #{index + 1}</h4>
+                                {isCustomItem && (
+                                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">Custom</span>
+                                )}
+                              </div>
                               <button
                                 onClick={() => removeItem(index)}
                                 className="text-red-500 hover:text-red-700 p-1 rounded"
@@ -866,66 +989,127 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                 </svg>
                               </button>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                              <div className="md:col-span-2">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
-                                <select
-                                  value={item.productId}
-                                  onChange={(e) => {
-                                    const product = products.find(p => p.id === e.target.value);
-                                    const newItems = [...items];
-                                    newItems[index] = { ...item, productId: e.target.value, unitPrice: product?.price || 0 };
-                                    setItems(newItems);
-                                  }}
-                                  className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                >
-                                  <option value="">Select product...</option>
-                                  {products.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name} - Rs. {p.price} (Stock: {p.stock})</option>
-                                  ))}
-                                </select>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  value={item.quantity}
-                                  onChange={(e) => {
-                                    const newItems = [...items];
-                                    newItems[index] = { ...item, quantity: Number(e.target.value) };
-                                    setItems(newItems);
-                                  }}
-                                  className={`w-full text-black p-2 border rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500 ${isOverStock ? 'border-red-500' : 'border-gray-300'}`}
-                                  placeholder="Quantity"
-                                />
-                                {isOverStock && <p className="text-red-500 text-xs mt-1">Insufficient stock</p>}
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={item.unitPrice}
-                                  onChange={(e) => {
-                                    const newItems = [...items];
-                                    newItems[index] = { ...item, unitPrice: Number(e.target.value) };
-                                    setItems(newItems);
-                                  }}
-                                  className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                  placeholder="Price"
-                                />
-                              </div>
-                            </div>
-                            {item.productId && (
-                              <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                                <p className="text-sm text-gray-500">
-                                  Available stock: {availableStock}
-                                </p>
-                                <p className="text-sm text-gray-900 mt-1">
-                                  <span className="font-medium">Subtotal:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
-                                </p>
-                              </div>
+                            
+                            {isCustomItem ? (
+                              <>
+                                {/* Custom Item Fields */}
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                  <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                    <textarea
+                                      value={item.customDescription || ''}
+                                      onChange={(e) => {
+                                        const newItems = [...items];
+                                        newItems[index] = { ...item, customDescription: e.target.value };
+                                        setItems(newItems);
+                                      }}
+                                      className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                      placeholder="Enter item description"
+                                      rows={2}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={item.quantity}
+                                      onChange={(e) => {
+                                        const newItems = [...items];
+                                        newItems[index] = { ...item, quantity: Number(e.target.value) };
+                                        setItems(newItems);
+                                      }}
+                                      className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                      placeholder="Quantity"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={item.unitPrice}
+                                      onChange={(e) => {
+                                        const newItems = [...items];
+                                        newItems[index] = { ...item, unitPrice: Number(e.target.value) };
+                                        setItems(newItems);
+                                      }}
+                                      className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                      placeholder="Price"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                  <p className="text-sm text-gray-900">
+                                    <span className="font-medium">Subtotal:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
+                                  </p>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                {/* Inventory Item Fields */}
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                  <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Product</label>
+                                    <select
+                                      value={item.productId}
+                                      onChange={(e) => {
+                                        const product = products.find(p => p.id === e.target.value);
+                                        const newItems = [...items];
+                                        newItems[index] = { ...item, productId: e.target.value, unitPrice: product?.price || 0 };
+                                        setItems(newItems);
+                                      }}
+                                      className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                    >
+                                      <option value="">Select product...</option>
+                                      {products.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name} - Rs. {p.price} (Stock: {p.stock})</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={item.quantity}
+                                      onChange={(e) => {
+                                        const newItems = [...items];
+                                        newItems[index] = { ...item, quantity: Number(e.target.value) };
+                                        setItems(newItems);
+                                      }}
+                                      className={`w-full text-black p-2 border rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500 ${isOverStock ? 'border-red-500' : 'border-gray-300'}`}
+                                      placeholder="Quantity"
+                                    />
+                                    {isOverStock && <p className="text-red-500 text-xs mt-1">Insufficient stock</p>}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={item.unitPrice}
+                                      onChange={(e) => {
+                                        const newItems = [...items];
+                                        newItems[index] = { ...item, unitPrice: Number(e.target.value) };
+                                        setItems(newItems);
+                                      }}
+                                      className="w-full text-black p-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                      placeholder="Price"
+                                    />
+                                  </div>
+                                </div>
+                                {item.productId && (
+                                  <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                    <p className="text-sm text-gray-500">
+                                      Available stock: {availableStock}
+                                    </p>
+                                    <p className="text-sm text-gray-900 mt-1">
+                                      <span className="font-medium">Subtotal:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
+                                    </p>
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                         );
@@ -1200,17 +1384,30 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                       </h4>
                       {items.length > 0 ? (
                         <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {items.map((item, index) => (
-                            <div key={item.id} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 truncate">
-                                  {products.find(p => p.id === item.productId)?.name || 'Product'}
-                                </p>
-                                <p className="text-gray-500">Qty: {item.quantity} × Rs. {item.unitPrice} (Stock: {products.find(p => p.id === item.productId)?.stock || 0})</p>
+                          {items.map((item, index) => {
+                            const isCustomItem = item.isCustom === true;
+                            const itemName = isCustomItem 
+                              ? (item.customDescription || 'Custom Item')
+                              : (products.find(p => p.id === item.productId)?.name || 'Product');
+                            const stock = isCustomItem ? 'N/A' : (products.find(p => p.id === item.productId)?.stock || 0);
+                            
+                            return (
+                              <div key={item.id} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center space-x-2">
+                                    <p className="font-medium text-gray-900 truncate">
+                                      {itemName}
+                                    </p>
+                                    {isCustomItem && (
+                                      <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">Custom</span>
+                                    )}
+                                  </div>
+                                  <p className="text-gray-500">Qty: {item.quantity} × Rs. {item.unitPrice} {!isCustomItem && `(Stock: ${stock})`}</p>
+                                </div>
+                                <span className="font-medium text-gray-900">Rs. {(item.quantity * item.unitPrice).toFixed(2)}</span>
                               </div>
-                              <span className="font-medium text-gray-900">Rs. {(item.quantity * item.unitPrice).toFixed(2)}</span>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       ) : (
                         <p className="text-gray-500 text-sm">No items added</p>

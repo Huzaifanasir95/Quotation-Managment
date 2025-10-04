@@ -101,7 +101,7 @@ const schemas = {
     notes: Joi.string().optional(),
     items: Joi.array().items(
       Joi.object({
-        product_id: Joi.string().uuid().optional(),
+        product_id: Joi.string().uuid().allow(null).optional(),
         description: Joi.string().required(),
         quantity: Joi.number().positive().required(),
         unit_price: Joi.number().min(0).required(),
@@ -124,7 +124,7 @@ const schemas = {
     notes: Joi.string().optional(),
     items: Joi.array().items(
       Joi.object({
-        product_id: Joi.string().uuid().optional(),
+        product_id: Joi.string().uuid().allow(null).optional(),
         description: Joi.string().required(),
         quantity: Joi.number().positive().required(),
         unit_price: Joi.number().min(0).required(),
@@ -157,7 +157,7 @@ const schemas = {
     status: Joi.string().valid('draft', 'sent', 'paid', 'overdue', 'cancelled').default('draft'),
     items: Joi.array().items(
       Joi.object({
-        product_id: Joi.string().uuid().required(),
+        product_id: Joi.string().uuid().allow(null).optional(),
         description: Joi.string().max(500).required(),
         quantity: Joi.number().positive().required(),
         unit_price: Joi.number().min(0).required(),
