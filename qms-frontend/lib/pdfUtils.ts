@@ -802,35 +802,52 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     
     // Function to add header only on first page
     const addFirstPageHeader = () => {
-      pdf.setLineWidth(0.8);
-      pdf.rect(margin, margin, pageWidth - (margin * 2), 35);
+      // Left company info box
+      const leftBoxWidth = 120;
+      const leftBoxHeight = 25;
+      pdf.setLineWidth(0.5);
+      pdf.rect(margin, margin, leftBoxWidth, leftBoxHeight);
       
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Directorate of Technical Procurement (L),', margin + 5, margin + 12);
-      pdf.text('KRL, Rawalpindi.', margin + 5, margin + 25);
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Directorate of Technical Procurement (L),', margin + 3, margin + 8);
+      pdf.text('KRL, Rawalpindi.', margin + 3, margin + 18);
       
-      const infoBoxX = pageWidth - 85;
-      const infoBoxY = margin;
-      const infoBoxWidth = 70;
-      const infoBoxHeight = 35;
+      // Right info boxes
+      const rightBoxX = pageWidth - 80;
+      const rightBoxWidth = 65;
+      const rightBoxHeight = 25;
       
-      pdf.rect(infoBoxX, infoBoxY, infoBoxWidth, infoBoxHeight);
-      pdf.line(infoBoxX, infoBoxY + 17.5, infoBoxX + infoBoxWidth, infoBoxY + 17.5);
-      pdf.line(infoBoxX + 25, infoBoxY, infoBoxX + 25, infoBoxY + infoBoxHeight);
+      // Date and Ref.No box
+      pdf.rect(rightBoxX, margin, rightBoxWidth, rightBoxHeight);
+      pdf.line(rightBoxX, margin + 12.5, rightBoxX + rightBoxWidth, margin + 12.5); // Horizontal divider
+      pdf.line(rightBoxX + 25, margin, rightBoxX + 25, margin + rightBoxHeight); // Vertical divider
       
       pdf.setFontSize(9);
       pdf.setFont('helvetica', 'normal');
       
-      pdf.text('Date', infoBoxX + 2, infoBoxY + 8);
-      pdf.text(':', infoBoxX + 20, infoBoxY + 8);
-      pdf.text(new Date().toLocaleDateString('en-GB'), infoBoxX + 27, infoBoxY + 8);
+      // Date row
+      pdf.text('Date', rightBoxX + 2, margin + 8);
+      pdf.text(':', rightBoxX + 22, margin + 8);
+      pdf.text('21/12/2023', rightBoxX + 27, margin + 8);
       
-      pdf.text('Ref.No', infoBoxX + 2, infoBoxY + 25);
-      pdf.text(':', infoBoxX + 20, infoBoxY + 25);
-      pdf.text(refNo || '-', infoBoxX + 27, infoBoxY + 25);
+      // Ref.No row  
+      pdf.text('Ref.No', rightBoxX + 2, margin + 20);
+      pdf.text(':', rightBoxX + 22, margin + 20);
+      pdf.text(`AI/KRL/2023/SP-${refNo || '2112-02'}`, rightBoxX + 27, margin + 20);
       
-      return margin + 55;
+      // Quotation title box
+      const titleY = margin + 35;
+      const titleBoxX = margin + 60;
+      const titleBoxWidth = 100;
+      const titleBoxHeight = 12;
+      
+      pdf.rect(titleBoxX, titleY, titleBoxWidth, titleBoxHeight);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      pdf.text(`Quotation for ( ${refNo || 'A-41156'} )`, titleBoxX + titleBoxWidth/2, titleY + 8, { align: 'center' });
+      
+      return titleY + titleBoxHeight + 15;
     };
     
     // Function for continuation pages (no header, just start with margin)
@@ -841,7 +858,7 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     // Function to add table header
     const addTableHeader = (yPosition: number) => {
       const tableHeaders = ['Sr.No', 'Description of Goods/Services', 'UOM', 'Qty', 'Unit Price', 'Total Price', 'GST Rate'];
-      const colWidths = [15, 70, 18, 15, 25, 25, 20];
+      const colWidths = [15, 85, 20, 15, 25, 25, 20];
       const colStartX = margin;
       
       const colPositions = [colStartX];
@@ -1002,59 +1019,74 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     // Draw footer content (totals, terms, signature) - only once
     const footerStartY = currentY + 15;
     
-    // Totals section
-    const totalsBoxX = pageWidth - 90;
-    const totalsBoxWidth = 75;
-    const totalsBoxHeight = 45;
+    // Totals section - positioned in the table area like the image
+    const totalsStartX = colPositions[4]; // Start from Unit Price column
+    const totalsLabelWidth = colWidths[4]; // Unit Price column width
+    const totalsValueWidth = colWidths[5]; // Total Price column width
+    const totalsRowHeight = 10;
     
-    pdf.setLineWidth(0.5);
-    pdf.rect(totalsBoxX, footerStartY - 5, totalsBoxWidth, totalsBoxHeight);
+    pdf.setLineWidth(0.3);
     
-    pdf.line(totalsBoxX, footerStartY + 8, totalsBoxX + totalsBoxWidth, footerStartY + 8);
-    pdf.line(totalsBoxX, footerStartY + 21, totalsBoxX + totalsBoxWidth, footerStartY + 21);
-    pdf.line(totalsBoxX + 45, footerStartY - 5, totalsBoxX + 45, footerStartY + 40);
+    // Sub Total row
+    pdf.rect(totalsStartX, currentY, totalsLabelWidth, totalsRowHeight);
+    pdf.rect(totalsStartX + totalsLabelWidth, currentY, totalsValueWidth, totalsRowHeight);
     
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
+    pdf.text('Sub Total', totalsStartX + totalsLabelWidth/2, currentY + 6, { align: 'center' });
+    pdf.text(subTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsStartX + totalsLabelWidth + totalsValueWidth - 3, currentY + 6, { align: 'right' });
+    currentY += totalsRowHeight;
     
-    pdf.text('Sub Total', totalsBoxX + 2, footerStartY + 5);
-    pdf.text(subTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsBoxX + totalsBoxWidth - 3, footerStartY + 5, { align: 'right' });
+    // GST row
+    pdf.rect(totalsStartX, currentY, totalsLabelWidth, totalsRowHeight);
+    pdf.rect(totalsStartX + totalsLabelWidth, currentY, totalsValueWidth, totalsRowHeight);
     
-    pdf.text('GST @ 18%', totalsBoxX + 2, footerStartY + 18);
-    pdf.text(totalGST.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsBoxX + totalsBoxWidth - 3, footerStartY + 18, { align: 'right' });
+    pdf.text('GST @ 18%', totalsStartX + totalsLabelWidth/2, currentY + 6, { align: 'center' });
+    pdf.text(totalGST.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsStartX + totalsLabelWidth + totalsValueWidth - 3, currentY + 6, { align: 'right' });
+    currentY += totalsRowHeight;
+    
+    // Total row
+    pdf.rect(totalsStartX, currentY, totalsLabelWidth, totalsRowHeight);
+    pdf.rect(totalsStartX + totalsLabelWidth, currentY, totalsValueWidth, totalsRowHeight);
     
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(10);
-    pdf.text('Total', totalsBoxX + 2, footerStartY + 31);
-    pdf.text(grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsBoxX + totalsBoxWidth - 3, footerStartY + 31, { align: 'right' });
+    pdf.text('Total', totalsStartX + totalsLabelWidth/2, currentY + 6, { align: 'center' });
+    pdf.text(grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsStartX + totalsLabelWidth + totalsValueWidth - 3, currentY + 6, { align: 'right' });
     
     // Terms & Conditions
-    const termsStartY = footerStartY + 60;
+    const termsStartY = currentY + 25;
     
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(11);
     pdf.text('Terms & Conditions:', margin, termsStartY);
     
-    const termIndent = margin + 40;
     pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
     
-    const terms = [
-      { label: 'Validity', value: 'Prices are valid for 25 Days Only.' },
-      { label: 'Delivery', value: '6-10 Days after receiving the PO. (F.O.R Rawalpindi).' },
-      { label: 'Optional Items', value: 'Optional items other than quoted will be charged separately' }
-    ];
+    // Validity line
+    const validityY = termsStartY + 12;
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Validity', margin + 50, validityY);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(': Prices are valid for 25 Days Only.', margin + 85, validityY);
     
-    terms.forEach((term, index) => {
-      const yPos = termsStartY + 15 + (index * 10);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(term.label, margin + 5, yPos);
-      pdf.text(':', termIndent, yPos);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(term.value, termIndent + 5, yPos);
-    });
+    // Delivery line
+    const deliveryY = validityY + 8;
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Delivery', margin + 50, deliveryY);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(': 6-10 Days after receiving the PO. (F.O.R Rawalpindi).', margin + 85, deliveryY);
+    
+    // Optional Items line
+    const optionalY = deliveryY + 12;
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Optional Items :', margin, optionalY);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('Optional items other than quoted will be charged separately', margin + 45, optionalY);
     
     // Authorized Signature
-    const signatureY = termsStartY + 55;
+    const signatureY = optionalY + 20;
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(11);
     pdf.text('Authorized Signature', margin, signatureY);
@@ -1556,11 +1588,14 @@ export const generatePremiumQuotationPDF = async (items: any[], companyInfo?: an
         pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
         pdf.rect(0, 0, pageWidth, 4, 'F');
         
-        // Diagonal accent element
-        pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
-        pdf.setGState(new pdf.GState({ opacity: 0.1 }));
+        // Diagonal accent element (using lighter color instead of opacity)
+        const lightTeal = {
+          r: Math.min(255, deepTeal.r + 200),
+          g: Math.min(255, deepTeal.g + 200), 
+          b: Math.min(255, deepTeal.b + 200)
+        };
+        pdf.setFillColor(lightTeal.r, lightTeal.g, lightTeal.b);
         pdf.triangle(pageWidth - 60, 0, pageWidth, 0, pageWidth, 70, 'F');
-        pdf.setGState(new pdf.GState({ opacity: 1 }));
         
         // Premium logo
         drawPremiumLogo(margin + 10, 25, 10);
@@ -1592,11 +1627,9 @@ export const generatePremiumQuotationPDF = async (items: any[], companyInfo?: an
         const cardWidth = 60;
         const cardHeight = 32;
         
-        // Card shadow
-        pdf.setFillColor(100, 100, 100);
-        pdf.setGState(new pdf.GState({ opacity: 0.15 }));
+        // Card shadow (using lighter gray instead of opacity)
+        pdf.setFillColor(220, 220, 220);
         pdf.roundedRect(cardX + 2, cardY + 2, cardWidth, cardHeight, 4, 4, 'F');
-        pdf.setGState(new pdf.GState({ opacity: 1 }));
         
         // Main card
         pdf.setFillColor(white.r, white.g, white.b);
@@ -1786,12 +1819,15 @@ export const generatePremiumQuotationPDF = async (items: any[], companyInfo?: an
         pdf.rect(margin, currentY, pageWidth - (margin * 2), rowHeight, 'F');
       }
       
-      // Side accent for odd rows
+      // Side accent for odd rows (using lighter orange instead of opacity)
       if (itemNumber % 2 === 1) {
-        pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
-        pdf.setGState(new pdf.GState({ opacity: 0.3 }));
+        const lightOrange = {
+          r: Math.min(255, brightOrange.r + 100),
+          g: Math.min(255, brightOrange.g + 100),
+          b: Math.min(255, brightOrange.b + 100)
+        };
+        pdf.setFillColor(lightOrange.r, lightOrange.g, lightOrange.b);
         pdf.rect(margin, currentY, 2, rowHeight, 'F');
-        pdf.setGState(new pdf.GState({ opacity: 1 }));
       }
       
       // Bottom border
@@ -1862,13 +1898,11 @@ export const generatePremiumQuotationPDF = async (items: any[], companyInfo?: an
     const summaryY = currentY;
     const summaryWidth = 75;
     
-    // Multi-layer shadow effect
-    pdf.setFillColor(120, 120, 120);
-    pdf.setGState(new pdf.GState({ opacity: 0.08 }));
+    // Multi-layer shadow effect (using progressively lighter grays)
+    pdf.setFillColor(245, 245, 245);
     pdf.roundedRect(summaryX + 3, summaryY + 3, summaryWidth, 48, 4, 4, 'F');
-    pdf.setGState(new pdf.GState({ opacity: 0.12 }));
+    pdf.setFillColor(240, 240, 240);
     pdf.roundedRect(summaryX + 2, summaryY + 2, summaryWidth, 48, 4, 4, 'F');
-    pdf.setGState(new pdf.GState({ opacity: 1 }));
     
     // Main card
     pdf.setFillColor(white.r, white.g, white.b);
@@ -1979,10 +2013,14 @@ export const generatePremiumQuotationPDF = async (items: any[], companyInfo?: an
     pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
     pdf.rect(0, pageHeight - 18, pageWidth, 3, 'F');
     
-    // Diagonal accent
-    pdf.setGState(new pdf.GState({ opacity: 0.2 }));
+    // Diagonal accent (using lighter teal instead of opacity)
+    const lightFooterTeal = {
+      r: Math.min(255, deepTeal.r + 150),
+      g: Math.min(255, deepTeal.g + 150),
+      b: Math.min(255, deepTeal.b + 150)
+    };
+    pdf.setFillColor(lightFooterTeal.r, lightFooterTeal.g, lightFooterTeal.b);
     pdf.triangle(0, pageHeight - 18, 40, pageHeight, 0, pageHeight, 'F');
-    pdf.setGState(new pdf.GState({ opacity: 1 }));
     
     pdf.setTextColor(255, 255, 255);
     pdf.setFontSize(7);

@@ -2,9 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { apiClient, Customer } from '../../lib/api';
+import { apiClient, Customer, Vendor } from '../../lib/api';
 import { generateQuotationPDF, generateEnhancedQuotationPDF, generateDetailedQuotationPDF } from '../../../lib/pdfUtils';
 import { loadJsPDF, loadXLSX } from '../../../lib/dynamicImports';
+import VendorRateRequestModals from './VendorRateRequestModals';
+import VendorCategoryManager from './VendorCategoryManager';
 
 interface CreateQuotationModalProps {
   isOpen: boolean;
@@ -27,6 +29,11 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPdfFormatModal, setShowPdfFormatModal] = useState(false);
+  const [pdfOptions, setPdfOptions] = useState({
+    showTotals: true,
+    showTax: true,
+    showDiscount: true
+  });
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [defaultTerms, setDefaultTerms] = useState<string>('');
@@ -40,12 +47,28 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [customerSearchTerm, setCustomerSearchTerm] = useState<string>('');
+  
+  // Vendor rate request states
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [isLoadingVendors, setIsLoadingVendors] = useState(false);
+  const [showVendorRateModal, setShowVendorRateModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [categoryVendors, setCategoryVendors] = useState<{[key: string]: string[]}>({});
+  const [isRequestingRates, setIsRequestingRates] = useState(false);
+  const [vendorRates, setVendorRates] = useState<{[key: string]: any}>({});
+  const [showRateComparison, setShowRateComparison] = useState(false);
+  const [selectedItemForRates, setSelectedItemForRates] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Enhanced vendor management states
+  const [showVendorCategoryModal, setShowVendorCategoryModal] = useState(false);
 
   // Handle mounting for portal
   useEffect(() => {
     setMounted(true);
   }, []);
+
+
 
   // Reset modal state when it opens or closes
   const resetModalState = () => {
@@ -61,19 +84,19 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     setIsLoading(false);
     setAttachments([]);
     setIsUploading(false);
-    setDragActive(false);
     setItemsViewMode('grid'); // Reset to grid view
     setCustomerSearchTerm(''); // Clear customer search
     setError(null);
   };
 
-  // Load customers and products when modal opens, and reset state
+  // Load customers, products, and vendors when modal opens, and reset state
   useEffect(() => {
     if (isOpen) {
       resetModalState();
       fetchCustomers();
       fetchTermsAndConditions();
       loadProducts();
+      fetchVendors();
     }
   }, [isOpen]);
 
@@ -173,6 +196,20 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       }));
     } finally {
       setIsLoadingTerms(false);
+    }
+  };
+
+  const fetchVendors = async () => {
+    setIsLoadingVendors(true);
+    try {
+      const response = await apiClient.getVendors({ limit: 100 });
+      if (response.success) {
+        setVendors(response.data.vendors || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch vendors:', error);
+    } finally {
+      setIsLoadingVendors(false);
     }
   };
 
@@ -283,6 +320,9 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         const { generatePremiumQuotationPDF } = await import('../../../lib/pdfUtils');
         await generatePremiumQuotationPDF(transformedItems, undefined, refNo);
       }
+      
+      // Note: pdfOptions (showTotals, showTax, showDiscount) are captured but need to be 
+      // implemented in the PDF generation functions in pdfUtils.ts
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again.');
@@ -1208,6 +1248,32 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                 <h3 className="text-lg font-medium text-gray-900">Quotation Items</h3>
                 
                 <div className="flex items-center space-x-4">
+                  {/* Enhanced Vendor Management Buttons */}
+                  <div className="flex items-center space-x-2">
+                    <button 
+                      onClick={() => setShowVendorRateModal(true)} 
+                      className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center space-x-2"
+                      disabled={items.length === 0}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H9a2 2 0 00-2 2v.01" />
+                      </svg>
+                      <span>Manage Rates</span>
+                    </button>
+                    
+                    <button 
+                      onClick={() => setShowVendorCategoryModal(true)} 
+                      className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center space-x-2"
+                      disabled={items.length === 0}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 00-2 2v2a2 2 0 002 2m0 0h14m-14 0a2 2 0 002 2v2a2 2 0 01-2 2M5 9V7a2 2 0 012-2h10a2 2 0 012 2v2M7 7V5a2 2 0 012-2h6a2 2 0 012 2v2" />
+                      </svg>
+                      <span>Category Setup</span>
+                    </button>
+                    
+                  </div>
+                  
                   {/* View Mode Toggle */}
                   <div className="flex border border-gray-300 rounded-lg overflow-hidden">
                     <button
@@ -1463,9 +1529,20 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                   </div>
                                   
                                   <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
-                                    <p className="text-sm text-gray-900">
-                                      <span className="font-medium">Total:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
-                                    </p>
+                                    <div className="flex justify-between items-center">
+                                      <p className="text-sm text-gray-900">
+                                        <span className="font-medium">Total:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
+                                      </p>
+                                      <button
+                                        onClick={() => {
+                                          setSelectedItemForRates(index);
+                                          setShowRateComparison(true);
+                                        }}
+                                        className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                                      >
+                                        Compare Rates
+                                      </button>
+                                    </div>
                                   </div>
                                 </>
                               ) : (
@@ -1566,9 +1643,20 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         Available stock: {availableStock}
                                       </div>
                                       <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
-                                        <p className="text-sm text-gray-900">
-                                          <span className="font-medium">Total:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
-                                        </p>
+                                        <div className="flex justify-between items-center">
+                                          <p className="text-sm text-gray-900">
+                                            <span className="font-medium">Total:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
+                                          </p>
+                                          <button
+                                            onClick={() => {
+                                              setSelectedItemForRates(index);
+                                              setShowRateComparison(true);
+                                            }}
+                                            className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                                          >
+                                            Compare Rates
+                                          </button>
+                                        </div>
                                       </div>
                                     </>
                                   )}
@@ -2278,7 +2366,52 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           <p className="text-blue-100 text-sm mt-1">Choose your preferred quotation format</p>
         </div>
         
-        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-6">
+          {/* PDF Options */}
+          <div className="mb-6 bg-gray-50 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-900 mb-3">PDF Display Options</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={pdfOptions.showTotals}
+                  onChange={(e) => setPdfOptions({...pdfOptions, showTotals: e.target.checked})}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span className="ml-2 text-sm text-gray-700">Show Total Amounts</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={pdfOptions.showTax}
+                  onChange={(e) => setPdfOptions({...pdfOptions, showTax: e.target.checked})}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span className="ml-2 text-sm text-gray-700">Show Tax Details</span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={pdfOptions.showDiscount}
+                  onChange={(e) => setPdfOptions({...pdfOptions, showDiscount: e.target.checked})}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span className="ml-2 text-sm text-gray-700">Show Discounts</span>
+              </label>
+            </div>
+            <div className="mt-3 text-xs text-gray-500">
+              {!pdfOptions.showTotals && (
+                <div className="flex items-center text-amber-600">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  Quotation will be generated without total amounts (for rate inquiry purposes)
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Option 1: Classic Format */}
           <button
             onClick={() => generatePDFWithFormat('classic')}
@@ -2341,6 +2474,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
               <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded">Elite</span>
             </div>
           </button>
+          </div>
         </div>
 
         <div className="bg-gray-50 px-6 py-4 flex justify-end">
@@ -2360,6 +2494,32 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     <>
       {modalContent}
       {pdfFormatModal}
+      <VendorRateRequestModals
+        showVendorRateModal={showVendorRateModal}
+        setShowVendorRateModal={setShowVendorRateModal}
+        showRateComparison={showRateComparison}
+        setShowRateComparison={setShowRateComparison}
+        selectedItemForRates={selectedItemForRates}
+        setSelectedItemForRates={setSelectedItemForRates}
+        items={items}
+        setItems={setItems}
+        vendors={vendors}
+        isLoadingVendors={isLoadingVendors}
+        products={products}
+        formData={formData}
+        categoryVendors={categoryVendors}
+        setCategoryVendors={setCategoryVendors}
+        vendorRates={vendorRates}
+        setVendorRates={setVendorRates}
+      />
+      <VendorCategoryManager
+        quotationId={formData.referenceNo || 'DRAFT'}
+        items={items}
+        vendors={vendors}
+        onCategoryVendorsUpdate={setCategoryVendors}
+        showModal={showVendorCategoryModal}
+        setShowModal={setShowVendorCategoryModal}
+      />
     </>,
     document.body
   );

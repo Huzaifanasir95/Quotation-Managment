@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { apiClient } from '../../lib/api';
+import { apiClient, Vendor } from '../../lib/api';
+import VendorRateEditComponents from './VendorRateEditComponents';
+import VendorCategoryManager from './VendorCategoryManager';
 
 interface EditQuotationModalProps {
   isOpen: boolean;
@@ -23,11 +25,32 @@ interface QuotationItem {
   item_type?: string;
   quantity: number;
   unit_price: number;
-  discount_percent: number;
+  profit_percent: number;
   tax_percent: number;
+  discount_percent?: number;
   line_total: number;
   isCustom?: boolean;
   au_field?: string; // A/U field
+  // New vendor rate fields
+  vendorRates?: VendorRate[];
+  selectedVendorRate?: string;
+  costPrice?: number;
+  marginPercent?: number;
+}
+
+interface VendorRate {
+  id: string;
+  vendorId: string;
+  vendorName: string;
+  costPrice: number;
+  marginPercent: number;
+  sellingPrice: number;
+  leadTime: number;
+  validFrom: string;
+  validUntil: string;
+  remarks: string;
+  isActive: boolean;
+  createdAt: string;
 }
 
 interface Customer {
@@ -68,6 +91,21 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
   const [attachmentsToDelete, setAttachmentsToDelete] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Vendor rate states
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [isLoadingVendors, setIsLoadingVendors] = useState(false);
+  const [showVendorRateModal, setShowVendorRateModal] = useState(false);
+  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+  const [categoryVendors, setCategoryVendors] = useState<{[key: string]: string[]}>({});
+
+  // Enhanced vendor management states
+  const [showVendorCategoryModal, setShowVendorCategoryModal] = useState(false);
+  const [pdfOptions, setPdfOptions] = useState({
+    showTotals: true,
+    showTax: true,
+    showProfit: true
+  });
+
   // Helper function to determine file type from filename
   const getFileTypeFromName = (fileName: string): string => {
     if (!fileName) return '';
@@ -107,6 +145,8 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
     return () => setMounted(false);
   }, []);
 
+
+
   // Fetch data when modal opens
   useEffect(() => {
     if (isOpen && quotationId) {
@@ -114,6 +154,7 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
       fetchQuotation();
       fetchExistingAttachments();
       loadProducts();
+      loadVendors();
     }
   }, [isOpen, quotationId]);
 
@@ -150,6 +191,20 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
       }
     } catch (error) {
       console.error('Failed to load products:', error);
+    }
+  };
+
+  const loadVendors = async () => {
+    setIsLoadingVendors(true);
+    try {
+      const response = await apiClient.getVendors({ limit: 100 });
+      if (response.success) {
+        setVendors(response.data.vendors || []);
+      }
+    } catch (error) {
+      console.error('Failed to load vendors:', error);
+    } finally {
+      setIsLoadingVendors(false);
     }
   };
 
@@ -198,7 +253,7 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
           isCustom: item.item_type === 'custom' || !item.product_id,
           quantity: item.quantity || 1,
           unit_price: parseFloat(item.unit_price) || 0,
-          discount_percent: parseFloat(item.discount_percent) || 0,
+          profit_percent: parseFloat(item.profit_percent || item.discount_percent || 0),
           tax_percent: parseFloat(item.tax_percent) || 18,
           line_total: parseFloat(item.line_total) || 0
         })) || [];
@@ -226,7 +281,7 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
       item_type: 'inventory',
       quantity: 1,
       unit_price: 0,
-      discount_percent: 0,
+      profit_percent: 0,
       tax_percent: 18,
       line_total: 0,
       isCustom: false,
@@ -249,7 +304,7 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
       isCustom: true,
       quantity: 1,
       unit_price: 0,
-      discount_percent: 0,
+      profit_percent: 0,
       tax_percent: 18, // Default tax rate
       line_total: 0,
       au_field: 'No'
@@ -263,15 +318,15 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
         const updatedItem = { ...item, [field]: value };
         
         // Recalculate line total for numeric fields
-        if (field === 'quantity' || field === 'unit_price' || field === 'discount_percent' || field === 'tax_percent') {
+        if (field === 'quantity' || field === 'unit_price' || field === 'profit_percent' || field === 'tax_percent') {
           const quantity = Number(updatedItem.quantity);
           const unitPrice = Number(updatedItem.unit_price);
-          const discountPercent = Number(updatedItem.discount_percent);
+          const profitPercent = Number(updatedItem.profit_percent);
           const taxPercent = Number(updatedItem.tax_percent);
           
           const lineTotal = quantity * unitPrice;
-          const discountAmount = lineTotal * (discountPercent / 100);
-          const taxableAmount = lineTotal - discountAmount;
+          const profitAmount = lineTotal * (profitPercent / 100);
+          const taxableAmount = lineTotal + profitAmount;
           const taxAmount = taxableAmount * (taxPercent / 100);
           
           updatedItem.line_total = taxableAmount + taxAmount;
@@ -447,25 +502,25 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
 
   const calculateTotals = () => {
     let subtotal = 0;
-    let discountAmount = 0;
+    let profitAmount = 0;
     let taxAmount = 0;
 
     items.forEach(item => {
       const lineTotal = item.quantity * item.unit_price;
-      const discount = lineTotal * (item.discount_percent / 100);
-      const taxableAmount = lineTotal - discount;
+      const profit = lineTotal * (item.profit_percent / 100);
+      const taxableAmount = lineTotal + profit;
       const tax = taxableAmount * (item.tax_percent / 100);
 
       subtotal += lineTotal;
-      discountAmount += discount;
+      profitAmount += profit;
       taxAmount += tax;
     });
 
-    const total = subtotal - discountAmount + taxAmount;
+    const total = subtotal + profitAmount + taxAmount;
 
     return {
       subtotal,
-      discountAmount,
+      profitAmount,
       taxAmount,
       total
     };
@@ -505,7 +560,7 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
           ...(item.product_id && { product_id: item.product_id }),
-          ...(item.discount_percent > 0 && { discount_percent: Number(item.discount_percent) }),
+          ...(item.profit_percent > 0 && { profit_percent: Number(item.profit_percent) }),
           ...(item.tax_percent > 0 && { tax_percent: Number(item.tax_percent) }),
           // Custom item fields
           ...(item.category && { category: item.category.trim() }),
@@ -864,6 +919,32 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                           </svg>
                           <span>Custom Item</span>
                         </button>
+                        
+                        {/* Enhanced Vendor Management Buttons */}
+                        <div className="flex items-center space-x-2">
+                          <button 
+                            onClick={() => setShowVendorRateModal(true)} 
+                            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 flex items-center space-x-2"
+                            disabled={items.length === 0}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H9a2 2 0 00-2 2v.01" />
+                            </svg>
+                            <span>Manage Rates</span>
+                          </button>
+                          
+                          <button 
+                            onClick={() => setShowVendorCategoryModal(true)} 
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center space-x-2"
+                            disabled={items.length === 0}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 00-2 2v2a2 2 0 002 2m0 0h14m-14 0a2 2 0 002 2v2a2 2 0 01-2 2M5 9V7a2 2 0 012-2h10a2 2 0 012 2v2M7 7V5a2 2 0 012-2h6a2 2 0 012 2v2" />
+                            </svg>
+                            <span>Category Setup</span>
+                          </button>
+                          
+                        </div>
                       </div>
                     </div>
 
@@ -1020,6 +1101,35 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                                           </div>
                                         </div>
                                         
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Profit %</label>
+                                            <input
+                                              type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="100"
+                                              value={item.profit_percent || ''}
+                                              onChange={(e) => updateItem(item.id, 'profit_percent', Number(e.target.value) || 0)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="0"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Tax %</label>
+                                            <input
+                                              type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="100"
+                                              value={item.tax_percent || ''}
+                                              onChange={(e) => updateItem(item.id, 'tax_percent', Number(e.target.value) || 0)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="18"
+                                            />
+                                          </div>
+                                        </div>
+                                        
                                         <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
                                           <p className="text-sm text-gray-900">
                                             <span className="font-medium">Total:</span> Rs. {item.line_total.toFixed(2)}
@@ -1099,15 +1209,73 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                                           </div>
                                         </div>
                                         
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Profit %</label>
+                                            <input
+                                              type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="100"
+                                              value={item.profit_percent || ''}
+                                              onChange={(e) => updateItem(item.id, 'profit_percent', Number(e.target.value) || 0)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="0"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Tax %</label>
+                                            <input
+                                              type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="100"
+                                              value={item.tax_percent || ''}
+                                              onChange={(e) => updateItem(item.id, 'tax_percent', Number(e.target.value) || 0)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="18"
+                                            />
+                                          </div>
+                                        </div>
+                                        
                                         {item.product_id && (
                                           <>
                                             <div className="text-sm text-gray-500">
                                               Available stock: {availableStock}
                                             </div>
                                             <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
-                                              <p className="text-sm text-gray-900">
-                                                <span className="font-medium">Total:</span> Rs. {item.line_total.toFixed(2)}
-                                              </p>
+                                              <div className="flex justify-between items-center">
+                                                <p className="text-sm text-gray-900">
+                                                  <span className="font-medium">Total:</span> Rs. {item.line_total.toFixed(2)}
+                                                </p>
+                                                <button
+                                                  onClick={() => {
+                                                    setSelectedItemIndex(index);
+                                                    setShowVendorRateModal(true);
+                                                  }}
+                                                  className="text-xs text-purple-600 hover:text-purple-700 font-medium flex items-center"
+                                                >
+                                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H9a2 2 0 00-2 2v.01" />
+                                                  </svg>
+                                                  Manage Rates
+                                                </button>
+                                              </div>
+                                              {item.costPrice && (
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                  Cost: Rs. {item.costPrice.toFixed(2)} | 
+                                                  Margin: {item.marginPercent?.toFixed(1)}% | 
+                                                  Profit: Rs. {(item.unit_price - item.costPrice).toFixed(2)}
+                                                </div>
+                                              )}
+                                              {item.selectedVendorRate && (
+                                                <div className="text-xs text-green-600 mt-1 flex items-center">
+                                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                  </svg>
+                                                  Vendor rate applied
+                                                </div>
+                                              )}
                                             </div>
                                           </>
                                         )}
@@ -1127,7 +1295,7 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                                 <div className="col-span-1">Type</div>
                                 <div className="col-span-2">Quantity</div>
                                 <div className="col-span-2">Unit Price</div>
-                                <div className="col-span-1">Discount %</div>
+                                <div className="col-span-1">Profit %</div>
                                 <div className="col-span-1">Tax %</div>
                                 <div className="col-span-1">Total</div>
                                 <div className="col-span-1">Action</div>
@@ -1203,8 +1371,8 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                                     <div className="col-span-1">
                                       <input
                                         type="number"
-                                        value={item.discount_percent === 0 ? '' : item.discount_percent}
-                                        onChange={(e) => updateItem(item.id, 'discount_percent', Number(e.target.value) || 0)}
+                                        value={item.profit_percent === 0 ? '' : item.profit_percent}
+                                        onChange={(e) => updateItem(item.id, 'profit_percent', Number(e.target.value) || 0)}
                                         className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                                         placeholder="0"
                                         min="0"
@@ -1230,15 +1398,29 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                                       </div>
                                     </div>
                                     <div className="col-span-1">
-                                      <button
-                                        onClick={() => removeItem(item.id)}
-                                        className="text-red-600 hover:text-red-800 transition-colors duration-200 p-2 rounded-lg hover:bg-red-50"
-                                        title="Remove item"
-                                      >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
-                                      </button>
+                                      <div className="flex items-center space-x-1">
+                                        <button
+                                          onClick={() => {
+                                            setSelectedItemIndex(index);
+                                            setShowVendorRateModal(true);
+                                          }}
+                                          className="text-purple-600 hover:text-purple-800 transition-colors duration-200 p-1 rounded-lg hover:bg-purple-50"
+                                          title="Manage vendor rates"
+                                        >
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H9a2 2 0 00-2 2v.01" />
+                                          </svg>
+                                        </button>
+                                        <button
+                                          onClick={() => removeItem(item.id)}
+                                          className="text-red-600 hover:text-red-800 transition-colors duration-200 p-1 rounded-lg hover:bg-red-50"
+                                          title="Remove item"
+                                        >
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                          </svg>
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
                                 );
@@ -1260,8 +1442,8 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                             <span>Rs. {totals.subtotal.toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between text-sm text-gray-800 font-medium">
-                            <span>Discount:</span>
-                            <span>-Rs. {totals.discountAmount.toFixed(2)}</span>
+                            <span>Profit:</span>
+                            <span>+Rs. {totals.profitAmount.toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between text-sm text-gray-800 font-medium">
                             <span>Tax:</span>
@@ -1670,6 +1852,24 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
     <>
       {modalContent}
       {filePreviewModal}
+      <VendorRateEditComponents
+        items={items}
+        setItems={setItems}
+        vendors={vendors}
+        isLoadingVendors={isLoadingVendors}
+        selectedItemIndex={selectedItemIndex}
+        setSelectedItemIndex={setSelectedItemIndex}
+        showVendorRateModal={showVendorRateModal}
+        setShowVendorRateModal={setShowVendorRateModal}
+      />
+      <VendorCategoryManager
+        quotationId={quotationId}
+        items={items}
+        vendors={vendors}
+        onCategoryVendorsUpdate={setCategoryVendors}
+        showModal={showVendorCategoryModal}
+        setShowModal={setShowVendorCategoryModal}
+      />
     </>,
     document.body
   );

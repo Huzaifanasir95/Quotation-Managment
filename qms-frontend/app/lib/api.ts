@@ -968,6 +968,100 @@ class ApiClient {
       throw error;
     }
   }
+
+  // Delivery Acceptance methods
+  async getDeliveryAcceptance(deliveryId: string) {
+    return this.request(`/delivery-acceptance/${deliveryId}`);
+  }
+
+  async updateDeliveryAcceptance(acceptanceId: string, data: any) {
+    return this.request(`/delivery-acceptance/${acceptanceId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // Rejection Handling methods
+  async getRejectionHandling(rejectionId: string) {
+    return this.request(`/rejection-handling/${rejectionId}`);
+  }
+
+  async updateRejectionHandling(rejectionId: string, data: any) {
+    return this.request(`/rejection-handling/${rejectionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async contactVendorForRejection(rejectionId: string, communication: any) {
+    return this.request(`/rejection-handling/${rejectionId}/contact-vendor`, {
+      method: 'POST',
+      body: JSON.stringify(communication)
+    });
+  }
+
+  async generateAcceptanceCertificate(acceptanceId: string) {
+    return this.request(`/delivery-acceptance/${acceptanceId}/certificate`, {
+      method: 'POST'
+    });
+  }
+
+  // Additional Delivery Acceptance methods
+  async createDeliveryAcceptance(deliveryId: string, data: any) {
+    return this.request('/delivery-acceptance', {
+      method: 'POST',
+      body: JSON.stringify({ delivery_challan_id: deliveryId, ...data })
+    });
+  }
+
+  async getDeliveryAcceptanceByDeliveryId(deliveryId: string) {
+    return this.request(`/delivery-acceptance/by-delivery/${deliveryId}`);
+  }
+
+  async updateAcceptanceItemStatus(itemId: string, data: any) {
+    return this.request(`/delivery-acceptance-items/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // Additional Rejection Handling methods
+  async createRejectionHandling(acceptanceId: string, data: any) {
+    return this.request('/rejection-handling', {
+      method: 'POST',
+      body: JSON.stringify({ delivery_acceptance_id: acceptanceId, ...data })
+    });
+  }
+
+  async getRejectionsByAcceptanceId(acceptanceId: string) {
+    return this.request(`/rejection-handling/by-acceptance/${acceptanceId}`);
+  }
+
+  async updateRejectedItemStatus(itemId: string, data: any) {
+    return this.request(`/rejected-items/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async getVendorCommunicationHistory(rejectionId: string) {
+    return this.request(`/rejection-handling/${rejectionId}/communications`);
+  }
+
+  async downloadAcceptanceCertificate(acceptanceId: string): Promise<Blob> {
+    const response = await fetch(`${this.baseURL}/delivery-acceptance/${acceptanceId}/certificate/download`, {
+      headers: {
+        'Authorization': `Bearer ${this.token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to download certificate: ${response.status} - ${errorText}`);
+    }
+
+    return response.blob();
+  }
 }
 
 // Create and export API client instance
@@ -1271,5 +1365,80 @@ export interface DocumentAttachment {
     language?: string;
   }[];
 }
+
+// Delivery Acceptance & Rejection Management Interfaces
+export interface DeliveryAcceptance {
+  id: string;
+  delivery_challan_id: string;
+  acceptance_status: 'pending' | 'accepted' | 'partially_accepted' | 'rejected';
+  acceptance_date?: string;
+  customer_signature?: string;
+  acceptance_notes?: string;
+  rejection_notes?: string;
+  accepted_by_name?: string;
+  accepted_by_designation?: string;
+  accepted_by_contact?: string;
+  acceptance_certificate_url?: string;
+  created_at: string;
+  updated_at: string;
+  delivery_acceptance_items?: DeliveryAcceptanceItem[];
+}
+
+export interface DeliveryAcceptanceItem {
+  id: string;
+  delivery_acceptance_id: string;
+  item_description: string;
+  delivered_quantity: number;
+  accepted_quantity: number;
+  rejected_quantity: number;
+  rejection_reason?: string;
+  acceptance_status: 'pending' | 'accepted' | 'rejected' | 'partially_accepted';
+  created_at: string;
+}
+
+export interface RejectionHandling {
+  id: string;
+  delivery_acceptance_id: string;
+  rejection_date: string;
+  total_rejected_items: number;
+  overall_status: 'pending' | 'vendor_contacted' | 'return_approved' | 'returned' | 'replaced' | 'resolved';
+  vendor_contacted_date?: string;
+  vendor_response_date?: string;
+  resolution_notes?: string;
+  created_at: string;
+  updated_at: string;
+  rejected_items?: RejectedItem[];
+}
+
+export interface RejectedItem {
+  id: string;
+  rejection_handling_id: string;
+  item_description: string;
+  rejected_quantity: number;
+  rejection_reason: string;
+  return_status: 'pending' | 'approved' | 'returned' | 'non_returnable' | 'replaced';
+  vendor_response?: string;
+  return_date?: string;
+  replacement_date?: string;
+  inventory_location?: string;
+  cost_impact: number;
+  created_at: string;
+}
+
+export interface VendorCommunication {
+  communication_type: 'email' | 'phone' | 'whatsapp';
+  message: string;
+  contact_details: string;
+  sent_by: string;
+  notes?: string;
+}
+
+export interface AcceptanceCertificateData {
+  acceptance_id: string;
+  company_name?: string;
+  company_logo?: string;
+  certificate_template?: string;
+}
+
 
 export default apiClient;

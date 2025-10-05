@@ -449,12 +449,13 @@ app.post('/api/v1/quotations', async (req, res) => {
 
         const processedItems = items?.map(item => {
           const line_total = item.quantity * item.unit_price;
-          const discount = line_total * (item.discount_percent || 0) / 100;
-          const taxable_amount = line_total - discount;
+          const profit_percent = item.profit_percent || item.discount_percent || 0;
+          const profit = line_total * profit_percent / 100;
+          const taxable_amount = line_total + profit;
           const tax = taxable_amount * (item.tax_percent || 0) / 100;
 
           subtotal += line_total;
-          discount_amount += discount;
+          discount_amount += profit;
           tax_amount += tax;
 
           return {
@@ -463,7 +464,7 @@ app.post('/api/v1/quotations', async (req, res) => {
           };
         }) || [];
 
-        const total_amount = subtotal - discount_amount + tax_amount;
+        const total_amount = subtotal + discount_amount + tax_amount;
 
         // Validate required fields
         if (!quotationData.quotation_date) {
@@ -524,7 +525,7 @@ app.post('/api/v1/quotations', async (req, res) => {
             item_type: item.item_type || 'inventory',
             quantity: Number(item.quantity) || 1,
             unit_price: Number(item.unit_price) || 0,
-            discount_percent: Number(item.discount_percent) || 0,
+            profit_percent: Number(item.profit_percent || item.discount_percent) || 0,
             tax_percent: Number(item.tax_percent) || 0,
             line_total: Number(item.line_total) || (Number(item.quantity) || 1) * (Number(item.unit_price) || 0)
           }));
@@ -670,12 +671,13 @@ app.put('/api/v1/quotations/:id', async (req, res) => {
 
     const processedItems = items.map(item => {
       const line_total = item.quantity * item.unit_price;
-      const discount = line_total * (item.discount_percent || 0) / 100;
-      const taxable_amount = line_total - discount;
+      const profit_percent = item.profit_percent || item.discount_percent || 0;
+      const profit = line_total * profit_percent / 100;
+      const taxable_amount = line_total + profit;
       const tax = taxable_amount * (item.tax_percent || 0) / 100;
 
       subtotal += line_total;
-      discount_amount += discount;
+      discount_amount += profit;
       tax_amount += tax;
 
       return {
@@ -684,7 +686,7 @@ app.put('/api/v1/quotations/:id', async (req, res) => {
       };
     });
 
-    const total_amount = subtotal - discount_amount + tax_amount;
+    const total_amount = subtotal + discount_amount + tax_amount;
 
     const finalQuotationData = {
       ...quotationData,
@@ -2056,12 +2058,13 @@ app.post('/api/v1/purchase-orders', async (req, res) => {
 
     const processedItems = items.map(item => {
       const line_total = item.quantity * item.unit_price;
-      const discount = line_total * (item.discount_percent || 0) / 100;
-      const taxable_amount = line_total - discount;
+      const profit_percent = item.profit_percent || item.discount_percent || 0;
+      const profit = line_total * profit_percent / 100;
+      const taxable_amount = line_total + profit;
       const tax = taxable_amount * (item.tax_percent || 0) / 100;
 
       subtotal += line_total;
-      discount_amount += discount;
+      discount_amount += profit;
       tax_amount += tax;
 
       return {
@@ -2070,7 +2073,7 @@ app.post('/api/v1/purchase-orders', async (req, res) => {
       };
     });
 
-    const total_amount = subtotal - discount_amount + tax_amount;
+    const total_amount = subtotal + discount_amount + tax_amount;
 
     console.log('💰 Calculated totals:', { subtotal, tax_amount, discount_amount, total_amount });
 
@@ -2396,6 +2399,374 @@ app.get('/api/v1/delivery-challans/:id', async (req, res) => {
   }
 });
 
+// Update delivery challan status
+app.patch('/api/v1/delivery-challans/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    console.log(`🔄 Delivery Challan API: Updating status for challan ${id} to ${status}`);
+
+    const { data: updatedChallan, error } = await supabase
+      .from('delivery_challans')
+      .update({ 
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Failed to update delivery challan status:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update delivery challan status',
+        error: error.message
+      });
+    }
+
+    console.log('✅ Successfully updated delivery challan status');
+
+    res.json({
+      success: true,
+      data: { deliveryChallan: updatedChallan }
+    });
+
+  } catch (error) {
+    console.error('💥 Delivery challan status update API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update delivery challan status',
+      error: error.message
+    });
+  }
+});
+
+// ==================== DELIVERY ACCEPTANCE ====================
+
+// Get delivery acceptance by delivery ID
+app.get('/api/v1/delivery-acceptance/by-delivery/:deliveryId', async (req, res) => {
+  try {
+    const { deliveryId } = req.params;
+
+    console.log(`🔍 Delivery Acceptance API: Fetching acceptance for delivery ${deliveryId}`);
+
+    const { data: acceptance, error } = await supabase
+      .from('delivery_acceptance')
+      .select(`
+        *,
+        delivery_acceptance_items(*)
+      `)
+      .eq('delivery_challan_id', deliveryId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+      console.error('❌ Failed to fetch delivery acceptance:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch delivery acceptance',
+        error: error.message
+      });
+    }
+
+    // If no acceptance record exists, create a default one
+    if (!acceptance) {
+      console.log('📝 No acceptance record found, creating default');
+      
+      // Get delivery challan details to create items
+      const { data: challan, error: challanError } = await supabase
+        .from('delivery_challans')
+        .select(`
+          *,
+          purchase_orders(
+            purchase_order_items(*)
+          )
+        `)
+        .eq('id', deliveryId)
+        .single();
+
+      if (challanError) {
+        return res.status(404).json({
+          success: false,
+          message: 'Delivery challan not found',
+          error: challanError.message
+        });
+      }
+
+      // Create default acceptance record
+      const { data: newAcceptance, error: createError } = await supabase
+        .from('delivery_acceptance')
+        .insert({
+          delivery_challan_id: deliveryId,
+          acceptance_status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to create delivery acceptance record',
+          error: createError.message
+        });
+      }
+
+      // Create acceptance items from PO items
+      const items = challan.purchase_orders?.purchase_order_items || [];
+      const acceptanceItems = items.map(item => ({
+        delivery_acceptance_id: newAcceptance.id,
+        item_description: item.description,
+        delivered_quantity: item.quantity,
+        accepted_quantity: 0,
+        rejected_quantity: 0,
+        acceptance_status: 'pending'
+      }));
+
+      if (acceptanceItems.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('delivery_acceptance_items')
+          .insert(acceptanceItems);
+
+        if (itemsError) {
+          console.error('⚠️ Failed to create acceptance items:', itemsError);
+        }
+      }
+
+      // Fetch the complete record
+      const { data: completeAcceptance, error: fetchError } = await supabase
+        .from('delivery_acceptance')
+        .select(`
+          *,
+          delivery_acceptance_items(*)
+        `)
+        .eq('id', newAcceptance.id)
+        .single();
+
+      return res.json({
+        success: true,
+        data: { acceptance: completeAcceptance }
+      });
+    }
+
+    console.log('✅ Found delivery acceptance record');
+
+    res.json({
+      success: true,
+      data: { acceptance }
+    });
+
+  } catch (error) {
+    console.error('💥 Delivery acceptance fetch API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch delivery acceptance',
+      error: error.message
+    });
+  }
+});
+
+// Get delivery acceptance by ID
+app.get('/api/v1/delivery-acceptance/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: acceptance, error } = await supabase
+      .from('delivery_acceptance')
+      .select(`
+        *,
+        delivery_acceptance_items(*)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      return res.status(404).json({
+        success: false,
+        message: 'Delivery acceptance not found',
+        error: error.message
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { acceptance }
+    });
+
+  } catch (error) {
+    console.error('💥 Delivery acceptance fetch API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch delivery acceptance',
+      error: error.message
+    });
+  }
+});
+
+// Update delivery acceptance
+app.put('/api/v1/delivery-acceptance/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const acceptanceData = req.body;
+
+    console.log(`🔄 Delivery Acceptance API: Updating acceptance ${id}`);
+
+    const { data: updatedAcceptance, error } = await supabase
+      .from('delivery_acceptance')
+      .update({
+        ...acceptanceData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update delivery acceptance',
+        error: error.message
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { acceptance: updatedAcceptance }
+    });
+
+  } catch (error) {
+    console.error('💥 Delivery acceptance update API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update delivery acceptance',
+      error: error.message
+    });
+  }
+});
+
+// ==================== REJECTION HANDLING ====================
+
+// Get rejection handling by acceptance ID
+app.get('/api/v1/rejection-handling/by-acceptance/:acceptanceId', async (req, res) => {
+  try {
+    const { acceptanceId } = req.params;
+
+    const { data: rejection, error } = await supabase
+      .from('rejection_handling')
+      .select(`
+        *,
+        rejected_items(*)
+      `)
+      .eq('delivery_acceptance_id', acceptanceId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch rejection handling',
+        error: error.message
+      });
+    }
+
+    // If no rejection record exists, return null
+    if (!rejection) {
+      return res.json({
+        success: true,
+        data: { rejection: null }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { rejection }
+    });
+
+  } catch (error) {
+    console.error('💥 Rejection handling fetch API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch rejection handling',
+      error: error.message
+    });
+  }
+});
+
+// Get rejection handling by ID
+app.get('/api/v1/rejection-handling/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: rejection, error } = await supabase
+      .from('rejection_handling')
+      .select(`
+        *,
+        rejected_items(*)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      return res.status(404).json({
+        success: false,
+        message: 'Rejection handling not found',
+        error: error.message
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { rejection }
+    });
+
+  } catch (error) {
+    console.error('💥 Rejection handling fetch API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch rejection handling',
+      error: error.message
+    });
+  }
+});
+
+// Update rejection handling
+app.put('/api/v1/rejection-handling/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const rejectionData = req.body;
+
+    const { data: updatedRejection, error } = await supabase
+      .from('rejection_handling')
+      .update({
+        ...rejectionData,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update rejection handling',
+        error: error.message
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { rejection: updatedRejection }
+    });
+
+  } catch (error) {
+    console.error('💥 Rejection handling update API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update rejection handling',
+      error: error.message
+    });
+  }
+});
+
 // Get purchase order by ID
 app.get('/api/v1/purchase-orders/:id', async (req, res) => {
   try {
@@ -2484,12 +2855,13 @@ app.patch('/api/v1/purchase-orders/:id', async (req, res) => {
 
       const processedItems = items.map(item => {
         const line_total = item.quantity * item.unit_price;
-        const discount = line_total * (item.discount_percent || 0) / 100;
-        const taxable_amount = line_total - discount;
+        const profit_percent = item.profit_percent || item.discount_percent || 0;
+        const profit = line_total * profit_percent / 100;
+        const taxable_amount = line_total + profit;
         const tax = taxable_amount * (item.tax_percent || 0) / 100;
 
         subtotal += line_total;
-        discount_amount += discount;
+        discount_amount += profit;
         tax_amount += tax;
 
         return {
@@ -2498,7 +2870,7 @@ app.patch('/api/v1/purchase-orders/:id', async (req, res) => {
         };
       });
 
-      total_amount = subtotal - discount_amount + tax_amount;
+      total_amount = subtotal + discount_amount + tax_amount;
 
       console.log('🗑️ Deleting existing items');
       // Delete existing items
@@ -3215,7 +3587,7 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
           description: originalItem?.description || 'Selected item',
           quantity: Number(selectedItem.quantity),
           unit_price: Number(selectedItem.unit_price),
-          discount_percent: originalItem?.discount_percent || 0,
+          profit_percent: originalItem?.profit_percent || originalItem?.discount_percent || 0,
           tax_percent: originalItem?.tax_percent || 0,
           line_total: Number(selectedItem.quantity) * Number(selectedItem.unit_price),
           created_at: new Date().toISOString()
@@ -3229,7 +3601,7 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
         description: item.description,
         quantity: item.quantity,
         unit_price: item.unit_price,
-        discount_percent: item.discount_percent,
+        profit_percent: item.profit_percent || item.discount_percent,
         tax_percent: item.tax_percent,
         line_total: item.line_total,
         created_at: new Date().toISOString()
@@ -5399,7 +5771,7 @@ app.post('/api/v1/invoices/auto-generate', async (req, res) => {
           description: item.description,
           quantity: item.quantity,
           unit_price: item.unit_price,
-          discount_percent: item.discount_percent,
+          profit_percent: item.profit_percent || item.discount_percent,
           tax_percent: item.tax_percent,
           line_total: item.line_total
         }));
