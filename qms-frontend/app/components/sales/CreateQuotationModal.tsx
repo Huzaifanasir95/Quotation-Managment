@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { apiClient, Customer } from '../../lib/api';
-import { generateQuotationPDF } from '../../../lib/pdfUtils';
+import { generateQuotationPDF, generateEnhancedQuotationPDF, generateDetailedQuotationPDF } from '../../../lib/pdfUtils';
 import { loadJsPDF, loadXLSX } from '../../../lib/dynamicImports';
 
 interface CreateQuotationModalProps {
@@ -243,6 +243,20 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     }]);
   };
 
+  const handlePrintAsPDF = async () => {
+    if (items.length === 0) {
+      alert('Please add at least one item to generate PDF');
+      return;
+    }
+
+    try {
+      await generateDetailedQuotationPDF(items);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    }
+  };
+
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
   };
@@ -470,6 +484,66 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     } catch (error) {
       console.error('Error exporting to Excel:', error);
       alert('Failed to export items to Excel. Please try again.');
+    }
+  };
+
+  // Generate enhanced PDF with detailed format
+  const generateDetailedPDF = async () => {
+    try {
+      if (items.length === 0) {
+        alert('Please add at least one item to generate PDF');
+        return;
+      }
+
+      setIsGeneratingPDF(true);
+
+      // Calculate totals
+      const subTotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+      const gstRate = 18; // Default GST rate
+      const gstAmount = (subTotal * gstRate) / 100;
+      const total = subTotal + gstAmount;
+
+      // Prepare enhanced quotation data
+      const quotationData = {
+        quotationFor: 'A-41156', // You can make this dynamic
+        date: new Date().toLocaleDateString('en-GB'),
+        refNo: `AI/KRL/${new Date().getFullYear()}/SP-2112-02`,
+        companyName: 'Directorate of Technical Procurement (L),',
+        companyAddress: 'KRL, Rawalpindi.',
+        items: items.map((item, index) => ({
+          id: item.id,
+          srNo: index + 1,
+          description: item.isCustom ? 
+            (item.customDescription || item.itemName || 'Custom Item') :
+            (products.find(p => p.id === item.productId)?.name || 'Unknown Product'),
+          uom: item.uom || 'No',
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.quantity * item.unitPrice,
+          gstRate: item.gstPercent || gstRate,
+          isCustom: item.isCustom,
+          category: item.category,
+          serialNo: item.serialNo,
+          itemName: item.itemName,
+          auField: item.auField
+        })),
+        subTotal,
+        gstAmount,
+        total,
+        termsConditions: {
+          validity: 'Prices are valid for 25 Days Only.',
+          delivery: '6-10 Days after receiving the PO. (F.O.R Rawalpindi).',
+          optionalItems: 'Optional items other than quoted will be charged separately'
+        }
+      };
+
+      await generateEnhancedQuotationPDF(quotationData);
+      
+    } catch (error) {
+      console.error('Error generating detailed PDF:', error);
+      alert(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Please try again.'}`);
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -1025,32 +1099,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                 <h3 className="text-lg font-medium text-gray-900">Quotation Items</h3>
                 
                 <div className="flex items-center space-x-4">
-                  {/* Export Buttons */}
-                  {items.length > 0 && (
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={exportItemsToExcel}
-                        className="flex items-center px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors duration-200 shadow-sm"
-                        title="Export Items to Excel"
-                      >
-                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Excel
-                      </button>
-                      <button
-                        onClick={exportItemsToPDF}
-                        className="flex items-center px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors duration-200 shadow-sm"
-                        title="Export Items to PDF"
-                      >
-                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                        PDF
-                      </button>
-                    </div>
-                  )}
-
                   {/* View Mode Toggle */}
                   <div className="flex border border-gray-300 rounded-lg overflow-hidden">
                     <button
@@ -1097,6 +1145,17 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                     <span>Custom Item</span>
+                  </button>
+
+                  <button 
+                    onClick={() => handlePrintAsPDF()} 
+                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center space-x-2"
+                    disabled={items.length === 0}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Print as PDF</span>
                   </button>
                 </div>
               </div>
