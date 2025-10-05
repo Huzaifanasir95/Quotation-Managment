@@ -879,7 +879,6 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     currentY = tableStartY;
     
     const rowHeight = 10;
-    const footerReserveSpace = 160; // Increased to ensure signature is visible
     let subTotal = 0;
     let totalGST = 0;
     
@@ -893,8 +892,8 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
       subTotal += lineTotal;
       totalGST += gstAmount;
       
-      // Check if we need a new page
-      if (currentY + rowHeight + footerReserveSpace > pageHeight - margin) {
+      // Check if we need a new page - only break if we're near the bottom
+      if (currentY + rowHeight > pageHeight - margin - 15) {
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(8);
         pdf.text(`Page ${currentPage}`, pageWidth - margin - 20, pageHeight - 10);
@@ -956,8 +955,16 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
       currentY += rowHeight;
     });
     
-    // Check if we need a new page for totals/footer
-    if (currentY + footerReserveSpace > pageHeight - margin) {
+    // Calculate actual space needed for footer content:
+    // Totals box: 45 units + 15 spacing = 60 units
+    // Terms & Conditions: 3 terms * 10 + title + spacing = 50 units  
+    // Signature: 20 units
+    // Bottom margin buffer: 20 units
+    // Total: ~100 units
+    const actualFooterSpaceNeeded = 100;
+    
+    // Only create new page if there's genuinely not enough space
+    if (currentY + actualFooterSpaceNeeded > pageHeight - margin) {
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(8);
       pdf.text(`Page ${currentPage}`, pageWidth - margin - 20, pageHeight - 10);
@@ -969,35 +976,52 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     
     const grandTotal = subTotal + totalGST;
     
+    // Calculate space needed for complete footer (totals + terms + signature)
+    const totalFooterHeight = 45 + 15 + 60 + 55 + 30; // totals + spacing + terms + signature + buffer
+    
+    // Check if entire footer fits on current page
+    if (currentY + 15 + totalFooterHeight > pageHeight - margin - 15) {
+      // Move to new page for footer
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.text(`Page ${currentPage}`, pageWidth - margin - 20, pageHeight - 10);
+      
+      pdf.addPage();
+      currentPage++;
+      currentY = addContinuationPage() + 20;
+    }
+    
+    // Draw footer content (totals, terms, signature) - only once
+    const footerStartY = currentY + 15;
+    
     // Totals section
-    const totalsStartY = currentY + 15;
     const totalsBoxX = pageWidth - 90;
     const totalsBoxWidth = 75;
     const totalsBoxHeight = 45;
     
     pdf.setLineWidth(0.5);
-    pdf.rect(totalsBoxX, totalsStartY - 5, totalsBoxWidth, totalsBoxHeight);
+    pdf.rect(totalsBoxX, footerStartY - 5, totalsBoxWidth, totalsBoxHeight);
     
-    pdf.line(totalsBoxX, totalsStartY + 8, totalsBoxX + totalsBoxWidth, totalsStartY + 8);
-    pdf.line(totalsBoxX, totalsStartY + 21, totalsBoxX + totalsBoxWidth, totalsStartY + 21);
-    pdf.line(totalsBoxX + 45, totalsStartY - 5, totalsBoxX + 45, totalsStartY + 40);
+    pdf.line(totalsBoxX, footerStartY + 8, totalsBoxX + totalsBoxWidth, footerStartY + 8);
+    pdf.line(totalsBoxX, footerStartY + 21, totalsBoxX + totalsBoxWidth, footerStartY + 21);
+    pdf.line(totalsBoxX + 45, footerStartY - 5, totalsBoxX + 45, footerStartY + 40);
     
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
     
-    pdf.text('Sub Total', totalsBoxX + 2, totalsStartY + 5);
-    pdf.text(subTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsBoxX + totalsBoxWidth - 3, totalsStartY + 5, { align: 'right' });
+    pdf.text('Sub Total', totalsBoxX + 2, footerStartY + 5);
+    pdf.text(subTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsBoxX + totalsBoxWidth - 3, footerStartY + 5, { align: 'right' });
     
-    pdf.text('GST @ 18%', totalsBoxX + 2, totalsStartY + 18);
-    pdf.text(totalGST.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsBoxX + totalsBoxWidth - 3, totalsStartY + 18, { align: 'right' });
+    pdf.text('GST @ 18%', totalsBoxX + 2, footerStartY + 18);
+    pdf.text(totalGST.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsBoxX + totalsBoxWidth - 3, footerStartY + 18, { align: 'right' });
     
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(10);
-    pdf.text('Total', totalsBoxX + 2, totalsStartY + 31);
-    pdf.text(grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsBoxX + totalsBoxWidth - 3, totalsStartY + 31, { align: 'right' });
+    pdf.text('Total', totalsBoxX + 2, footerStartY + 31);
+    pdf.text(grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsBoxX + totalsBoxWidth - 3, footerStartY + 31, { align: 'right' });
     
     // Terms & Conditions
-    const termsStartY = totalsStartY + 60;
+    const termsStartY = footerStartY + 60;
     
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(11);
