@@ -1495,3 +1495,512 @@ export const generateModernQuotationPDF = async (items: any[], companyInfo?: any
   }
 };
 
+// ============================================================================
+// PREMIUM EXECUTIVE FORMAT - Ultra-Modern State-of-the-Art Design
+// Cutting-edge design with innovative features and premium aesthetics
+// ============================================================================
+
+export const generatePremiumQuotationPDF = async (items: any[], companyInfo?: any, refNo?: string) => {
+  try {
+    const jsPDF = await loadJsPDF();
+    if (!jsPDF) {
+      throw new Error('PDF generation library not available');
+    }
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 18;
+    let currentPage = 1;
+    
+    // Premium Color Palette - Sophisticated and Bold
+    const deepTeal = { r: 13, g: 71, b: 161 };      // Deep professional blue
+    const brightOrange = { r: 255, g: 111, b: 0 };  // Vibrant accent
+    const charcoal = { r: 44, g: 44, b: 44 };       // Dark text
+    const lightCream = { r: 255, g: 251, b: 245 };  // Warm background
+    const silver = { r: 189, g: 195, b: 199 };      // Subtle accent
+    const white = { r: 255, g: 255, b: 255 };
+    
+    // Premium geometric logo
+    const drawPremiumLogo = (x: number, y: number, size: number) => {
+      // Diamond shape background
+      pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
+      pdf.triangle(x, y - size, x + size, y, x, y + size, 'F');
+      pdf.triangle(x, y - size, x - size, y, x, y + size, 'F');
+      
+      // Orange accent diamond
+      pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+      const innerSize = size * 0.6;
+      pdf.triangle(x, y - innerSize, x + innerSize, y, x, y + innerSize, 'F');
+      pdf.triangle(x, y - innerSize, x - innerSize, y, x, y + innerSize, 'F');
+      
+      // Center white circle
+      pdf.setFillColor(255, 255, 255);
+      pdf.circle(x, y, size * 0.35, 'F');
+      
+      // Company initial
+      pdf.setTextColor(deepTeal.r, deepTeal.g, deepTeal.b);
+      pdf.setFontSize(size * 0.5);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('A', x, y + (size * 0.15), { align: 'center' });
+    };
+    
+    // Premium first page header
+    const addPremiumHeader = (isFirstPage: boolean = true) => {
+      if (isFirstPage) {
+        // Diagonal stripe pattern background (simulated with rectangles)
+        pdf.setFillColor(lightCream.r, lightCream.g, lightCream.b);
+        pdf.rect(0, 0, pageWidth, 70, 'F');
+        
+        // Top accent stripe - Orange
+        pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+        pdf.rect(0, 0, pageWidth, 4, 'F');
+        
+        // Diagonal accent element
+        pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
+        pdf.setGState(new pdf.GState({ opacity: 0.1 }));
+        pdf.triangle(pageWidth - 60, 0, pageWidth, 0, pageWidth, 70, 'F');
+        pdf.setGState(new pdf.GState({ opacity: 1 }));
+        
+        // Premium logo
+        drawPremiumLogo(margin + 10, 25, 10);
+        
+        // Company branding with modern typography
+        pdf.setTextColor(deepTeal.r, deepTeal.g, deepTeal.b);
+        pdf.setFontSize(24);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('ANOOSH', margin + 30, 20);
+        
+        pdf.setFontSize(24);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text('INTERNATIONAL', margin + 30, 28);
+        
+        // Orange accent line
+        pdf.setDrawColor(brightOrange.r, brightOrange.g, brightOrange.b);
+        pdf.setLineWidth(2);
+        pdf.line(margin + 30, 30, margin + 100, 30);
+        
+        // Subtitle
+        pdf.setTextColor(charcoal.r, charcoal.g, charcoal.b);
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('IMPORT & EXPORT SOLUTIONS', margin + 30, 36);
+        
+        // Modern info card - floating design
+        const cardX = pageWidth - margin - 65;
+        const cardY = 12;
+        const cardWidth = 60;
+        const cardHeight = 32;
+        
+        // Card shadow
+        pdf.setFillColor(100, 100, 100);
+        pdf.setGState(new pdf.GState({ opacity: 0.15 }));
+        pdf.roundedRect(cardX + 2, cardY + 2, cardWidth, cardHeight, 4, 4, 'F');
+        pdf.setGState(new pdf.GState({ opacity: 1 }));
+        
+        // Main card
+        pdf.setFillColor(white.r, white.g, white.b);
+        pdf.setDrawColor(brightOrange.r, brightOrange.g, brightOrange.b);
+        pdf.setLineWidth(1);
+        pdf.roundedRect(cardX, cardY, cardWidth, cardHeight, 4, 4, 'FD');
+        
+        // Card header
+        pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
+        pdf.rect(cardX, cardY, cardWidth, 8, 'F');
+        
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('QUOTATION', cardX + (cardWidth / 2), cardY + 5.5, { align: 'center' });
+        
+        // Card content
+        pdf.setTextColor(charcoal.r, charcoal.g, charcoal.b);
+        pdf.setFontSize(7);
+        pdf.setFont('helvetica', 'bold');
+        
+        pdf.text('Date:', cardX + 3, cardY + 14);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(new Date().toLocaleDateString('en-GB'), cardX + 15, cardY + 14);
+        
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Reference:', cardX + 3, cardY + 21);
+        pdf.setFont('helvetica', 'normal');
+        const refText = refNo || 'N/A';
+        pdf.text(refText.substring(0, 12), cardX + 20, cardY + 21);
+        
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Status:', cardX + 3, cardY + 28);
+        pdf.setTextColor(brightOrange.r, brightOrange.g, brightOrange.b);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('DRAFT', cardX + 17, cardY + 28);
+        
+        // Contact strip
+        pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
+        pdf.rect(0, 50, pageWidth, 18, 'F');
+        
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(7);
+        pdf.setFont('helvetica', 'normal');
+        
+        const contactY = 58;
+        pdf.text('KRL, Rawalpindi', margin + 3, contactY);
+        
+        // Vertical separator
+        pdf.setDrawColor(brightOrange.r, brightOrange.g, brightOrange.b);
+        pdf.line(margin + 50, 53, margin + 50, 65);
+        
+        pdf.text('Phone: +92-XXX-XXXXXXX', margin + 55, contactY);
+        
+        pdf.line(margin + 115, 53, margin + 115, 65);
+        
+        pdf.text('Email: info@anoosh.com', margin + 120, contactY);
+        
+        return 76;
+      } else {
+        // Minimal continuation header
+        pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+        pdf.rect(0, 0, pageWidth, 3, 'F');
+        
+        pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
+        pdf.rect(0, 3, pageWidth, 18, 'F');
+        
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('ANOOSH INTERNATIONAL', margin, 14);
+        
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text('Quotation (Continued)', pageWidth - margin, 14, { align: 'right' });
+        
+        pdf.setFontSize(7);
+        pdf.text(`Page ${currentPage}`, pageWidth - margin, 18, { align: 'right' });
+        
+        return 28;
+      }
+    };
+    
+    // Ultra-modern table header
+    const addPremiumTableHeader = (yPosition: number) => {
+      const headers = [
+        { label: 'NO', width: 12, align: 'center' },
+        { label: 'ITEM DESCRIPTION', width: 70, align: 'left' },
+        { label: 'UNIT', width: 18, align: 'center' },
+        { label: 'QTY', width: 15, align: 'center' },
+        { label: 'PRICE', width: 26, align: 'right' },
+        { label: 'TOTAL', width: 28, align: 'right' }
+      ];
+      
+      const headerHeight = 10;
+      let currentX = margin;
+      
+      // Gradient header effect
+      pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
+      pdf.rect(margin, yPosition, pageWidth - (margin * 2), headerHeight, 'F');
+      
+      // Orange top stripe
+      pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+      pdf.rect(margin, yPosition, pageWidth - (margin * 2), 2, 'F');
+      
+      const colPositions: number[] = [currentX];
+      const colWidths: number[] = [];
+      
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(8);
+      
+      headers.forEach((header, index) => {
+        colWidths.push(header.width);
+        if (index > 0) {
+          currentX += headers[index - 1].width;
+          colPositions.push(currentX);
+        }
+        
+        let textX = currentX + (header.width / 2);
+        if (header.align === 'left') textX = currentX + 2;
+        if (header.align === 'right') textX = currentX + header.width - 2;
+        
+        pdf.text(header.label, textX, yPosition + 7, { align: header.align as any });
+      });
+      
+      return { nextY: yPosition + headerHeight, colPositions, colWidths, headerAligns: headers.map(h => h.align) };
+    };
+    
+    // Initialize
+    let currentY = addPremiumHeader(true);
+    currentY += 6;
+    
+    // Section title with modern design
+    pdf.setFillColor(lightCream.r, lightCream.g, lightCream.b);
+    pdf.rect(margin, currentY, pageWidth - (margin * 2), 10, 'F');
+    
+    pdf.setTextColor(deepTeal.r, deepTeal.g, deepTeal.b);
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('ITEM DETAILS', margin + 3, currentY + 6.5);
+    
+    // Orange accent
+    pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+    pdf.rect(margin, currentY, 3, 10, 'F');
+    
+    currentY += 12;
+    
+    const { nextY: tableStartY, colPositions, colWidths, headerAligns } = addPremiumTableHeader(currentY);
+    currentY = tableStartY;
+    
+    const rowHeight = 12;
+    let subTotal = 0;
+    let totalGST = 0;
+    let itemNumber = 1;
+    
+    items.forEach((item: any) => {
+      const quantity = Number(item.quantity) || 0;
+      const unitPrice = Number(item.unitPrice || item.unit_price) || 0;
+      const lineTotal = quantity * unitPrice;
+      const gstRate = Number(item.gstPercentage || item.gstPercent || item.gst_percent) || 18;
+      const gstAmount = lineTotal * (gstRate / 100);
+      
+      subTotal += lineTotal;
+      totalGST += gstAmount;
+      
+      // Page break check
+      if (currentY + rowHeight + 100 > pageHeight - margin) {
+        // Page footer
+        pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+        pdf.rect(0, pageHeight - 10, pageWidth, 10, 'F');
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(7);
+        pdf.text(`Page ${currentPage}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
+        
+        pdf.addPage();
+        currentPage++;
+        currentY = addPremiumHeader(false);
+        currentY += 5;
+        const { nextY } = addPremiumTableHeader(currentY);
+        currentY = nextY;
+      }
+      
+      // Row with modern styling
+      if (itemNumber % 2 === 0) {
+        pdf.setFillColor(lightCream.r, lightCream.g, lightCream.b);
+        pdf.rect(margin, currentY, pageWidth - (margin * 2), rowHeight, 'F');
+      }
+      
+      // Side accent for odd rows
+      if (itemNumber % 2 === 1) {
+        pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+        pdf.setGState(new pdf.GState({ opacity: 0.3 }));
+        pdf.rect(margin, currentY, 2, rowHeight, 'F');
+        pdf.setGState(new pdf.GState({ opacity: 1 }));
+      }
+      
+      // Bottom border
+      pdf.setDrawColor(silver.r, silver.g, silver.b);
+      pdf.setLineWidth(0.2);
+      pdf.line(margin, currentY + rowHeight, pageWidth - margin, currentY + rowHeight);
+      
+      pdf.setTextColor(charcoal.r, charcoal.g, charcoal.b);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8.5);
+      
+      let description = '';
+      if (item.isCustom) {
+        description = item.customDescription || item.description || item.item_name || 'Custom Item';
+      } else {
+        description = item.description || item.item_name || 'Item';
+      }
+      
+      if (description.length > 60) {
+        description = description.substring(0, 57) + '...';
+      }
+      
+      const rowData = [
+        itemNumber.toString(),
+        description,
+        item.uom || item.unit_of_measure || 'No',
+        quantity.toString(),
+        'Rs. ' + unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2 }),
+        'Rs. ' + lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })
+      ];
+      
+      rowData.forEach((data, colIndex) => {
+        const cellWidth = colWidths[colIndex];
+        let textX = colPositions[colIndex] + 2;
+        const align = headerAligns[colIndex];
+        
+        if (align === 'center') {
+          textX = colPositions[colIndex] + (cellWidth / 2);
+        } else if (align === 'right') {
+          textX = colPositions[colIndex] + cellWidth - 2;
+        }
+        
+        pdf.text(data, textX, currentY + 7.5, { align: align as any });
+      });
+      
+      currentY += rowHeight;
+      itemNumber++;
+    });
+    
+    // Check space for summary
+    if (currentY + 110 > pageHeight - margin) {
+      pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+      pdf.rect(0, pageHeight - 10, pageWidth, 10, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(7);
+      pdf.text(`Page ${currentPage}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
+      
+      pdf.addPage();
+      currentPage++;
+      currentY = addPremiumHeader(false) + 10;
+    }
+    
+    currentY += 10;
+    const grandTotal = subTotal + totalGST;
+    
+    // Premium summary card with advanced design
+    const summaryX = pageWidth - margin - 75;
+    const summaryY = currentY;
+    const summaryWidth = 75;
+    
+    // Multi-layer shadow effect
+    pdf.setFillColor(120, 120, 120);
+    pdf.setGState(new pdf.GState({ opacity: 0.08 }));
+    pdf.roundedRect(summaryX + 3, summaryY + 3, summaryWidth, 48, 4, 4, 'F');
+    pdf.setGState(new pdf.GState({ opacity: 0.12 }));
+    pdf.roundedRect(summaryX + 2, summaryY + 2, summaryWidth, 48, 4, 4, 'F');
+    pdf.setGState(new pdf.GState({ opacity: 1 }));
+    
+    // Main card
+    pdf.setFillColor(white.r, white.g, white.b);
+    pdf.setDrawColor(deepTeal.r, deepTeal.g, deepTeal.b);
+    pdf.setLineWidth(0.5);
+    pdf.roundedRect(summaryX, summaryY, summaryWidth, 48, 4, 4, 'FD');
+    
+    // Gradient header bar
+    pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
+    pdf.rect(summaryX, summaryY, summaryWidth, 10, 'F');
+    
+    pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+    pdf.rect(summaryX, summaryY, 4, 10, 'F');
+    
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('FINANCIAL SUMMARY', summaryX + (summaryWidth / 2), summaryY + 6.5, { align: 'center' });
+    
+    // Content area
+    pdf.setTextColor(charcoal.r, charcoal.g, charcoal.b);
+    pdf.setFontSize(9);
+    
+    // Subtotal
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('Subtotal', summaryX + 4, summaryY + 18);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Rs. ' + subTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), summaryX + summaryWidth - 4, summaryY + 18, { align: 'right' });
+    
+    // Divider
+    pdf.setDrawColor(silver.r, silver.g, silver.b);
+    pdf.line(summaryX + 4, summaryY + 21, summaryX + summaryWidth - 4, summaryY + 21);
+    
+    // GST
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('GST (18%)', summaryX + 4, summaryY + 28);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Rs. ' + totalGST.toLocaleString('en-US', { minimumFractionDigits: 2 }), summaryX + summaryWidth - 4, summaryY + 28, { align: 'right' });
+    
+    // Strong divider
+    pdf.setDrawColor(deepTeal.r, deepTeal.g, deepTeal.b);
+    pdf.setLineWidth(1);
+    pdf.line(summaryX + 4, summaryY + 31, summaryX + summaryWidth - 4, summaryY + 31);
+    
+    // Grand total with accent
+    pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+    pdf.rect(summaryX, summaryY + 34, summaryWidth, 14, 'F');
+    
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('GRAND TOTAL', summaryX + 4, summaryY + 42);
+    pdf.setFontSize(13);
+    pdf.text('Rs. ' + grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), summaryX + summaryWidth - 4, summaryY + 42, { align: 'right' });
+    
+    // Terms section with premium design
+    const termsY = summaryY + 58;
+    
+    pdf.setFillColor(lightCream.r, lightCream.g, lightCream.b);
+    pdf.rect(margin, termsY - 3, pageWidth - (margin * 2) - summaryWidth - 5, 50, 'F');
+    
+    pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+    pdf.rect(margin, termsY - 3, 3, 50, 'F');
+    
+    pdf.setTextColor(deepTeal.r, deepTeal.g, deepTeal.b);
+    pdf.setFontSize(11);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('TERMS & CONDITIONS', margin + 6, termsY + 2);
+    
+    pdf.setTextColor(charcoal.r, charcoal.g, charcoal.b);
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    
+    const terms = [
+      '1. Validity: Valid for 25 days from quotation date',
+      '2. Delivery: 6-10 business days post-PO (F.O.R Rawalpindi)',
+      '3. Payment: As per mutually agreed terms',
+      '4. Additional items will be quoted separately',
+      '5. Prices subject to change without notice'
+    ];
+    
+    terms.forEach((term, index) => {
+      pdf.text(term, margin + 8, termsY + 12 + (index * 7));
+    });
+    
+    // Premium signature section
+    const signY = termsY + 50;
+    
+    pdf.setDrawColor(deepTeal.r, deepTeal.g, deepTeal.b);
+    pdf.setLineWidth(1);
+    pdf.line(pageWidth - margin - 65, signY, pageWidth - margin - 5, signY);
+    
+    pdf.setTextColor(charcoal.r, charcoal.g, charcoal.b);
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Authorized Signatory', pageWidth - margin - 35, signY + 5, { align: 'center' });
+    
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(7);
+    pdf.setTextColor(brightOrange.r, brightOrange.g, brightOrange.b);
+    pdf.text('Anoosh International', pageWidth - margin - 35, signY + 9, { align: 'center' });
+    
+    // Premium footer with geometric design
+    pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
+    pdf.rect(0, pageHeight - 18, pageWidth, 18, 'F');
+    
+    // Orange accent stripe
+    pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+    pdf.rect(0, pageHeight - 18, pageWidth, 3, 'F');
+    
+    // Diagonal accent
+    pdf.setGState(new pdf.GState({ opacity: 0.2 }));
+    pdf.triangle(0, pageHeight - 18, 40, pageHeight, 0, pageHeight, 'F');
+    pdf.setGState(new pdf.GState({ opacity: 1 }));
+    
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(7);
+    pdf.setFont('helvetica', 'normal');
+    
+    pdf.text('Generated: ' + new Date().toLocaleString('en-GB'), margin, pageHeight - 8);
+    pdf.text(`Document ${currentPage}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
+    
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('www.anooshinternational.com', pageWidth - margin, pageHeight - 8, { align: 'right' });
+    
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const fileName = `Premium_Quotation_${timestamp}.pdf`;
+    pdf.save(fileName);
+    
+  } catch (error) {
+    console.error('Error generating premium PDF:', error);
+    throw new Error(`PDF generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+};
+
