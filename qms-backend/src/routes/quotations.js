@@ -91,6 +91,12 @@ router.post('/', authenticateToken, authorize(['admin', 'sales']), validate(sche
   console.log('📝 Creating quotation with data:', JSON.stringify(req.body, null, 2));
   const { items, ...quotationData } = req.body;
 
+  // Map reference_no to reference_number for compatibility
+  if (quotationData.reference_no && !quotationData.reference_number) {
+    quotationData.reference_number = quotationData.reference_no;
+    delete quotationData.reference_no;
+  }
+
   // Generate unique quotation number using timestamp + random suffix for concurrent requests
   const currentYear = new Date().getFullYear();
   const timestamp = Date.now();
@@ -235,6 +241,12 @@ router.post('/', authenticateToken, authorize(['admin', 'sales']), validate(sche
 router.put('/:id', authenticateToken, authorize(['admin', 'sales']), validate(schemas.quotation), asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { items, ...quotationData } = req.body;
+
+  // Map reference_no to reference_number for compatibility
+  if (quotationData.reference_no && !quotationData.reference_number) {
+    quotationData.reference_number = quotationData.reference_no;
+    delete quotationData.reference_no;
+  }
 
   // Check if quotation exists
   const { data: existingQuotation, error: fetchError } = await supabaseAdmin
