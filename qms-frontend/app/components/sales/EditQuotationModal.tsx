@@ -27,6 +27,7 @@ interface QuotationItem {
   tax_percent: number;
   line_total: number;
   isCustom?: boolean;
+  au_field?: string; // A/U field
 }
 
 interface Customer {
@@ -155,11 +156,19 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
       id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       product_id: '',
       description: '',
+      category: '',
+      serial_number: '',
+      item_name: '',
+      unit_of_measure: '',
+      gst_percent: 0,
+      item_type: 'inventory',
       quantity: 1,
       unit_price: 0,
       discount_percent: 0,
-      tax_percent: 18, // Default tax rate
-      line_total: 0
+      tax_percent: 18,
+      line_total: 0,
+      isCustom: false,
+      au_field: 'No'
     };
     setItems([...items, newItem]);
   };
@@ -180,7 +189,8 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
       unit_price: 0,
       discount_percent: 0,
       tax_percent: 18, // Default tax rate
-      line_total: 0
+      line_total: 0,
+      au_field: 'No'
     };
     setItems([...items, newCustomItem]);
   };
@@ -613,123 +623,375 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                         <p className="text-gray-400 text-sm">Click "From Inventory" or "Custom Item" to get started</p>
                       </div>
                     ) : (
-                      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                        {/* Header Row */}
-                        <div className="grid grid-cols-12 gap-3 items-center p-4 bg-gray-50 border-b border-gray-200 font-medium text-sm text-gray-700">
-                          <div className="col-span-4">Description</div>
-                          <div className="col-span-2">Quantity</div>
-                          <div className="col-span-2">Unit Price</div>
-                          <div className="col-span-1">Profit %</div>
-                          <div className="col-span-1">Tax %</div>
-                          <div className="col-span-1">Total</div>
-                          <div className="col-span-1">Action</div>
-                        </div>
-                        
-                        {/* Items */}
-                        <div className="divide-y divide-gray-200">
-                          {items.map((item, index) => (
-                            <div key={item.id} className="grid grid-cols-12 gap-3 items-center p-4 hover:bg-gray-50 transition-colors duration-150">
-                              <div className="col-span-4">
-                                <input
-                                  type="text"
-                                  value={item.description}
-                                  onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                                  className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                                  placeholder="Item description"
-                                />
-                              </div>
-                              <div className="col-span-2">
-                                <input
-                                  type="number"
-                                  value={item.quantity}
-                                  onChange={(e) => {
-                                    const value = e.target.value === '' ? 1 : parseInt(e.target.value) || 1;
-                                    updateItem(item.id, 'quantity', value);
-                                  }}
-                                  className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                                  placeholder="Qty"
-                                  min="1"
-                                />
-                              </div>
-                              <div className="col-span-2">
-                                <input
-                                  type="number"
-                                  value={item.unit_price === 0 ? '' : item.unit_price}
-                                  onChange={(e) => {
-                                    const value = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
-                                    updateItem(item.id, 'unit_price', value);
-                                  }}
-                                  onFocus={(e) => {
-                                    if (e.target.value === '0') {
-                                      e.target.select();
-                                    }
-                                  }}
-                                  className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                                  placeholder="Unit Price"
-                                  min="0"
-                                  step="0.01"
-                                />
-                              </div>
-                              <div className="col-span-1">
-                                <input
-                                  type="number"
-                                  value={item.discount_percent === 0 ? '' : item.discount_percent}
-                                  onChange={(e) => {
-                                    const value = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
-                                    updateItem(item.id, 'discount_percent', value);
-                                  }}
-                                  onFocus={(e) => {
-                                    if (e.target.value === '0') {
-                                      e.target.select();
-                                    }
-                                  }}
-                                  className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                                  placeholder="0"
-                                  min="0"
-                                  max="100"
-                                  step="0.1"
-                                />
-                              </div>
-                              <div className="col-span-1">
-                                <input
-                                  type="number"
-                                  value={item.tax_percent === 0 ? '' : item.tax_percent}
-                                  onChange={(e) => {
-                                    const value = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
-                                    updateItem(item.id, 'tax_percent', value);
-                                  }}
-                                  onFocus={(e) => {
-                                    if (e.target.value === '0') {
-                                      e.target.select();
-                                    }
-                                  }}
-                                  className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                                  placeholder="18"
-                                  min="0"
-                                  max="100"
-                                  step="0.1"
-                                />
-                              </div>
-                              <div className="col-span-1">
-                                <div className="px-3 py-2 text-black bg-gray-100 border border-gray-200 rounded-lg text-sm font-medium">
-                                  Rs. {item.line_total.toFixed(2)}
+                      <>
+                        {itemsViewMode === 'grid' ? (
+                          /* Grid View */
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {items.map((item, index) => {
+                              const selectedProduct = products.find(p => p.id === item.product_id);
+                              const availableStock = selectedProduct?.stock || 0;
+                              const isCustomItem = item.isCustom === true;
+                              const isOverStock = !isCustomItem && item.product_id && item.quantity > availableStock;
+                              
+                              return (
+                                <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center space-x-2">
+                                      <h4 className="font-medium text-gray-900">Item #{index + 1}</h4>
+                                      {isCustomItem && (
+                                        <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">Custom</span>
+                                      )}
+                                    </div>
+                                    <button
+                                      onClick={() => removeItem(item.id)}
+                                      className="text-red-500 hover:text-red-700 p-1 rounded"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                  
+                                  <div className="space-y-3">
+                                    {isCustomItem ? (
+                                      <>
+                                        {/* Custom Item Fields */}
+                                        <div>
+                                          <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                                          <textarea
+                                            value={item.description || ''}
+                                            onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                                            className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                            placeholder="Enter item description"
+                                            rows={2}
+                                          />
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+                                            <input
+                                              type="text"
+                                              value={item.category || ''}
+                                              onChange={(e) => updateItem(item.id, 'category', e.target.value)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="Category"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Serial No</label>
+                                            <input
+                                              type="text"
+                                              value={item.serial_number || ''}
+                                              onChange={(e) => updateItem(item.id, 'serial_number', e.target.value)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="Serial Number"
+                                            />
+                                          </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Item Name</label>
+                                            <input
+                                              type="text"
+                                              value={item.item_name || ''}
+                                              onChange={(e) => updateItem(item.id, 'item_name', e.target.value)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="Item Name"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">A/U</label>
+                                            <select
+                                              value={item.au_field || 'No'}
+                                              onChange={(e) => updateItem(item.id, 'au_field', e.target.value)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                            >
+                                              <option value="No">No</option>
+                                              <option value="Yes">Yes</option>
+                                            </select>
+                                          </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">UOM (Unit of Measure)</label>
+                                            <input
+                                              type="text"
+                                              value={item.unit_of_measure || ''}
+                                              onChange={(e) => updateItem(item.id, 'unit_of_measure', e.target.value)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="e.g., pcs, kg, ltr, m, etc."
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">GST %</label>
+                                            <input
+                                              type="number"
+                                              step="0.01"
+                                              min="0"
+                                              max="100"
+                                              value={item.gst_percent || ''}
+                                              onChange={(e) => updateItem(item.id, 'gst_percent', Number(e.target.value) || 0)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="e.g., 18, 12, 5"
+                                            />
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
+                                            <input
+                                              type="number"
+                                              min="1"
+                                              value={item.quantity}
+                                              onChange={(e) => updateItem(item.id, 'quantity', Number(e.target.value))}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="Qty"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Price</label>
+                                            <input
+                                              type="number"
+                                              step="0.01"
+                                              value={item.unit_price}
+                                              onChange={(e) => updateItem(item.id, 'unit_price', Number(e.target.value))}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="Price"
+                                            />
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
+                                          <p className="text-sm text-gray-900">
+                                            <span className="font-medium">Total:</span> Rs. {item.line_total.toFixed(2)}
+                                          </p>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <>
+                                        {/* Inventory Item Fields */}
+                                        <div>
+                                          <label className="block text-xs font-medium text-gray-700 mb-1">Product</label>
+                                          <select
+                                            value={item.product_id || ''}
+                                            onChange={(e) => {
+                                              const product = products.find(p => p.id === e.target.value);
+                                              updateItem(item.id, 'product_id', e.target.value);
+                                              updateItem(item.id, 'unit_price', product?.price || 0);
+                                            }}
+                                            className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                          >
+                                            <option value="">Select product...</option>
+                                            {products.map(p => (
+                                              <option key={p.id} value={p.id}>{p.name} - Rs. {p.price} (Stock: {p.stock})</option>
+                                            ))}
+                                          </select>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">UOM (Unit of Measure)</label>
+                                            <input
+                                              type="text"
+                                              value={item.unit_of_measure || ''}
+                                              onChange={(e) => updateItem(item.id, 'unit_of_measure', e.target.value)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="e.g., pcs, kg, ltr, m, etc."
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">GST %</label>
+                                            <input
+                                              type="number"
+                                              step="0.01"
+                                              min="0"
+                                              max="100"
+                                              value={item.gst_percent || ''}
+                                              onChange={(e) => updateItem(item.id, 'gst_percent', Number(e.target.value) || 0)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="e.g., 18, 12, 5"
+                                            />
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
+                                            <input
+                                              type="number"
+                                              min="1"
+                                              value={item.quantity}
+                                              onChange={(e) => updateItem(item.id, 'quantity', Number(e.target.value))}
+                                              className={`w-full text-black p-2 border rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500 ${isOverStock ? 'border-red-500' : 'border-gray-300'}`}
+                                              placeholder="Qty"
+                                            />
+                                            {isOverStock && <p className="text-red-500 text-xs mt-1">Insufficient stock</p>}
+                                          </div>
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Price</label>
+                                            <input
+                                              type="number"
+                                              step="0.01"
+                                              value={item.unit_price}
+                                              onChange={(e) => updateItem(item.id, 'unit_price', Number(e.target.value))}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="Price"
+                                            />
+                                          </div>
+                                        </div>
+                                        
+                                        {item.product_id && (
+                                          <>
+                                            <div className="text-sm text-gray-500">
+                                              Available stock: {availableStock}
+                                            </div>
+                                            <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
+                                              <p className="text-sm text-gray-900">
+                                                <span className="font-medium">Total:</span> Rs. {item.line_total.toFixed(2)}
+                                              </p>
+                                            </div>
+                                          </>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          /* List View */
+                          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                            {itemsViewMode === 'list' ? (
+                              <div className="grid grid-cols-12 gap-3 items-center p-4 bg-gray-50 border-b border-gray-200 font-medium text-sm text-gray-700">
+                                <div className="col-span-3">Description</div>
+                                <div className="col-span-1">Type</div>
+                                <div className="col-span-2">Quantity</div>
+                                <div className="col-span-2">Unit Price</div>
+                                <div className="col-span-1">Discount %</div>
+                                <div className="col-span-1">Tax %</div>
+                                <div className="col-span-1">Total</div>
+                                <div className="col-span-1">Action</div>
                               </div>
-                              <div className="col-span-1">
-                                <button
-                                  onClick={() => removeItem(item.id)}
-                                  className="text-red-600 hover:text-red-800 transition-colors duration-200 p-2 rounded-lg hover:bg-red-50"
-                                  title="Remove item"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
-                              </div>
+                            ) : null}
+                            
+                            <div className="divide-y divide-gray-200">
+                              {items.map((item, index) => {
+                                const selectedProduct = products.find(p => p.id === item.product_id);
+                                const availableStock = selectedProduct?.stock || 0;
+                                const isCustomItem = item.isCustom === true;
+                                const isOverStock = !isCustomItem && item.product_id && item.quantity > availableStock;
+                                
+                                return (
+                                  <div key={item.id} className="grid grid-cols-12 gap-3 items-center p-4 hover:bg-gray-50 transition-colors duration-150">
+                                    <div className="col-span-3">
+                                      {isCustomItem ? (
+                                        <input
+                                          type="text"
+                                          value={item.description || ''}
+                                          onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                                          className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                          placeholder="Item description"
+                                        />
+                                      ) : (
+                                        <select
+                                          value={item.product_id || ''}
+                                          onChange={(e) => {
+                                            const product = products.find(p => p.id === e.target.value);
+                                            updateItem(item.id, 'product_id', e.target.value);
+                                            updateItem(item.id, 'unit_price', product?.price || 0);
+                                          }}
+                                          className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                        >
+                                          <option value="">Select product...</option>
+                                          {products.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                          ))}
+                                        </select>
+                                      )}
+                                    </div>
+                                    <div className="col-span-1">
+                                      <span className={`px-2 py-1 text-xs font-medium rounded ${
+                                        isCustomItem 
+                                          ? 'bg-blue-100 text-blue-800' 
+                                          : 'bg-green-100 text-green-800'
+                                      }`}>
+                                        {isCustomItem ? 'Custom' : 'Inventory'}
+                                      </span>
+                                    </div>
+                                    <div className="col-span-2">
+                                      <input
+                                        type="number"
+                                        value={item.quantity}
+                                        onChange={(e) => updateItem(item.id, 'quantity', Number(e.target.value))}
+                                        className={`w-full px-3 py-2 text-black border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${isOverStock ? 'border-red-500' : 'border-gray-300'}`}
+                                        placeholder="Qty"
+                                        min="1"
+                                      />
+                                      {isOverStock && <p className="text-red-500 text-xs mt-1">Insufficient stock</p>}
+                                    </div>
+                                    <div className="col-span-2">
+                                      <input
+                                        type="number"
+                                        value={item.unit_price === 0 ? '' : item.unit_price}
+                                        onChange={(e) => updateItem(item.id, 'unit_price', Number(e.target.value) || 0)}
+                                        className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                        placeholder="Unit Price"
+                                        min="0"
+                                        step="0.01"
+                                      />
+                                    </div>
+                                    <div className="col-span-1">
+                                      <input
+                                        type="number"
+                                        value={item.discount_percent === 0 ? '' : item.discount_percent}
+                                        onChange={(e) => updateItem(item.id, 'discount_percent', Number(e.target.value) || 0)}
+                                        className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                        placeholder="0"
+                                        min="0"
+                                        max="100"
+                                        step="0.1"
+                                      />
+                                    </div>
+                                    <div className="col-span-1">
+                                      <input
+                                        type="number"
+                                        value={item.tax_percent === 0 ? '' : item.tax_percent}
+                                        onChange={(e) => updateItem(item.id, 'tax_percent', Number(e.target.value) || 0)}
+                                        className="w-full px-3 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                        placeholder="18"
+                                        min="0"
+                                        max="100"
+                                        step="0.1"
+                                      />
+                                    </div>
+                                    <div className="col-span-1">
+                                      <div className="px-3 py-2 text-black bg-gray-100 border border-gray-200 rounded-lg text-sm font-medium">
+                                        Rs. {item.line_total.toFixed(2)}
+                                      </div>
+                                    </div>
+                                    <div className="col-span-1">
+                                      <button
+                                        onClick={() => removeItem(item.id)}
+                                        className="text-red-600 hover:text-red-800 transition-colors duration-200 p-2 rounded-lg hover:bg-red-50"
+                                        title="Remove item"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
-                          ))}
-                        </div>
-                      </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
