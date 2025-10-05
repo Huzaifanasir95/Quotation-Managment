@@ -20,6 +20,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [formData, setFormData] = useState({
     customerIds: [] as string[],
     validUntil: '',
+    referenceNo: '',
     notes: 'NULL',
     termsConditions: ''
   });
@@ -53,6 +54,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     setFormData({
       customerIds: [],
       validUntil: '',
+      referenceNo: '',
       notes: 'NULL',
       termsConditions: ''
     });
@@ -637,6 +639,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           customer_id: customerId,
           quotation_date: new Date().toISOString().split('T')[0],
           valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+          reference_number: formData.referenceNo || null,
           notes: formData.notes,
           terms_conditions: formData.termsConditions,
           items: items.map(item => {

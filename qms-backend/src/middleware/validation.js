@@ -97,6 +97,7 @@ const schemas = {
     business_entity_id: Joi.string().uuid().optional(),
     quotation_date: Joi.date().required(),
     valid_until: Joi.date().optional(),
+    reference_number: Joi.string().allow('').optional(),
     terms_conditions: Joi.string().optional(),
     notes: Joi.string().optional(),
     items: Joi.array().items(

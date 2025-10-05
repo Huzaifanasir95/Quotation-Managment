@@ -475,6 +475,7 @@ app.post('/api/v1/quotations', async (req, res) => {
           customer_id, // Use the processed customer_id
           quotation_date: quotationData.quotation_date,
           valid_until: quotationData.valid_until || null,
+          reference_number: quotationData.reference_number || null,
           terms_conditions: quotationData.terms_conditions || null,
           notes: quotationData.notes || null,
           quotation_number,
