@@ -304,19 +304,16 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backdropFilter: 'blur(4px)' }}>
-      <div className="bg-white rounded-2xl shadow-2xl max-w-7xl w-full max-h-[95vh] flex flex-col border border-gray-100">
+      <div className="bg-white rounded-xl shadow-xl max-w-7xl w-full max-h-[95vh] flex flex-col border border-gray-200">
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-50 to-gray-50 px-8 py-6 border-b border-gray-200 flex-shrink-0">
+        <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900">Search Quotations</h2>
-              <p className="text-gray-600 mt-1">Find and manage your quotations</p>
-            </div>
+            <h2 className="text-xl font-semibold text-gray-900">Search Quotations</h2>
             <button 
               onClick={onClose} 
               className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors duration-200"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -326,11 +323,10 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
         {/* Advanced Search Filters */}
         <div className="border-b border-gray-200 bg-gray-50 flex-shrink-0">
           {/* Filter Header with Toggle */}
-          <div className="px-6 py-4 border-b border-gray-200 bg-white">
+          <div className="px-6 py-3 border-b border-gray-200 bg-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <h3 className="text-lg font-semibold text-gray-900">Search Filters</h3>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-600">
                   {filteredQuotations.length} quotation(s) found
                   {quotations.length > 0 && (
                     <span className="ml-2">
@@ -371,10 +367,10 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                 {/* Collapse/Expand Toggle */}
                 <button
                   onClick={() => setIsFiltersCollapsed(!isFiltersCollapsed)}
-                  className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                  className="flex items-center space-x-2 px-2 py-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors duration-200"
                   title={isFiltersCollapsed ? "Expand Filters" : "Collapse Filters"}
                 >
-                  <span className="text-sm font-medium">
+                  <span className="text-sm">
                     {isFiltersCollapsed ? 'Show Filters' : 'Hide Filters'}
                   </span>
                   <svg 
@@ -740,19 +736,11 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
         </div>
 
         {/* Footer */}
-        <div className="bg-white border-t border-gray-200 px-8 py-6 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-500">
-              {filteredQuotations.length > 0 && (
-                <p>
-                  Showing {filteredQuotations.length} of {quotations.length} quotations
-                  {filteredQuotations.length !== quotations.length && ' (filtered)'}
-                </p>
-              )}
-            </div>
+        <div className="border-t border-gray-200 px-6 py-4 flex-shrink-0">
+          <div className="flex justify-end">
             <button
               onClick={onClose}
-              className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
             >
               Close
             </button>
@@ -762,25 +750,23 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
         {/* Quotation Detail Modal */}
         {selectedQuotation && (
           <div className="fixed inset-0 flex items-center justify-center z-60 p-4" style={{ backdropFilter: 'blur(8px)' }}>
-            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-100">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-8 py-6 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900">{selectedQuotation.number}</h3>
-                    <p className="text-gray-600">{selectedQuotation.customer}</p>
-                  </div>
-                  <button 
-                    onClick={() => setSelectedQuotation(null)} 
-                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors duration-200"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+            <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900">{selectedQuotation.number}</h3>
+                  <p className="text-gray-600 text-sm">{selectedQuotation.customer}</p>
                 </div>
+                <button 
+                  onClick={() => setSelectedQuotation(null)} 
+                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors duration-200"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
 
-              <div className="p-8">
+              <div className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div>
                     <h4 className="text-lg font-semibold text-gray-900 mb-4">Quotation Details</h4>

@@ -19,6 +19,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [formData, setFormData] = useState({
     customerIds: [] as string [],
     validUntil: '',
+    referenceNo: '',
     notes: 'NULL',
     termsConditions: '',
     referenceNo: ''
@@ -53,6 +54,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     setFormData({
       customerIds: [],
       validUntil: '',
+      referenceNo: '',
       notes: 'NULL',
       termsConditions: '',
       referenceNo: ''
@@ -238,7 +240,9 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       category: '',
       serialNo: '',
       itemName: '',
-      auField: 'No' // A/U field with default "No"
+      auField: 'No', // A/U field with default "No"
+      uom: '', // Unit of Measure
+      gstPercent: 0 // GST percentage
     }]);
   };
 
@@ -639,6 +643,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           customer_id: customerId,
           quotation_date: new Date().toISOString().split('T')[0],
           valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+          reference_number: formData.referenceNo || null,
           notes: formData.notes,
           terms_conditions: formData.termsConditions,
           reference_no: formData.referenceNo,
@@ -648,6 +653,12 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
               return {
                 product_id: null,
                 description: item.customDescription || 'Custom item',
+                category: item.category || null,
+                serial_number: item.serialNo || null,
+                item_name: item.itemName || null,
+                unit_of_measure: item.uom || null,
+                gst_percent: item.gstPercent || 0,
+                item_type: 'custom',
                 quantity: item.quantity,
                 unit_price: item.unitPrice
               };
@@ -657,6 +668,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
               return {
                 product_id: item.productId,
                 description: product?.name || 'Product',
+                item_type: 'inventory',
                 quantity: item.quantity,
                 unit_price: item.unitPrice
               };

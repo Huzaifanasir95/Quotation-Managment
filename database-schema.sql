@@ -53,18 +53,36 @@ CREATE TABLE public.chart_of_accounts (
   account_code character varying NOT NULL UNIQUE,
   account_name character varying NOT NULL,
   account_type character varying NOT NULL CHECK (account_type::text = ANY (ARRAY['asset'::character varying, 'liability'::character varying, 'equity'::character varying, 'revenue'::character varying, 'expense'::character varying]::text[])),
+  parent_id uuid,
+  is_active boolean DEFAULT true,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT chart_of_accounts_pkey PRIMARY KEY (id),
   CONSTRAINT chart_of_accounts_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.chart_of_accounts(id)
-;
+);
+CREATE TABLE public.compliance_checklist (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  shipment_id uuid NOT NULL,
+  compliance_type character varying NOT NULL,
+  description text NOT NULL,
+  is_required boolean DEFAULT true,
+  status character varying DEFAULT 'pending'::character varying CHECK (status::text = ANY (ARRAY['pending'::character varying, 'completed'::character varying, 'not_applicable'::character varying, 'expired'::character varying, 'overdue'::character varying]::text[])),
+  due_date date,
+  completed_date date,
+  document_reference character varying,
+  issuing_authority character varying,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  assigned_to uuid,
+  notes text,
+  CONSTRAINT compliance_checklist_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_compliance_checklist_shipment FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
+);
 CREATE TABLE public.customers (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   name character varying NOT NULL,
   contact_person character varying,
   email character varying,
   phone character varying,
-  fax character varying,
-  customer_ref_no character varying,
-  customer_type character varying,
   address text,
   city character varying,
   state character varying,
@@ -73,6 +91,41 @@ CREATE TABLE public.customers (
   credit_limit numeric DEFAULT 0,
   payment_terms integer DEFAULT 30,
   status character varying DEFAULT 'active'::character varying CHECK (status::text = ANY (ARRAY['active'::character varying, 'inactive'::character varying, 'suspended'::character varying]::text[])),
+  created_by uuid,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  fax character varying,
+  CONSTRAINT customers_pkey PRIMARY KEY (id),
+  CONSTRAINT customers_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.customs_declarations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  declaration_number character varying NOT NULL UNIQUE,
+  shipment_id uuid NOT NULL,
+  declaration_type character varying NOT NULL,
+  status character varying DEFAULT 'pending'::character varying CHECK (status::text = ANY (ARRAY['pending'::character varying, 'submitted'::character varying, 'under_review'::character varying, 'cleared'::character varying, 'held'::character varying, 'rejected'::character varying]::text[])),
+  customs_office character varying,
+  declaration_date date,
+  clearance_date date,
+  customs_officer character varying,
+  declared_value numeric,
+  currency character varying DEFAULT 'USD'::character varying,
+  duty_amount numeric,
+  tax_amount numeric,
+  total_charges numeric,
+  document_reference character varying,
+  certificate_number character varying,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  notes text,
+  CONSTRAINT customs_declarations_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_customs_shipment FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
+);
+CREATE TABLE public.delivery_challans (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  challan_number character varying NOT NULL UNIQUE,
+  purchase_order_id uuid NOT NULL,
   challan_date date NOT NULL,
   delivery_date date,
   delivery_address text,
@@ -133,6 +186,19 @@ CREATE TABLE public.document_attachments (
   CONSTRAINT document_attachments_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id),
   CONSTRAINT document_attachments_business_entity_id_fkey FOREIGN KEY (business_entity_id) REFERENCES public.business_entities(id)
 );
+CREATE TABLE public.hs_codes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  hs_code character varying NOT NULL UNIQUE,
+  description text NOT NULL,
+  duty_rate numeric,
+  tax_rate numeric,
+  category character varying,
+  country_code character varying,
+  is_active boolean DEFAULT true,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT hs_codes_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.invoice_items (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   invoice_id uuid NOT NULL,
@@ -175,6 +241,32 @@ CREATE TABLE public.invoices (
   CONSTRAINT invoices_business_entity_id_fkey FOREIGN KEY (business_entity_id) REFERENCES public.business_entities(id),
   CONSTRAINT invoices_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
 );
+CREATE TABLE public.landed_costs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  shipment_id uuid NOT NULL,
+  goods_value numeric NOT NULL,
+  freight_cost numeric,
+  insurance_cost numeric,
+  customs_duty numeric,
+  import_tax numeric,
+  vat_amount numeric,
+  handling_charges numeric,
+  storage_charges numeric,
+  documentation_fees numeric,
+  broker_fees numeric,
+  other_charges numeric,
+  total_landed_cost numeric,
+  currency character varying DEFAULT 'USD'::character varying,
+  exchange_rate numeric,
+  rate_date date,
+  base_currency character varying,
+  calculated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  calculated_by uuid,
+  is_final boolean DEFAULT false,
+  notes text,
+  CONSTRAINT landed_costs_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_landed_costs_shipment FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
+);
 CREATE TABLE public.ledger_entries (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   entry_number character varying NOT NULL UNIQUE,
@@ -202,6 +294,20 @@ CREATE TABLE public.ledger_entry_lines (
   CONSTRAINT ledger_entry_lines_pkey PRIMARY KEY (id),
   CONSTRAINT ledger_entry_lines_ledger_entry_id_fkey FOREIGN KEY (ledger_entry_id) REFERENCES public.ledger_entries(id),
   CONSTRAINT ledger_entry_lines_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.chart_of_accounts(id)
+);
+CREATE TABLE public.logistics_tracking (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  shipment_id uuid NOT NULL,
+  status character varying NOT NULL,
+  location character varying,
+  timestamp timestamp without time zone NOT NULL,
+  description text,
+  carrier_reference character varying,
+  estimated_delivery timestamp without time zone,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  CONSTRAINT logistics_tracking_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_logistics_tracking_shipment FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
 );
 CREATE TABLE public.ocr_results (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -391,6 +497,62 @@ CREATE TABLE public.sales_orders (
   CONSTRAINT sales_orders_business_entity_id_fkey FOREIGN KEY (business_entity_id) REFERENCES public.business_entities(id),
   CONSTRAINT sales_orders_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
 );
+CREATE TABLE public.shipment_items (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  shipment_id uuid NOT NULL,
+  product_id uuid,
+  description text NOT NULL,
+  hs_code_id uuid,
+  quantity numeric NOT NULL,
+  unit_price numeric,
+  total_value numeric,
+  currency character varying DEFAULT 'USD'::character varying,
+  weight numeric,
+  volume numeric,
+  dimensions character varying,
+  country_of_origin character varying,
+  manufacturer character varying,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT shipment_items_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_shipment_items_shipment FOREIGN KEY (shipment_id) REFERENCES public.shipments(id),
+  CONSTRAINT fk_shipment_items_hs_code FOREIGN KEY (hs_code_id) REFERENCES public.hs_codes(id)
+);
+CREATE TABLE public.shipments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  shipment_number character varying NOT NULL UNIQUE,
+  shipment_type character varying NOT NULL CHECK (shipment_type::text = ANY (ARRAY['import'::character varying, 'export'::character varying]::text[])),
+  status character varying DEFAULT 'pending'::character varying CHECK (status::text = ANY (ARRAY['pending'::character varying, 'in_transit'::character varying, 'customs_clearance'::character varying, 'delivered'::character varying, 'cancelled'::character varying]::text[])),
+  purchase_order_id uuid,
+  sales_order_id uuid,
+  quotation_id uuid,
+  customer_id uuid,
+  vendor_id uuid,
+  business_entity_id uuid,
+  origin_port character varying,
+  destination_port character varying,
+  departure_date date,
+  arrival_date date,
+  estimated_arrival date,
+  carrier_name character varying,
+  vessel_name character varying,
+  booking_reference character varying,
+  container_number character varying,
+  freight_cost numeric,
+  freight_currency character varying DEFAULT 'USD'::character varying,
+  shipping_terms character varying,
+  incoterms character varying,
+  gross_weight numeric,
+  net_weight numeric,
+  volume numeric,
+  weight_unit character varying DEFAULT 'kg'::character varying,
+  volume_unit character varying DEFAULT 'm3'::character varying,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  notes text,
+  tracking_number character varying,
+  CONSTRAINT shipments_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.stock_movements (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   product_id uuid NOT NULL,
@@ -421,6 +583,30 @@ CREATE TABLE public.system_settings (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT system_settings_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.trade_finance (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  shipment_id uuid NOT NULL,
+  finance_type character varying NOT NULL,
+  payment_terms character varying,
+  payment_method character varying,
+  credit_period integer,
+  issuing_bank character varying,
+  advising_bank character varying,
+  confirming_bank character varying,
+  required_documents ARRAY,
+  total_amount numeric,
+  currency character varying DEFAULT 'USD'::character varying,
+  status character varying DEFAULT 'pending'::character varying CHECK (status::text = ANY (ARRAY['pending'::character varying, 'issued'::character varying, 'confirmed'::character varying, 'utilized'::character varying, 'expired'::character varying, 'cancelled'::character varying]::text[])),
+  issue_date date,
+  expiry_date date,
+  latest_shipment_date date,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  created_by uuid,
+  notes text,
+  CONSTRAINT trade_finance_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_trade_finance_shipment FOREIGN KEY (shipment_id) REFERENCES public.shipments(id)
 );
 CREATE TABLE public.users (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
