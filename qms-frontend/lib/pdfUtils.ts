@@ -1103,26 +1103,30 @@ export const generateModernQuotationPDF = async (items: any[], companyInfo?: any
     const textDark = { r: 31, g: 41, b: 55 };      // Dark text
     const borderLight = { r: 226, g: 232, b: 240 }; // Light borders
     
-    // Helper to draw logo placeholder (circle with text)
+    // Helper to draw Anoosh International logo
     const drawLogo = (x: number, y: number, size: number) => {
       // Outer circle - Navy Blue
       pdf.setFillColor(navyBlue.r, navyBlue.g, navyBlue.b);
       pdf.circle(x, y, size, 'F');
       
+      // Gold middle ring
+      pdf.setFillColor(gold.r, gold.g, gold.b);
+      pdf.circle(x, y, size * 0.85, 'F');
+      
       // Inner circle - White
       pdf.setFillColor(255, 255, 255);
-      pdf.circle(x, y, size * 0.8, 'F');
+      pdf.circle(x, y, size * 0.75, 'F');
       
-      // Gold ring
-      pdf.setDrawColor(gold.r, gold.g, gold.b);
-      pdf.setLineWidth(1);
-      pdf.circle(x, y, size * 0.7, 'S');
+      // Navy Blue inner ring
+      pdf.setDrawColor(navyBlue.r, navyBlue.g, navyBlue.b);
+      pdf.setLineWidth(0.5);
+      pdf.circle(x, y, size * 0.5, 'S');
       
-      // Company initials
+      // Company initial 'A'
       pdf.setTextColor(navyBlue.r, navyBlue.g, navyBlue.b);
-      pdf.setFontSize(size * 0.8);
+      pdf.setFontSize(size * 0.9);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('A', x, y + 2, { align: 'center' });
+      pdf.text('A', x, y + (size * 0.25), { align: 'center' });
     };
     
     // Function to add branded header
@@ -1151,12 +1155,12 @@ export const generateModernQuotationPDF = async (items: any[], companyInfo?: any
         pdf.setFillColor(lightBg.r, lightBg.g, lightBg.b);
         pdf.rect(margin, 30, pageWidth - (margin * 2), 12, 'F');
         
-        // Contact information
+        // Contact information (without emojis to avoid encoding issues)
         pdf.setFontSize(8);
         pdf.setTextColor(textDark.r, textDark.g, textDark.b);
         pdf.setFont('helvetica', 'normal');
-        pdf.text('📍 Directorate of Technical Procurement (L), KRL, Rawalpindi', margin + 3, 36);
-        pdf.text('📞 +92-XXX-XXXXXXX', pageWidth - margin - 45, 36);
+        pdf.text('Address: Directorate of Technical Procurement (L), KRL, Rawalpindi', margin + 3, 36);
+        pdf.text('Phone: +92-XXX-XXXXXXX', pageWidth - margin - 45, 36);
         
         // Document title section
         pdf.setFillColor(navyBlue.r, navyBlue.g, navyBlue.b);
