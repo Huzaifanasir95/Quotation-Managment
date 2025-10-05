@@ -104,6 +104,12 @@ const schemas = {
       Joi.object({
         product_id: Joi.string().uuid().allow(null).optional(),
         description: Joi.string().required(),
+        category: Joi.string().allow('').optional(),
+        serial_number: Joi.string().allow('').optional(),
+        item_name: Joi.string().allow('').optional(),
+        unit_of_measure: Joi.string().allow('').optional(),
+        gst_percent: Joi.number().min(0).max(100).optional(),
+        item_type: Joi.string().valid('inventory', 'custom').optional(),
         quantity: Joi.number().positive().required(),
         unit_price: Joi.number().min(0).required(),
         discount_percent: Joi.number().min(0).max(100).optional(),
