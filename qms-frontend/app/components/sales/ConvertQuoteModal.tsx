@@ -10,6 +10,16 @@ interface ConvertQuoteModalProps {
   onOrderCreated?: () => void;
 }
 
+interface QuoteItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  product_id?: string | null;
+  selected?: boolean;
+}
+
 interface Quote {
   id: string;
   number: string;
@@ -20,21 +30,16 @@ interface Quote {
   validUntil: string;
   quotationDate: string;
   notes?: string;
-  items: Array<{
-    id: string;
-    description: string;
-    quantity: number;
-    unitPrice: number;
-    total: number;
-  }>;
+  items: QuoteItem[];
 }
 
-type Step = 'select' | 'configure' | 'review';
+type Step = 'select' | 'items' | 'configure' | 'review';
 
 export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: ConvertQuoteModalProps) {
   const [mounted, setMounted] = useState(false);
   const [currentStep, setCurrentStep] = useState<Step>('select');
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  const [selectedItems, setSelectedItems] = useState<QuoteItem[]>([]);
   const [isConverting, setIsConverting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -70,6 +75,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
   const resetModalState = () => {
     setCurrentStep('select');
     setSelectedQuote(null);
+    setSelectedItems([]);
     setSearchTerm('');
     setStatusFilter('All');
     setOrderDetails({
@@ -106,7 +112,9 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
             description: item.description || 'No description',
             quantity: item.quantity || 0,
             unitPrice: parseFloat(item.unit_price) || 0,
-            total: (item.quantity || 0) * (parseFloat(item.unit_price) || 0)
+            total: (item.quantity || 0) * (parseFloat(item.unit_price) || 0),
+            product_id: item.product_id || null,
+            selected: true // Default to selected
           })) || []
         }));
         
@@ -140,18 +148,53 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
 
   const handleQuoteSelect = (quote: Quote) => {
     setSelectedQuote(quote);
+    // Initialize all items as selected
+    setSelectedItems(quote.items.map(item => ({ ...item, selected: true })));
     // Set default delivery date (2 weeks from now)
     setOrderDetails(prev => ({
       ...prev,
       expectedDelivery: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     }));
-    setCurrentStep('configure');
+    setCurrentStep('items');
+  };
+
+  // Item selection handlers
+  const handleItemToggle = (itemId: string) => {
+    setSelectedItems(prev => 
+      prev.map(item => 
+        item.id === itemId ? { ...item, selected: !item.selected } : item
+      )
+    );
+  };
+
+  const handleSelectAllItems = () => {
+    setSelectedItems(prev => prev.map(item => ({ ...item, selected: true })));
+  };
+
+  const handleDeselectAllItems = () => {
+    setSelectedItems(prev => prev.map(item => ({ ...item, selected: false })));
+  };
+
+  const handleQuantityChange = (itemId: string, newQuantity: number) => {
+    if (newQuantity < 0) return;
+    setSelectedItems(prev => 
+      prev.map(item => 
+        item.id === itemId 
+          ? { ...item, quantity: newQuantity, total: newQuantity * item.unitPrice }
+          : item
+      )
+    );
+  };
+
+  const getSelectedItems = () => {
+    return selectedItems.filter(item => item.selected);
   };
 
   const calculateOrderTotal = () => {
-    if (!selectedQuote) return 0;
+    const selectedItemsOnly = getSelectedItems();
+    if (selectedItemsOnly.length === 0) return { subtotal: 0, discount: 0, tax: 0, shipping: 0, total: 0 };
     
-    const subtotal = selectedQuote.amount;
+    const subtotal = selectedItemsOnly.reduce((sum, item) => sum + item.total, 0);
     const discount = (subtotal * orderDetails.discountPercentage) / 100;
     const subtotalAfterDiscount = subtotal - discount;
     const tax = (subtotalAfterDiscount * orderDetails.taxPercentage) / 100;
@@ -169,6 +212,12 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
   const handleConvert = async () => {
     if (!selectedQuote) return;
 
+    const selectedItemsOnly = getSelectedItems();
+    if (selectedItemsOnly.length === 0) {
+      alert('Please select at least one item to convert.');
+      return;
+    }
+
     setIsConverting(true);
     
     try {
@@ -183,7 +232,13 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
         discount_percentage: orderDetails.discountPercentage,
         tax_percentage: orderDetails.taxPercentage,
         shipping_cost: orderDetails.shippingCost,
-        status: 'pending'
+        status: 'pending',
+        selected_items: selectedItemsOnly.map(item => ({
+          quotation_item_id: item.id,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          product_id: item.product_id
+        }))
       };
       
       console.log('Converting quote with data:', orderData);
@@ -231,6 +286,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
 
   const steps = [
     { id: 'select', name: 'Select Quote', icon: '📋' },
+    { id: 'items', name: 'Select Items', icon: '📦' },
     { id: 'configure', name: 'Configure Order', icon: '⚙️' },
     { id: 'review', name: 'Review & Convert', icon: '✅' }
   ];
@@ -403,10 +459,10 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
               </div>
             )}
 
-            {currentStep === 'configure' && selectedQuote && (
+            {currentStep === 'items' && selectedQuote && (
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Configure Order Details</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Select Items to Convert</h3>
                   
                   {/* Selected Quote Summary */}
                   <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-xl p-6 mb-6">
@@ -414,11 +470,176 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                       <div>
                         <h4 className="text-lg font-bold text-gray-900">{selectedQuote.number}</h4>
                         <p className="text-gray-600">{selectedQuote.customer}</p>
-                        <p className="text-sm text-gray-500">{selectedQuote.items.length} items</p>
+                        <p className="text-sm text-gray-500">{selectedQuote.items.length} total items</p>
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-bold text-blue-600">Rs. {selectedQuote.amount.toLocaleString()}</p>
-                        <p className="text-sm text-gray-500">Quote Total</p>
+                        <p className="text-sm text-gray-500">Original Quote Total</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Item Selection Controls */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center space-x-4">
+                      <button
+                        onClick={handleSelectAllItems}
+                        className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        onClick={handleDeselectAllItems}
+                        className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                      >
+                        Deselect All
+                      </button>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {getSelectedItems().length} of {selectedItems.length} items selected
+                    </div>
+                  </div>
+
+                  {/* Items List */}
+                  <div className="space-y-4">
+                    {selectedItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className={`border rounded-xl p-6 transition-all duration-200 ${
+                          item.selected 
+                            ? 'border-blue-300 bg-blue-50' 
+                            : 'border-gray-200 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-start space-x-4">
+                          {/* Checkbox */}
+                          <div className="flex items-center pt-1">
+                            <input
+                              type="checkbox"
+                              checked={item.selected || false}
+                              onChange={() => handleItemToggle(item.id)}
+                              className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                          </div>
+
+                          {/* Item Details */}
+                          <div className="flex-1">
+                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                              {/* Description */}
+                              <div className="lg:col-span-2">
+                                <h4 className="font-semibold text-gray-900 mb-1">
+                                  Item #{index + 1}
+                                </h4>
+                                <p className="text-gray-700 mb-2">{item.description}</p>
+                                {item.product_id && (
+                                  <p className="text-xs text-gray-500">Product ID: {item.product_id}</p>
+                                )}
+                              </div>
+
+                              {/* Quantity */}
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Quantity
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={item.quantity}
+                                  onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 0)}
+                                  disabled={!item.selected}
+                                  className={`w-full px-3 py-2 border rounded-lg text-center ${
+                                    item.selected 
+                                      ? 'border-gray-300 text-black focus:ring-2 focus:ring-blue-500' 
+                                      : 'border-gray-200 bg-gray-100 text-gray-400'
+                                  }`}
+                                />
+                              </div>
+
+                              {/* Pricing */}
+                              <div>
+                                <div className="text-sm text-gray-600 mb-1">
+                                  Unit Price: Rs. {item.unitPrice.toFixed(2)}
+                                </div>
+                                <div className="text-lg font-bold text-green-600">
+                                  Rs. {item.total.toFixed(2)}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Line Total
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Selected Items Summary */}
+                  {getSelectedItems().length > 0 && (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-6 mt-6">
+                      <h4 className="text-lg font-semibold text-green-800 mb-4">
+                        Selected Items Summary
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-600">
+                            {getSelectedItems().length}
+                          </div>
+                          <div className="text-sm text-green-700">Items Selected</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-600">
+                            {getSelectedItems().reduce((sum, item) => sum + item.quantity, 0)}
+                          </div>
+                          <div className="text-sm text-green-700">Total Quantity</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-600">
+                            Rs. {getSelectedItems().reduce((sum, item) => sum + item.total, 0).toFixed(2)}
+                          </div>
+                          <div className="text-sm text-green-700">Subtotal</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {getSelectedItems().length === 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mt-6">
+                      <div className="flex items-center">
+                        <svg className="w-6 h-6 text-yellow-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                        <div>
+                          <h4 className="font-medium text-yellow-800">No Items Selected</h4>
+                          <p className="text-sm text-yellow-700 mt-1">
+                            Please select at least one item to proceed with the order conversion.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {currentStep === 'configure' && selectedQuote && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Configure Order Details</h3>
+                  
+                  {/* Selected Items Summary */}
+                  <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-xl p-6 mb-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-lg font-bold text-gray-900">{selectedQuote.number}</h4>
+                        <p className="text-gray-600">{selectedQuote.customer}</p>
+                        <p className="text-sm text-gray-500">{getSelectedItems().length} of {selectedQuote.items.length} items selected</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-blue-600">
+                          Rs. {getSelectedItems().reduce((sum, item) => sum + item.total, 0).toLocaleString()}
+                        </p>
+                        <p className="text-sm text-gray-500">Selected Items Total</p>
                       </div>
                     </div>
                   </div>
@@ -641,15 +862,21 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                       </div>
 
                       <div className="bg-white border border-gray-200 rounded-xl p-6">
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Items ({selectedQuote.items.length})</h4>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Selected Items ({getSelectedItems().length})</h4>
                         <div className="space-y-3">
-                          {selectedQuote.items.map((item) => (
+                          {getSelectedItems().map((item, index) => (
                             <div key={item.id} className="flex justify-between items-start">
                               <div className="flex-1 mr-4">
-                                <p className="font-medium text-gray-900">{item.description}</p>
+                                <p className="font-medium text-gray-900">
+                                  <span className="text-sm text-gray-500 mr-2">#{index + 1}</span>
+                                  {item.description}
+                                </p>
                                 <p className="text-sm text-gray-600">
                                   {item.quantity} × Rs. {item.unitPrice.toFixed(2)}
                                 </p>
+                                {item.product_id && (
+                                  <p className="text-xs text-gray-500">Product ID: {item.product_id}</p>
+                                )}
                               </div>
                               <div className="text-right">
                                 <p className="font-medium text-gray-900">Rs. {item.total.toFixed(2)}</p>
@@ -657,6 +884,14 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                             </div>
                           ))}
                         </div>
+                        {getSelectedItems().length === 0 && (
+                          <div className="text-center py-8">
+                            <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8l-4 4m0 0l-4-4m4 4V3" />
+                            </svg>
+                            <p className="text-gray-500">No items selected for conversion</p>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -759,8 +994,10 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
               {currentStep !== 'select' && (
                 <button
                   onClick={() => {
-                    if (currentStep === 'configure') {
+                    if (currentStep === 'items') {
                       setCurrentStep('select');
+                    } else if (currentStep === 'configure') {
+                      setCurrentStep('items');
                     } else if (currentStep === 'review') {
                       setCurrentStep('configure');
                     }
@@ -782,6 +1019,19 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
               >
                 Cancel
               </button>
+              
+              {currentStep === 'items' && selectedQuote && (
+                <button
+                  onClick={() => setCurrentStep('configure')}
+                  disabled={getSelectedItems().length === 0}
+                  className="px-8 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
+                >
+                  Configure Order
+                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
               
               {currentStep === 'configure' && selectedQuote && (
                 <button

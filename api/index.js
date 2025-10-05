@@ -3035,7 +3035,19 @@ app.get('/api/v1/orders', async (req, res) => {
 // Convert quotation to order endpoint
 app.post('/api/v1/orders/convert-quote', async (req, res) => {
   try {
-    const { quotation_id, expected_delivery, priority, payment_terms, notes } = req.body;
+    const { 
+      quotation_id, 
+      expected_delivery, 
+      priority, 
+      payment_terms, 
+      notes, 
+      selected_items,
+      shipping_address,
+      billing_address,
+      discount_percentage,
+      tax_percentage,
+      shipping_cost
+    } = req.body;
 
     if (!quotation_id) {
       return res.status(400).json({
@@ -3101,6 +3113,33 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
       items_count: quotation.quotation_items?.length || 0
     });
 
+    // Calculate totals based on selected items or use original quotation totals
+    let orderSubtotal = quotation.subtotal || 0;
+    let orderTaxAmount = quotation.tax_amount || 0;
+    let orderDiscountAmount = quotation.discount_amount || 0;
+    let orderTotal = quotation.total_amount || 0;
+
+    // If selected_items is provided, calculate totals based on selected items
+    if (selected_items && Array.isArray(selected_items) && selected_items.length > 0) {
+      orderSubtotal = selected_items.reduce((sum, item) => {
+        return sum + (Number(item.quantity) * Number(item.unit_price));
+      }, 0);
+      
+      // Apply discount if provided
+      const discountAmount = discount_percentage ? (orderSubtotal * Number(discount_percentage)) / 100 : 0;
+      const subtotalAfterDiscount = orderSubtotal - discountAmount;
+      
+      // Apply tax if provided
+      const taxAmount = tax_percentage ? (subtotalAfterDiscount * Number(tax_percentage)) / 100 : 0;
+      
+      // Add shipping cost if provided
+      const shippingCostAmount = shipping_cost ? Number(shipping_cost) : 0;
+      
+      orderDiscountAmount = discountAmount;
+      orderTaxAmount = taxAmount;
+      orderTotal = subtotalAfterDiscount + taxAmount + shippingCostAmount;
+    }
+
     // Generate order number
     const orderNumber = `O-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
@@ -3114,10 +3153,15 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
         order_date: new Date().toISOString().split('T')[0], // Date only
         expected_delivery_date: expected_delivery || null,
         status: 'pending',
-        subtotal: quotation.subtotal,
-        tax_amount: quotation.tax_amount,
-        discount_amount: quotation.discount_amount,
-        total_amount: quotation.total_amount,
+        priority: priority || 'normal',
+        subtotal: orderSubtotal,
+        tax_amount: orderTaxAmount,
+        discount_amount: orderDiscountAmount,
+        total_amount: orderTotal,
+        shipping_cost: shipping_cost ? Number(shipping_cost) : 0,
+        shipping_address: shipping_address || null,
+        billing_address: billing_address || null,
+        payment_terms: payment_terms || '30',
         notes: notes || null,
         created_by: null, // Set to null instead of 'system'
         created_at: new Date().toISOString(),
@@ -3147,9 +3191,30 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
       });
     }
 
-    // Copy quotation items to order items
-    if (quotation.quotation_items && quotation.quotation_items.length > 0) {
-      const orderItems = quotation.quotation_items.map(item => ({
+    // Copy selected items to order items
+    let itemsToConvert = [];
+    
+    if (selected_items && Array.isArray(selected_items) && selected_items.length > 0) {
+      // Use selected items from frontend
+      itemsToConvert = selected_items.map(selectedItem => {
+        // Find the original quotation item to get additional details
+        const originalItem = quotation.quotation_items?.find(qi => qi.id.toString() === selectedItem.quotation_item_id);
+        
+        return {
+          sales_order_id: order.id,
+          product_id: selectedItem.product_id || originalItem?.product_id || null,
+          description: originalItem?.description || 'Selected item',
+          quantity: Number(selectedItem.quantity),
+          unit_price: Number(selectedItem.unit_price),
+          discount_percent: originalItem?.discount_percent || 0,
+          tax_percent: originalItem?.tax_percent || 0,
+          line_total: Number(selectedItem.quantity) * Number(selectedItem.unit_price),
+          created_at: new Date().toISOString()
+        };
+      });
+    } else if (quotation.quotation_items && quotation.quotation_items.length > 0) {
+      // Fallback: use all quotation items if no selection provided
+      itemsToConvert = quotation.quotation_items.map(item => ({
         sales_order_id: order.id,
         product_id: item.product_id,
         description: item.description,
@@ -3160,14 +3225,19 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
         line_total: item.line_total,
         created_at: new Date().toISOString()
       }));
+    }
 
+    if (itemsToConvert.length > 0) {
       const { error: itemsError } = await supabase
         .from('sales_order_items')
-        .insert(orderItems);
+        .insert(itemsToConvert);
 
       if (itemsError) {
         console.error('Order items creation error:', itemsError);
+        console.error('Items data that failed:', itemsToConvert);
         // Don't fail the whole operation, just log the error
+      } else {
+        console.log(`Successfully created ${itemsToConvert.length} order items`);
       }
     }
 

@@ -36,11 +36,15 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
     vendorIds: [] as string[],
     expectedDelivery: '',
     notes: 'None',
-    terms: 'Standard terms and conditions apply. Payment due within 30 days of delivery. All items subject to quality inspection upon receipt.'
+    terms: 'Standard terms and conditions apply. Payment due within 30 days of delivery. All items subject to quality inspection upon receipt.',
+    quotationId: '',
+    salesOrderId: ''
   });
   const [items, setItems] = useState<POItem[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [quotations, setQuotations] = useState<any[]>([]);
+  const [salesOrders, setSalesOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [productsLoading, setProductsLoading] = useState(false);
   const [action, setAction] = useState<'save' | 'approve'>('save');
@@ -50,12 +54,16 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
     if (isOpen) {
       loadVendors();
       loadProducts();
+      loadQuotations();
+      loadSalesOrders();
       // Reset form when modal opens
       setFormData({
         vendorIds: [],
         expectedDelivery: '',
         notes: 'None',
-        terms: 'Standard terms and conditions apply. Payment due within 30 days of delivery. All items subject to quality inspection upon receipt.'
+        terms: 'Standard terms and conditions apply. Payment due within 30 days of delivery. All items subject to quality inspection upon receipt.',
+        quotationId: '',
+        salesOrderId: ''
       });
       setItems([]);
     }
@@ -107,6 +115,49 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
       setProducts([]);
     } finally {
       setProductsLoading(false);
+    }
+  };
+
+  const loadQuotations = async () => {
+    try {
+      console.log('Loading quotations...');
+      const response = await apiClient.getQuotations({ limit: 100 });
+      console.log('Quotations response:', response);
+      if (response.success) {
+        const quotationsList = response.data.quotations || [];
+        // Filter for approved/accepted quotations that haven't been converted
+        const availableQuotations = quotationsList.filter((q: any) => 
+          ['approved', 'accepted', 'sent'].includes(q.status?.toLowerCase()) && 
+          q.status?.toLowerCase() !== 'converted'
+        );
+        console.log('Loaded quotations:', availableQuotations);
+        setQuotations(availableQuotations);
+      } else {
+        console.error('Failed to load quotations:', response.message);
+      }
+    } catch (error) {
+      console.error('Failed to load quotations:', error);
+    }
+  };
+
+  const loadSalesOrders = async () => {
+    try {
+      console.log('Loading sales orders...');
+      const response = await apiClient.getOrders({ limit: 100 });
+      console.log('Sales orders response:', response);
+      if (response.success) {
+        const ordersList = response.data.orders || [];
+        // Filter for active orders that might need purchase orders
+        const availableOrders = ordersList.filter((o: any) => 
+          ['pending', 'confirmed', 'processing'].includes(o.status?.toLowerCase())
+        );
+        console.log('Loaded sales orders:', availableOrders);
+        setSalesOrders(availableOrders);
+      } else {
+        console.error('Failed to load sales orders:', response.message);
+      }
+    } catch (error) {
+      console.error('Failed to load sales orders:', error);
     }
   };
 
@@ -189,6 +240,8 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
           status: action === 'approve' ? 'approved' : 'draft',
           notes: formData.notes || null,
           terms_conditions: formData.terms || null,
+          quotation_id: formData.quotationId || null,
+          sales_order_id: formData.salesOrderId || null,
           items: items.map(item => ({
             product_id: item.productId || null,
             description: item.description,
@@ -222,7 +275,9 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
         vendorIds: [],
         expectedDelivery: '',
         notes: 'None',
-        terms: 'Standard terms and conditions apply. Payment due within 30 days of delivery. All items subject to quality inspection upon receipt.'
+        terms: 'Standard terms and conditions apply. Payment due within 30 days of delivery. All items subject to quality inspection upon receipt.',
+        quotationId: '',
+        salesOrderId: ''
       });
       setItems([]);
       setAction('save');
@@ -371,6 +426,44 @@ export default function CreatePurchaseOrderModal({ isOpen, onClose, onPOCreated 
           </div>
 
           {/* Basic Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Link to Quotation (Optional)</label>
+              <select
+                value={formData.quotationId}
+                onChange={(e) => setFormData({ ...formData, quotationId: e.target.value })}
+                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select a quotation...</option>
+                {quotations.map(quotation => (
+                  <option key={quotation.id} value={quotation.id}>
+                    {quotation.quotation_number || `QUO-${quotation.id}`} - {quotation.customers?.name || 'Unknown Customer'} - Rs. {quotation.total_amount?.toLocaleString() || '0'}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Link this purchase order to an existing quotation</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Link to Sales Order (Optional)</label>
+              <select
+                value={formData.salesOrderId}
+                onChange={(e) => setFormData({ ...formData, salesOrderId: e.target.value })}
+                className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select a sales order...</option>
+                {salesOrders.map(order => (
+                  <option key={order.id} value={order.id}>
+                    {order.order_number || `ORD-${order.id}`} - {order.customers?.name || 'Unknown Customer'} - Rs. {order.total_amount?.toLocaleString() || '0'}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Link this purchase order to an existing sales order</p>
+            </div>
+
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
 
             <div>

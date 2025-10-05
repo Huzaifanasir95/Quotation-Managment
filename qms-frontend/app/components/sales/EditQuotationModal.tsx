@@ -17,7 +17,7 @@ interface QuotationItem {
   description: string;
   quantity: number;
   unit_price: number;
-  discount_percent: number;
+  profit_percent: number;
   tax_percent: number;
   line_total: number;
 }
@@ -97,7 +97,7 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
           description: item.description || '',
           quantity: item.quantity || 1,
           unit_price: parseFloat(item.unit_price) || 0,
-          discount_percent: parseFloat(item.discount_percent) || 0,
+          profit_percent: parseFloat(item.profit_percent) || 0,
           tax_percent: parseFloat(item.tax_percent) || 18,
           line_total: parseFloat(item.line_total) || 0
         })) || [];
@@ -118,7 +118,7 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
       description: '',
       quantity: 1,
       unit_price: 0,
-      discount_percent: 0,
+      profit_percent: 0,
       tax_percent: 18, // Default tax rate
       line_total: 0
     };
@@ -131,15 +131,15 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
         const updatedItem = { ...item, [field]: value };
         
         // Recalculate line total for numeric fields
-        if (field === 'quantity' || field === 'unit_price' || field === 'discount_percent' || field === 'tax_percent') {
+        if (field === 'quantity' || field === 'unit_price' || field === 'profit_percent' || field === 'tax_percent') {
           const quantity = Number(updatedItem.quantity);
           const unitPrice = Number(updatedItem.unit_price);
-          const discountPercent = Number(updatedItem.discount_percent);
+          const profitPercent = Number(updatedItem.profit_percent);
           const taxPercent = Number(updatedItem.tax_percent);
           
           const lineTotal = quantity * unitPrice;
-          const discountAmount = lineTotal * (discountPercent / 100);
-          const taxableAmount = lineTotal - discountAmount;
+          const profitAmount = lineTotal * (profitPercent / 100);
+          const taxableAmount = lineTotal + profitAmount;
           const taxAmount = taxableAmount * (taxPercent / 100);
           
           updatedItem.line_total = taxableAmount + taxAmount;
@@ -156,25 +156,25 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
 
   const calculateTotals = () => {
     let subtotal = 0;
-    let discountAmount = 0;
+    let profitAmount = 0;
     let taxAmount = 0;
 
     items.forEach(item => {
       const lineTotal = item.quantity * item.unit_price;
-      const discount = lineTotal * (item.discount_percent / 100);
-      const taxableAmount = lineTotal - discount;
+      const profit = lineTotal * (item.profit_percent / 100);
+      const taxableAmount = lineTotal + profit;
       const tax = taxableAmount * (item.tax_percent / 100);
 
       subtotal += lineTotal;
-      discountAmount += discount;
+      profitAmount += profit;
       taxAmount += tax;
     });
 
-    const total = subtotal - discountAmount + taxAmount;
+    const total = subtotal + profitAmount + taxAmount;
 
     return {
       subtotal,
-      discountAmount,
+      profitAmount,
       taxAmount,
       total
     };
@@ -214,7 +214,7 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
           quantity: Number(item.quantity),
           unit_price: Number(item.unit_price),
           ...(item.product_id && { product_id: item.product_id }),
-          ...(item.discount_percent > 0 && { discount_percent: Number(item.discount_percent) }),
+          ...(item.profit_percent > 0 && { profit_percent: Number(item.profit_percent) }),
           ...(item.tax_percent > 0 && { tax_percent: Number(item.tax_percent) })
         }))
       };
@@ -506,7 +506,7 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                           <div className="col-span-4">Description</div>
                           <div className="col-span-2">Quantity</div>
                           <div className="col-span-2">Unit Price</div>
-                          <div className="col-span-1">Discount %</div>
+                          <div className="col-span-1">Profit %</div>
                           <div className="col-span-1">Tax %</div>
                           <div className="col-span-1">Total</div>
                           <div className="col-span-1">Action</div>
@@ -560,10 +560,10 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                               <div className="col-span-1">
                                 <input
                                   type="number"
-                                  value={item.discount_percent === 0 ? '' : item.discount_percent}
+                                  value={item.profit_percent === 0 ? '' : item.profit_percent}
                                   onChange={(e) => {
                                     const value = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0;
-                                    updateItem(item.id, 'discount_percent', value);
+                                    updateItem(item.id, 'profit_percent', value);
                                   }}
                                   onFocus={(e) => {
                                     if (e.target.value === '0') {
@@ -630,8 +630,8 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                             <span>Rs. {totals.subtotal.toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between text-sm">
-                            <span>Discount:</span>
-                            <span>-Rs. {totals.discountAmount.toFixed(2)}</span>
+                            <span>Profit:</span>
+                            <span>+Rs. {totals.profitAmount.toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span>Tax:</span>

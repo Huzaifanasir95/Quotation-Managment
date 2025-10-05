@@ -11,17 +11,17 @@ interface CreateQuotationModalProps {
   onClose: () => void;
   onQuotationCreated?: () => void;
 }
-
 type TabType = 'customer' | 'items' | 'terms' | 'attachments' | 'preview';
 
 export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreated }: CreateQuotationModalProps) {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('customer');
   const [formData, setFormData] = useState({
-    customerIds: [] as string[],
+    customerIds: [] as string [],
     validUntil: '',
     notes: 'NULL',
-    termsConditions: ''
+    termsConditions: '',
+    referenceNo: ''
   });
   const [items, setItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -54,7 +54,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       customerIds: [],
       validUntil: '',
       notes: 'NULL',
-      termsConditions: ''
+      termsConditions: '',
+      referenceNo: ''
     });
     setItems([]);
     setIsLoading(false);
@@ -380,6 +381,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       // Prepare quotation data for PDF
       const quotationData = {
         quotation_number: `QUOTE-${Date.now()}`,
+        reference_no: formData.referenceNo,
         customer: {
           id: selectedCustomer.id,
           name: selectedCustomer.name,
@@ -639,6 +641,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
           notes: formData.notes,
           terms_conditions: formData.termsConditions,
+          reference_no: formData.referenceNo,
           items: items.map(item => {
             if (item.isCustom) {
               // Custom item - no product_id
