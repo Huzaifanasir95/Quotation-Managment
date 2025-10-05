@@ -794,26 +794,49 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
 
       // Upload attachments for the first quotation if any
       if (attachments.length > 0 && results[0].success) {
-        setIsUploading(true);
-        const firstQuotationId = results[0].data.quotation.id;
-        
-        for (const file of attachments) {
-          try {
-            const uploadFormData = new FormData();
-            uploadFormData.append('file', file);
-            uploadFormData.append('reference_type', 'quotation');
-            uploadFormData.append('reference_id', firstQuotationId);
-            uploadFormData.append('document_type', 'quotation_attachment');
-            
-            await apiClient.uploadDocument(uploadFormData);
-          } catch (uploadError) {
-            console.error(`Failed to upload ${file.name}:`, uploadError);
-            // Continue with other files even if one fails
-            alert(`Warning: Failed to upload ${file.name}. The quotation was created successfully, but you may need to upload this file later.`);
+        try {
+          setIsUploading(true);
+          
+          // Log the response structure for debugging
+          console.log('Quotation creation response:', results[0]);
+          
+          // Safely get the quotation ID from the response
+          let firstQuotationId = null;
+          if (results[0].data) {
+            // Try different possible response structures
+            firstQuotationId = results[0].data.quotation?.id || 
+                             results[0].data.id || 
+                             results[0].data.quotation_id;
           }
+          
+          console.log('Extracted quotation ID:', firstQuotationId);
+          
+          if (firstQuotationId) {
+            for (const file of attachments) {
+              try {
+                const uploadFormData = new FormData();
+                uploadFormData.append('file', file);
+                uploadFormData.append('reference_type', 'quotation');
+                uploadFormData.append('reference_id', firstQuotationId.toString());
+                uploadFormData.append('document_type', 'quotation_attachment');
+                
+                await apiClient.uploadDocument(uploadFormData);
+              } catch (uploadError) {
+                console.error(`Failed to upload ${file.name}:`, uploadError);
+                // Continue with other files even if one fails
+                alert(`Warning: Failed to upload ${file.name}. The quotation was created successfully, but you may need to upload this file later.`);
+              }
+            }
+          } else {
+            console.error('Could not find quotation ID in response:', results[0]);
+            alert('Warning: Quotation created successfully but could not upload attachments. Please add attachments by editing the quotation.');
+          }
+        } catch (attachmentError) {
+          console.error('Error during attachment upload:', attachmentError);
+          alert('Warning: Quotation created successfully but there was an error uploading attachments. Please add attachments by editing the quotation.');
+        } finally {
+          setIsUploading(false);
         }
-        
-        setIsUploading(false);
       }
 
       // Note: Quotations do not reduce inventory as they are estimates/proposals
