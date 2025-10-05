@@ -21,8 +21,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     validUntil: '',
     referenceNo: '',
     notes: 'NULL',
-    termsConditions: '',
-    referenceNo: ''
+    termsConditions: ''
   });
   const [items, setItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +44,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   // Handle mounting for portal
   useEffect(() => {
     setMounted(true);
-    return () => setMounted(false);
   }, []);
 
   // Reset modal state when it opens or closes
@@ -56,8 +54,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       validUntil: '',
       referenceNo: '',
       notes: 'NULL',
-      termsConditions: '',
-      referenceNo: ''
+      termsConditions: ''
     });
     setItems([]);
     setIsLoading(false);

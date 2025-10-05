@@ -164,6 +164,27 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
     setItems([...items, newItem]);
   };
 
+  const addCustomItem = () => {
+    const newCustomItem: QuotationItem = {
+      id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      product_id: null,
+      description: '',
+      category: '',
+      serial_number: '',
+      item_name: '',
+      unit_of_measure: '',
+      gst_percent: 0,
+      item_type: 'custom',
+      isCustom: true,
+      quantity: 1,
+      unit_price: 0,
+      profit_percent: 0,
+      tax_percent: 18, // Default tax rate
+      line_total: 0
+    };
+    setItems([...items, newCustomItem]);
+  };
+
   const updateItem = (id: string, field: keyof QuotationItem, value: string | number) => {
     setItems(items.map(item => {
       if (item.id === id) {
