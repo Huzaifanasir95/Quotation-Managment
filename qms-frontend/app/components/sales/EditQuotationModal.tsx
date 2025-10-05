@@ -68,6 +68,39 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
   const [attachmentsToDelete, setAttachmentsToDelete] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Helper function to determine file type from filename
+  const getFileTypeFromName = (fileName: string): string => {
+    if (!fileName) return '';
+    const extension = fileName.toLowerCase().split('.').pop();
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'bmp':
+        return 'image/bmp';
+      case 'webp':
+        return 'image/webp';
+      case 'pdf':
+        return 'application/pdf';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'txt':
+        return 'text/plain';
+      default:
+        return 'application/octet-stream';
+    }
+  };
+
   // Handle mounting for portal
   useEffect(() => {
     setMounted(true);
@@ -87,11 +120,17 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
   const fetchExistingAttachments = async () => {
     try {
       const response = await apiClient.getDocuments('quotation', quotationId);
+      console.log('Fetched attachments response:', response);
       if (response.success && response.data) {
+        console.log('Setting existing attachments:', response.data);
         setExistingAttachments(response.data);
+      } else {
+        console.log('No attachments found or failed response:', response);
+        setExistingAttachments([]);
       }
     } catch (error) {
       console.error('Failed to fetch attachments:', error);
+      setExistingAttachments([]);
     }
   };
 
@@ -326,10 +365,18 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
     }
   };
 
-  const previewExistingAttachment = (document: any) => {
-    setPreviewExisting(document);
+  const previewExistingAttachment = (doc: any) => {
+    setPreviewExisting(doc);
     setPreviewFile(null);
-    setPreviewUrl(document.file_url || null);
+    
+    // Ensure file_url is properly formatted - check both file_url and file_path
+    let fileUrl = doc.file_url || doc.file_path;
+    if (fileUrl && !fileUrl.startsWith('http')) {
+      // If it's a relative URL, make it absolute
+      fileUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+    }
+    
+    setPreviewUrl(fileUrl || null);
   };
 
   const closePreview = () => {
@@ -352,9 +399,35 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
     URL.revokeObjectURL(url);
   };
 
-  const downloadExistingAttachment = async (document: any) => {
-    if (document.file_url) {
-      window.open(document.file_url, '_blank');
+  const downloadExistingAttachment = async (doc: any) => {
+    try {
+      if (doc.id) {
+        // Use the API download endpoint for proper file download
+        const blob = await apiClient.downloadDocument(doc.id);
+        
+        // Create a download link
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = doc.file_name || doc.original_name || 'document';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else if (doc.file_url || doc.file_path) {
+        // Fallback to opening URL if no document ID
+        let fileUrl = doc.file_url || doc.file_path;
+        if (!fileUrl.startsWith('http')) {
+          fileUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+        }
+        window.open(fileUrl, '_blank');
+      } else {
+        console.error('No download method available for document:', doc);
+        alert('Unable to download file. No download URL or document ID available.');
+      }
+    } catch (error) {
+      console.error('Failed to download file:', error);
+      alert('Failed to download file. Please try again.');
     }
   };
 
@@ -1235,11 +1308,11 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                               >
                                 <div className="flex items-center space-x-3 flex-1 min-w-0">
                                   <div className="flex-shrink-0">
-                                    {doc.file_type?.startsWith('image/') ? (
+                                    {(doc.file_type?.startsWith('image/') || getFileTypeFromName(doc.file_name || '').startsWith('image/')) ? (
                                       <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                       </svg>
-                                    ) : doc.file_type === 'application/pdf' ? (
+                                    ) : (doc.file_type === 'application/pdf' || getFileTypeFromName(doc.file_name || '') === 'application/pdf') ? (
                                       <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                       </svg>
@@ -1261,7 +1334,10 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                                 <div className="flex items-center space-x-1">
                                   {/* View Button */}
                                   <button
-                                    onClick={() => previewExistingAttachment(doc)}
+                                    onClick={() => {
+                                      console.log('Previewing document:', doc);
+                                      previewExistingAttachment(doc);
+                                    }}
                                     className="flex-shrink-0 p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
                                     title="View file"
                                   >
@@ -1520,20 +1596,31 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                 src={previewUrl}
                 alt={previewFile.name}
                 className="max-w-full max-h-full object-contain rounded"
+                onError={(e) => {
+                  console.error('Failed to load image:', previewUrl);
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             </div>
-          ) : (previewFile && previewFile.type === 'application/pdf' && previewUrl) || (previewExisting && previewExisting.file_type === 'application/pdf' && previewUrl) ? (
+          ) : (previewFile && previewFile.type === 'application/pdf' && previewUrl) || (previewExisting && ((previewExisting.file_type === 'application/pdf') || (getFileTypeFromName(previewExisting.file_name || '') === 'application/pdf') || previewExisting.file_name?.toLowerCase().endsWith('.pdf')) && previewUrl) ? (
             <iframe
               src={previewUrl}
               className="w-full h-[600px] border-0 rounded"
               title={previewFile ? previewFile.name : (previewExisting?.file_name || 'Document')}
+              onError={(e) => {
+                console.error('Failed to load PDF:', previewUrl);
+              }}
             />
-          ) : (previewExisting && previewExisting.file_type?.startsWith('image/') && previewUrl) ? (
+          ) : (previewExisting && ((previewExisting.file_type?.startsWith('image/')) || (getFileTypeFromName(previewExisting.file_name || '').startsWith('image/')) || previewExisting.file_name?.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)) && previewUrl) ? (
             <div className="flex justify-center">
               <img
                 src={previewUrl}
                 alt={previewExisting.file_name || 'Image'}
                 className="max-w-full max-h-full object-contain rounded"
+                onError={(e) => {
+                  console.error('Failed to load existing image:', previewUrl);
+                  e.currentTarget.style.display = 'none';
+                }}
               />
             </div>
           ) : previewFile && previewFile.type.startsWith('text/') ? (
@@ -1556,12 +1643,15 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                 {previewFile ? previewFile.name : (previewExisting?.file_name || 'Document')}
               </h4>
               <p className="text-gray-500 mb-4">
-                File type: {previewFile ? (previewFile.type || 'Unknown') : (previewExisting?.file_type || 'Unknown')}
+                File type: {previewFile ? (previewFile.type || 'Unknown') : (previewExisting?.file_type || previewExisting?.mime_type || getFileTypeFromName(previewExisting?.file_name || '') || 'Unknown')}
               </p>
               <p className="text-gray-500 mb-4">
                 Size: {previewFile ? formatFileSize(previewFile.size) : (previewExisting?.file_size ? formatFileSize(previewExisting.file_size) : 'Unknown')}
               </p>
               <p className="text-gray-600">Preview not available for this file type.</p>
+              {previewUrl && (
+                <p className="text-xs text-gray-400 mb-2">Debug URL: {previewUrl}</p>
+              )}
               <button
                 onClick={() => previewFile ? downloadAttachment(previewFile) : downloadExistingAttachment(previewExisting)}
                 className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
