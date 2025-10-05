@@ -976,11 +976,19 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     
     const grandTotal = subTotal + totalGST;
     
-    // Calculate space needed for complete footer (totals + terms + signature)
-    const totalFooterHeight = 45 + 15 + 60 + 55 + 30; // totals + spacing + terms + signature + buffer
+    // Calculate MINIMUM space needed for footer sections:
+    // We'll be more lenient to keep everything on one page when possible
+    const totalsHeight = 50;      // Totals box (can be compact)
+    const termsHeight = 45;       // Terms section (3 lines)
+    const signatureHeight = 25;   // Signature section
+    const bottomBuffer = 5;       // Minimal safety margin
+    const totalFooterHeight = totalsHeight + termsHeight + signatureHeight + bottomBuffer; // ~125mm
     
     // Check if entire footer fits on current page
-    if (currentY + 15 + totalFooterHeight > pageHeight - margin - 15) {
+    const spaceAvailable = pageHeight - margin - currentY - 15; // Space from current position to page bottom
+    
+    // Only move to new page if footer genuinely won't fit (with some tolerance)
+    if (totalFooterHeight > spaceAvailable) {
       // Move to new page for footer
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(8);
