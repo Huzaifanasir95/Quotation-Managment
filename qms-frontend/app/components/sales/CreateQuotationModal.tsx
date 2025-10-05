@@ -26,6 +26,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [items, setItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPdfFormatModal, setShowPdfFormatModal] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [defaultTerms, setDefaultTerms] = useState<string>('');
@@ -248,7 +249,13 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       alert('Please add at least one item to generate PDF');
       return;
     }
+    // Show format selection modal
+    setShowPdfFormatModal(true);
+  };
 
+  const generatePDFWithFormat = async (formatType: 'classic' | 'modern') => {
+    setShowPdfFormatModal(false);
+    
     try {
       // Transform items to match PDF function expectations
       const transformedItems = items.map(item => {
@@ -258,13 +265,21 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           description: item.isCustom 
             ? (item.customDescription || item.itemName || 'Custom Item')
             : (product?.name || item.description || 'Inventory Item'),
-          unit_price: item.unitPrice, // Map unitPrice to unit_price for PDF
+          unit_price: item.unitPrice,
           gst_percent: item.gstPercentage || item.gstPercent || 18,
           unit_of_measure: item.uom || 'No'
         };
       });
       
-      await generateDetailedQuotationPDF(transformedItems, undefined, formData.referenceNo && formData.referenceNo.trim() !== '' ? formData.referenceNo : '-');
+      const refNo = formData.referenceNo && formData.referenceNo.trim() !== '' ? formData.referenceNo : '-';
+      
+      if (formatType === 'classic') {
+        await generateDetailedQuotationPDF(transformedItems, undefined, refNo);
+      } else {
+        // Import the new modern PDF function
+        const { generateModernQuotationPDF } = await import('../../../lib/pdfUtils');
+        await generateModernQuotationPDF(transformedItems, undefined, refNo);
+      }
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again.');
@@ -2173,6 +2188,79 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     </div>
   );
 
+  // PDF Format Selection Modal
+  const pdfFormatModal = showPdfFormatModal && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+          <h3 className="text-xl font-bold text-white">Select PDF Format</h3>
+          <p className="text-blue-100 text-sm mt-1">Choose your preferred quotation format</p>
+        </div>
+        
+        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Option 1: Classic Format */}
+          <button
+            onClick={() => generatePDFWithFormat('classic')}
+            className="group relative bg-white border-2 border-gray-200 rounded-lg p-6 hover:border-blue-500 hover:shadow-lg transition-all duration-200"
+          >
+            <div className="absolute top-4 right-4 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold group-hover:bg-blue-500 group-hover:text-white transition-colors">
+              1
+            </div>
+            <div className="mb-4">
+              <svg className="w-16 h-16 text-gray-400 group-hover:text-blue-500 transition-colors mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h4 className="text-lg font-bold text-gray-900 mb-2">Classic Format</h4>
+            <p className="text-sm text-gray-600 mb-4">Traditional professional layout with structured table design</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">Standard</span>
+              <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">Professional</span>
+              <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">Formal</span>
+            </div>
+          </button>
+
+          {/* Option 2: Modern Format */}
+          <button
+            onClick={() => generatePDFWithFormat('modern')}
+            className="group relative bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg p-6 hover:border-purple-500 hover:shadow-lg transition-all duration-200"
+          >
+            <div className="absolute top-4 right-4 w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center font-bold group-hover:bg-purple-500 group-hover:text-white transition-colors">
+              2
+            </div>
+            <div className="mb-4">
+              <svg className="w-16 h-16 text-purple-400 group-hover:text-purple-600 transition-colors mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+            </div>
+            <h4 className="text-lg font-bold text-gray-900 mb-2">Modern Format</h4>
+            <p className="text-sm text-gray-600 mb-4">Contemporary design with gradient accents and enhanced visuals</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded">✨ New</span>
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">Stylish</span>
+              <span className="px-2 py-1 bg-pink-100 text-pink-700 text-xs rounded">Creative</span>
+            </div>
+          </button>
+        </div>
+
+        <div className="bg-gray-50 px-6 py-4 flex justify-end">
+          <button
+            onClick={() => setShowPdfFormatModal(false)}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   // Render modal using portal to document.body for proper screen centering
-  return createPortal(modalContent, document.body);
+  return createPortal(
+    <>
+      {modalContent}
+      {pdfFormatModal}
+    </>,
+    document.body
+  );
 }

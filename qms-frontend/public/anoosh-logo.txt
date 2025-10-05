@@ -1,0 +1,3 @@
+Logo file should be placed here as anoosh-logo.png
+The user provided logo will be used in the PDF generation.
+For now, we'll use the logo path: /anoosh-logo.png
