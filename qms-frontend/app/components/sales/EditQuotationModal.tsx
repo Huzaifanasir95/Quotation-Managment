@@ -414,30 +414,19 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
           zIndex: 10000
         }}
       >
-        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100 modal-widget"
+        <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200 modal-widget"
              style={{
-               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 10px 25px -5px rgba(59, 130, 246, 0.15)',
                minHeight: '600px'
              }}>
           <div className="max-h-[90vh] overflow-y-auto" style={{ minHeight: '600px' }}>
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-gray-800 to-gray-900">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Edit Quotation</h2>
-                  <p className="text-white/70 text-sm">Update quotation details and items</p>
-                </div>
-              </div>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Edit Quotation</h2>
               <button
                 onClick={onClose}
-                className="text-white/80 hover:text-white transition-colors duration-200 p-2 rounded-full hover:bg-white/20"
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-full transition-colors duration-200"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -1053,15 +1042,15 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                     <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
+                          <div className="flex justify-between text-sm text-gray-800 font-medium">
                             <span>Subtotal:</span>
                             <span>Rs. {totals.subtotal.toFixed(2)}</span>
                           </div>
-                          <div className="flex justify-between text-sm">
+                          <div className="flex justify-between text-sm text-gray-800 font-medium">
                             <span>Discount:</span>
                             <span>-Rs. {totals.discountAmount.toFixed(2)}</span>
                           </div>
-                          <div className="flex justify-between text-sm">
+                          <div className="flex justify-between text-sm text-gray-800 font-medium">
                             <span>Tax:</span>
                             <span>Rs. {totals.taxAmount.toFixed(2)}</span>
                           </div>
@@ -1077,43 +1066,36 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
-                  <div className="text-sm text-gray-500">
-                    {items.length > 0 && (
-                      <span>{items.length} item{items.length !== 1 ? 's' : ''} • Total: Rs. {totals.total.toFixed(2)}</span>
+                <div className="flex items-center justify-end space-x-3 px-6 py-4 border-t border-gray-200">
+                  <button
+                    onClick={onClose}
+                    disabled={isLoading}
+                    className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={isLoading || !formData.customer_id || items.length === 0}
+                    className="px-4 py-2 text-white bg-gray-800 rounded-lg hover:bg-gray-900 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  >
+                    {isLoading ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Updating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Update Quotation</span>
+                      </>
                     )}
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={onClose}
-                      disabled={isLoading}
-                      className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSubmit}
-                      disabled={isLoading || !formData.customer_id || items.length === 0}
-                      className="px-6 py-2 text-white bg-gray-800 rounded-lg hover:bg-gray-900 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                    >
-                      {isLoading ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          <span>Updating...</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span>Update Quotation</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
+                  </button>
                 </div>
               </>
             )}
