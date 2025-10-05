@@ -633,8 +633,8 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                             {items.map((item, index) => {
                               const selectedProduct = products.find(p => p.id === item.product_id);
                               const availableStock = selectedProduct?.stock || 0;
-                              const isOverStock = item.quantity > availableStock;
                               const isCustomItem = item.isCustom === true;
+                              const isOverStock = !isCustomItem && item.product_id && item.quantity > availableStock;
                               
                               return (
                                 <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-4">
@@ -754,11 +754,57 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                                             />
                                           </div>
                                         </div>
+
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Discount %</label>
+                                            <input
+                                              type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="100"
+                                              value={item.discount_percent || ''}
+                                              onChange={(e) => updateItem(item.id, 'discount_percent', Number(e.target.value) || 0)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="0"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Tax %</label>
+                                            <input
+                                              type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="100"
+                                              value={item.tax_percent || ''}
+                                              onChange={(e) => updateItem(item.id, 'tax_percent', Number(e.target.value) || 0)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="18"
+                                            />
+                                          </div>
+                                        </div>
                                         
                                         <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
-                                          <p className="text-sm text-gray-900">
-                                            <span className="font-medium">Total:</span> Rs. {(item.quantity * item.unit_price).toFixed(2)}
-                                          </p>
+                                          <div className="space-y-1 text-xs text-gray-600">
+                                            <div className="flex justify-between">
+                                              <span>Subtotal:</span>
+                                              <span>Rs. {(item.quantity * item.unit_price).toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span>Discount ({item.discount_percent || 0}%):</span>
+                                              <span>-Rs. {((item.quantity * item.unit_price) * ((item.discount_percent || 0) / 100)).toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span>Tax ({item.tax_percent || 0}%):</span>
+                                              <span>Rs. {(((item.quantity * item.unit_price) - ((item.quantity * item.unit_price) * ((item.discount_percent || 0) / 100))) * ((item.tax_percent || 0) / 100)).toFixed(2)}</span>
+                                            </div>
+                                          </div>
+                                          <div className="border-t border-gray-300 mt-2 pt-2">
+                                            <p className="text-sm font-medium text-gray-900 flex justify-between">
+                                              <span>Total:</span>
+                                              <span>Rs. {item.line_total.toFixed(2)}</span>
+                                            </p>
+                                          </div>
                                         </div>
                                       </>
                                     ) : (
@@ -807,19 +853,64 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                                             />
                                           </div>
                                         </div>
+
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Discount %</label>
+                                            <input
+                                              type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="100"
+                                              value={item.discount_percent || ''}
+                                              onChange={(e) => updateItem(item.id, 'discount_percent', Number(e.target.value) || 0)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="0"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">Tax %</label>
+                                            <input
+                                              type="number"
+                                              step="0.1"
+                                              min="0"
+                                              max="100"
+                                              value={item.tax_percent || ''}
+                                              onChange={(e) => updateItem(item.id, 'tax_percent', Number(e.target.value) || 0)}
+                                              className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                              placeholder="18"
+                                            />
+                                          </div>
+                                        </div>
                                         
                                         {item.product_id && (
-                                          <>
-                                            <div className="text-sm text-gray-500">
-                                              Available stock: {availableStock}
-                                            </div>
-                                            <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
-                                              <p className="text-sm text-gray-900">
-                                                <span className="font-medium">Total:</span> Rs. {(item.quantity * item.unit_price).toFixed(2)}
-                                              </p>
-                                            </div>
-                                          </>
+                                          <div className="text-sm text-gray-500">
+                                            Available stock: {availableStock}
+                                          </div>
                                         )}
+                                        
+                                        <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
+                                          <div className="space-y-1 text-xs text-gray-600">
+                                            <div className="flex justify-between">
+                                              <span>Subtotal:</span>
+                                              <span>Rs. {(item.quantity * item.unit_price).toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span>Discount ({item.discount_percent || 0}%):</span>
+                                              <span>-Rs. {((item.quantity * item.unit_price) * ((item.discount_percent || 0) / 100)).toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span>Tax ({item.tax_percent || 0}%):</span>
+                                              <span>Rs. {(((item.quantity * item.unit_price) - ((item.quantity * item.unit_price) * ((item.discount_percent || 0) / 100))) * ((item.tax_percent || 0) / 100)).toFixed(2)}</span>
+                                            </div>
+                                          </div>
+                                          <div className="border-t border-gray-300 mt-2 pt-2">
+                                            <p className="text-sm font-medium text-gray-900 flex justify-between">
+                                              <span>Total:</span>
+                                              <span>Rs. {item.line_total.toFixed(2)}</span>
+                                            </p>
+                                          </div>
+                                        </div>
                                       </>
                                     )}
                                   </div>
@@ -845,8 +936,8 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                               {items.map((item, index) => {
                                 const selectedProduct = products.find(p => p.id === item.product_id);
                                 const availableStock = selectedProduct?.stock || 0;
-                                const isOverStock = item.quantity > availableStock;
                                 const isCustomItem = item.isCustom === true;
+                                const isOverStock = !isCustomItem && item.product_id && item.quantity > availableStock;
                                 
                                 return (
                                   <div key={item.id} className="grid grid-cols-12 gap-3 items-center p-4 hover:bg-gray-50 transition-colors duration-150">
