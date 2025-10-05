@@ -87,8 +87,8 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
   const fetchExistingAttachments = async () => {
     try {
       const response = await apiClient.getDocuments('quotation', quotationId);
-      if (response.success && response.data?.documents) {
-        setExistingAttachments(response.data.documents);
+      if (response.success && response.data) {
+        setExistingAttachments(response.data);
       }
     } catch (error) {
       console.error('Failed to fetch attachments:', error);
