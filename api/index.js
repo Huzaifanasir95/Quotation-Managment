@@ -573,6 +573,7 @@ app.post('/api/v1/quotations', async (req, res) => {
         message: `Created ${createdQuotations.length} quotation(s), ${errors.length} failed`,
         data: { 
           quotations: createdQuotations,
+          quotation: createdQuotations[0], // Add single quotation for backward compatibility
           errors 
         }
       });
@@ -583,6 +584,7 @@ app.post('/api/v1/quotations', async (req, res) => {
       message: `${createdQuotations.length > 1 ? createdQuotations.length + ' quotations' : 'Quotation'} created successfully`,
       data: { 
         quotations: createdQuotations,
+        quotation: createdQuotations[0], // Add single quotation for backward compatibility
         count: createdQuotations.length
       }
     });

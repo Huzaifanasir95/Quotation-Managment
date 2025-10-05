@@ -799,37 +799,93 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           
           // Log the response structure for debugging
           console.log('Quotation creation response:', results[0]);
+          console.log('Response data:', results[0].data);
           
           // Safely get the quotation ID from the response
           let firstQuotationId = null;
           if (results[0].data) {
-            // Try different possible response structures
-            firstQuotationId = results[0].data.quotation?.id || 
-                             results[0].data.id || 
-                             results[0].data.quotation_id;
+            // Try different possible response structures (backend now provides both)
+            firstQuotationId = results[0].data.quotation?.id ||      // Single quotation object
+                             results[0].data.quotations?.[0]?.id || // First quotation from array
+                             results[0].data.id ||                  // Direct ID
+                             results[0].data.quotation_id ||        // Alternative field name
+                             results[0].data.quotation?.quotation_id;
           }
           
           console.log('Extracted quotation ID:', firstQuotationId);
           
+          // If we don't have the quotation ID from response, try to fetch the latest quotation
+          if (!firstQuotationId) {
+            try {
+              console.log('Attempting to fetch latest quotations');
+              const latestQuotationResponse = await apiClient.getQuotations({ 
+                limit: 10, 
+                page: 1 
+              });
+              
+              if (latestQuotationResponse.success && latestQuotationResponse.data.quotations.length > 0) {
+                // Find the most recent quotation (should be the one we just created)
+                const recentQuotation = latestQuotationResponse.data.quotations[0];
+                firstQuotationId = recentQuotation.id;
+                console.log('Found quotation ID from latest fetch:', firstQuotationId);
+              }
+            } catch (fetchError) {
+              console.error('Error fetching latest quotation:', fetchError);
+            }
+          }
+          
           if (firstQuotationId) {
+            console.log('Starting attachment upload for quotation ID:', firstQuotationId);
+            
             for (const file of attachments) {
               try {
+                console.log(`Uploading file: ${file.name}`);
                 const uploadFormData = new FormData();
                 uploadFormData.append('file', file);
                 uploadFormData.append('reference_type', 'quotation');
                 uploadFormData.append('reference_id', firstQuotationId.toString());
                 uploadFormData.append('document_type', 'quotation_attachment');
                 
-                await apiClient.uploadDocument(uploadFormData);
+                const uploadResult = await apiClient.uploadDocument(uploadFormData);
+                console.log(`Upload result for ${file.name}:`, uploadResult);
               } catch (uploadError) {
                 console.error(`Failed to upload ${file.name}:`, uploadError);
                 // Continue with other files even if one fails
                 alert(`Warning: Failed to upload ${file.name}. The quotation was created successfully, but you may need to upload this file later.`);
               }
             }
+            
+            console.log('All attachments processed');
           } else {
             console.error('Could not find quotation ID in response:', results[0]);
-            alert('Warning: Quotation created successfully but could not upload attachments. Please add attachments by editing the quotation.');
+            console.error('Available data keys:', results[0].data ? Object.keys(results[0].data) : 'No data object');
+            
+            // Show a more helpful message to the user
+            const confirmEdit = window.confirm(
+              'Warning: Quotation created successfully but could not upload attachments automatically.\n\n' +
+              'Would you like to open the quotation to add attachments manually?\n\n' +
+              'Click OK to edit the quotation, or Cancel to continue without attachments.'
+            );
+            
+            if (confirmEdit) {
+              // Try to find and edit the quotation
+              try {
+                const latestQuotationResponse = await apiClient.getQuotations({ 
+                  limit: 5, 
+                  page: 1 
+                });
+                
+                if (latestQuotationResponse.success && latestQuotationResponse.data.quotations.length > 0) {
+                  const quotationId = latestQuotationResponse.data.quotations[0].id;
+                  console.log('Opening quotation for editing:', quotationId);
+                  // You could emit an event here to open the edit modal
+                  alert(`Please find and edit quotation ID: ${quotationId} to add attachments.`);
+                }
+              } catch (error) {
+                console.error('Error finding quotation to edit:', error);
+                alert('Please go to the quotations list and edit the most recent quotation to add attachments.');
+              }
+            }
           }
         } catch (attachmentError) {
           console.error('Error during attachment upload:', attachmentError);

@@ -223,7 +223,11 @@ router.post('/', authenticateToken, authorize(['admin', 'sales']), validate(sche
   res.status(201).json({
     success: true,
     message: 'Quotation created successfully',
-    data: { quotation }
+    data: { 
+      quotation,
+      quotation_id: quotation.id,
+      id: quotation.id
+    }
   });
 }));
 
