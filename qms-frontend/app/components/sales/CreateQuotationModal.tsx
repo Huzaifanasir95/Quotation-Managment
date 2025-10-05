@@ -250,7 +250,21 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     }
 
     try {
-      await generateDetailedQuotationPDF(items);
+      // Transform items to match PDF function expectations
+      const transformedItems = items.map(item => {
+        const product = products.find(p => p.id === item.productId);
+        return {
+          ...item,
+          description: item.isCustom 
+            ? (item.customDescription || item.itemName || 'Custom Item')
+            : (product?.name || item.description || 'Inventory Item'),
+          unit_price: item.unitPrice, // Map unitPrice to unit_price for PDF
+          gst_percent: item.gstPercentage || item.gstPercent || 18,
+          unit_of_measure: item.uom || 'No'
+        };
+      });
+      
+      await generateDetailedQuotationPDF(transformedItems, undefined, formData.referenceNo && formData.referenceNo.trim() !== '' ? formData.referenceNo : '-');
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Failed to generate PDF. Please try again.');
@@ -505,9 +519,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
 
       // Prepare enhanced quotation data
       const quotationData = {
-        quotationFor: 'A-41156', // You can make this dynamic
         date: new Date().toLocaleDateString('en-GB'),
-        refNo: `AI/KRL/${new Date().getFullYear()}/SP-2112-02`,
+        refNo: formData.referenceNo && formData.referenceNo.trim() !== '' ? formData.referenceNo : '-',
         companyName: 'Directorate of Technical Procurement (L),',
         companyAddress: 'KRL, Rawalpindi.',
         items: items.map((item, index) => ({
