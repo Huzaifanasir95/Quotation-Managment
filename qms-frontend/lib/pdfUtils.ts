@@ -1478,9 +1478,13 @@ export const generateModernQuotationPDF = async (items: any[], companyInfo?: any
       itemNumber++;
     });
     
-    // Check space for summary section + Terms + Signature + Footer (these stay together)
-    // Reserve ~100mm for all remaining sections to keep them together
-    if (currentY + 100 > pageHeight - margin) {
+    // SECTION 1: Financial Summary (Independent page break check)
+    currentY += 8;
+    const grandTotal = subTotal + totalGST;
+    
+    // Check if Financial Summary fits on current page
+    const summaryHeight = 50; // Card height + spacing
+    if (currentY + summaryHeight > pageHeight - 15) {
       pdf.setFillColor(gold.r, gold.g, gold.b);
       pdf.rect(0, pageHeight - 8, pageWidth, 8, 'F');
       pdf.setTextColor(255, 255, 255);
@@ -1491,9 +1495,6 @@ export const generateModernQuotationPDF = async (items: any[], companyInfo?: any
       currentPage++;
       currentY = addBrandedHeader(false) + 10;
     }
-    
-    currentY += 8;
-    const grandTotal = subTotal + totalGST;
     
     // Summary section with modern card design
     const summaryX = pageWidth - margin - 70;
@@ -1552,8 +1553,25 @@ export const generateModernQuotationPDF = async (items: any[], companyInfo?: any
     pdf.setFontSize(12);
     pdf.text('Rs. ' + grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), summaryX + summaryWidth - 3, summaryY + 37, { align: 'right' });
     
+    // Update current Y position after summary
+    currentY = summaryY + 50;
+    
+    // SECTION 2: Terms & Conditions (Independent page break check)
+    const termsHeight = 45; // Title + content + spacing
+    if (currentY + termsHeight > pageHeight - 15) {
+      pdf.setFillColor(gold.r, gold.g, gold.b);
+      pdf.rect(0, pageHeight - 8, pageWidth, 8, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(7);
+      pdf.text(`Page ${currentPage}`, pageWidth / 2, pageHeight - 4, { align: 'center' });
+      
+      pdf.addPage();
+      currentPage++;
+      currentY = addBrandedHeader(false) + 10;
+    }
+    
     // Terms & Conditions section
-    const termsY = summaryY + 52;
+    const termsY = currentY;
     
     pdf.setTextColor(navyBlue.r, navyBlue.g, navyBlue.b);
     pdf.setFontSize(11);
@@ -1580,8 +1598,25 @@ export const generateModernQuotationPDF = async (items: any[], companyInfo?: any
       pdf.text(term, margin + 2, termsY + 9 + (index * 6));
     });
     
+    // Update current Y position after terms
+    currentY = termsY + 35;
+    
+    // SECTION 3: Signature (Independent page break check)
+    const signatureHeight = 20; // Line + text + spacing
+    if (currentY + signatureHeight > pageHeight - 15) {
+      pdf.setFillColor(gold.r, gold.g, gold.b);
+      pdf.rect(0, pageHeight - 8, pageWidth, 8, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(7);
+      pdf.text(`Page ${currentPage}`, pageWidth / 2, pageHeight - 4, { align: 'center' });
+      
+      pdf.addPage();
+      currentPage++;
+      currentY = addBrandedHeader(false) + 10;
+    }
+    
     // Signature section
-    const signatureY = termsY + 40;
+    const signatureY = currentY;
     
     pdf.setDrawColor(borderLight.r, borderLight.g, borderLight.b);
     pdf.setLineWidth(0.5);
@@ -1971,9 +2006,13 @@ export const generatePremiumQuotationPDF = async (items: any[], companyInfo?: an
       itemNumber++;
     });
     
-    // Check space for summary + Terms + Signature + Footer (these stay together)
-    // Reserve ~120mm for all remaining sections to keep them together
-    if (currentY + 120 > pageHeight - margin) {
+    // SECTION 1: Financial Summary (Independent page break check)
+    currentY += 10;
+    const grandTotal = subTotal + totalGST;
+    
+    // Check if Financial Summary fits on current page
+    const summaryHeight = 58; // Card height + spacing
+    if (currentY + summaryHeight > pageHeight - 18) {
       pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
       pdf.rect(0, pageHeight - 10, pageWidth, 10, 'F');
       pdf.setTextColor(255, 255, 255);
@@ -1984,9 +2023,6 @@ export const generatePremiumQuotationPDF = async (items: any[], companyInfo?: an
       currentPage++;
       currentY = addPremiumHeader(false) + 10;
     }
-    
-    currentY += 10;
-    const grandTotal = subTotal + totalGST;
     
     // Premium summary card with advanced design
     const summaryX = pageWidth - margin - 75;
@@ -2053,8 +2089,25 @@ export const generatePremiumQuotationPDF = async (items: any[], companyInfo?: an
     pdf.setFontSize(13);
     pdf.text('Rs. ' + grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), summaryX + summaryWidth - 4, summaryY + 42, { align: 'right' });
     
+    // Update current Y position after summary
+    currentY = summaryY + 56;
+    
+    // SECTION 2: Terms & Conditions (Independent page break check)
+    const termsHeight = 58; // Box height + spacing
+    if (currentY + termsHeight > pageHeight - 18) {
+      pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+      pdf.rect(0, pageHeight - 10, pageWidth, 10, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(7);
+      pdf.text(`Page ${currentPage}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
+      
+      pdf.addPage();
+      currentPage++;
+      currentY = addPremiumHeader(false) + 10;
+    }
+    
     // Terms section with premium design
-    const termsY = summaryY + 58;
+    const termsY = currentY;
     
     pdf.setFillColor(lightCream.r, lightCream.g, lightCream.b);
     pdf.rect(margin, termsY - 3, pageWidth - (margin * 2) - summaryWidth - 5, 50, 'F');
@@ -2083,8 +2136,25 @@ export const generatePremiumQuotationPDF = async (items: any[], companyInfo?: an
       pdf.text(term, margin + 8, termsY + 12 + (index * 7));
     });
     
+    // Update current Y position after terms
+    currentY = termsY + 53;
+    
+    // SECTION 3: Signature (Independent page break check)
+    const signatureHeight = 25; // Line + text + spacing
+    if (currentY + signatureHeight > pageHeight - 18) {
+      pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+      pdf.rect(0, pageHeight - 10, pageWidth, 10, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(7);
+      pdf.text(`Page ${currentPage}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
+      
+      pdf.addPage();
+      currentPage++;
+      currentY = addPremiumHeader(false) + 10;
+    }
+    
     // Premium signature section
-    const signY = termsY + 50;
+    const signY = currentY;
     
     pdf.setDrawColor(deepTeal.r, deepTeal.g, deepTeal.b);
     pdf.setLineWidth(1);
