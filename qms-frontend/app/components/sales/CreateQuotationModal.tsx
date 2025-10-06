@@ -798,10 +798,12 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                 serial_number: item.serialNo?.trim() || '',
                 item_name: item.itemName?.trim() || '',
                 unit_of_measure: item.uom?.trim() || '',
-                gst_percent: item.gstPercent || 0,
+                gst_percent: Number(item.gstPercent) || 0,
                 item_type: 'custom',
-                quantity: item.quantity,
-                unit_price: item.unitPrice
+                quantity: Number(item.quantity) || 1,
+                unit_price: Number(item.unitPrice) || 0,
+                profit_percent: 0,
+                tax_percent: 0
               };
             } else {
               // Inventory item - with product_id
@@ -810,13 +812,16 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                 product_id: item.productId,
                 description: product?.name || 'Product',
                 item_type: 'inventory',
-                quantity: item.quantity,
-                unit_price: item.unitPrice
+                quantity: Number(item.quantity) || 1,
+                unit_price: Number(item.unitPrice) || 0,
+                profit_percent: 0,
+                tax_percent: 0
               };
             }
           })
         };
 
+        console.log('Creating quotation with data:', quotationData);
         return apiClient.createQuotation(quotationData);
       });
 
