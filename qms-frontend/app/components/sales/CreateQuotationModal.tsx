@@ -785,7 +785,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           customer_id: customerId,
           quotation_date: new Date().toISOString().split('T')[0],
           valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
-          reference_no: formData.referenceNo?.trim() || '',
+          reference_number: formData.referenceNo?.trim() || '',
           notes: formData.notes?.trim() || '',
           terms_conditions: formData.termsConditions?.trim() || '',
           items: items.map(item => {
