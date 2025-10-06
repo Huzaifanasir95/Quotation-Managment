@@ -170,60 +170,74 @@ export const generateQuotationPDF = async (quotationData: QuotationData): Promis
     
     pdf.setFont('helvetica', 'bold');
     
-    // Subtotal row with boxes
-    pdf.rect(colPositions[2], totalsSectionY, colWidths[2], totalsBoxHeight);
-    pdf.rect(colPositions[3], totalsSectionY, colWidths[3], totalsBoxHeight);
-    pdf.text('Sub Total', colPositions[2] + 2, totalsSectionY + 8);
-    pdf.text(`Rs. ${quotationData.subtotal.toFixed(2)}`, colPositions[3] + colWidths[3] - 2, totalsSectionY + 8, { align: 'right' });
+    // Adjust box widths for classic format totals section
+    const totalsLabelWidth = 40; // Fixed width for label box (Sub Total, GST @ 18%, Total)
+    const totalsValueWidth = 35; // Fixed width for value box (0.00 amounts)
+    const totalsStartX = colPositions[2] - 10; // Adjust starting position
+    
+    // Subtotal row with custom sized boxes
+    pdf.rect(totalsStartX, totalsSectionY, totalsLabelWidth, totalsBoxHeight);
+    pdf.rect(totalsStartX + totalsLabelWidth, totalsSectionY, totalsValueWidth, totalsBoxHeight);
+    pdf.text('Sub Tssotal', totalsStartX + 2, totalsSectionY + 8);
+    pdf.text(`Rs. ${quotationData.subtotal.toFixed(2)}`, totalsStartX + totalsLabelWidth + totalsValueWidth - 2, totalsSectionY + 8, { align: 'right' });
     totalsSectionY += totalsBoxHeight;
 
-    // GST/Tax row with boxes (if applicable)
+    // GST/Tax row with custom sized boxes (if applicable)
     if (quotationData.tax_amount && quotationData.tax_amount > 0) {
-      pdf.rect(colPositions[2], totalsSectionY, colWidths[2], totalsBoxHeight);
-      pdf.rect(colPositions[3], totalsSectionY, colWidths[3], totalsBoxHeight);
-      pdf.text('GST @ 18%', colPositions[2] + 2, totalsSectionY + 8);
-      pdf.text(`Rs. ${quotationData.tax_amount.toFixed(2)}`, colPositions[3] + colWidths[3] - 2, totalsSectionY + 8, { align: 'right' });
+      pdf.rect(totalsStartX, totalsSectionY, totalsLabelWidth, totalsBoxHeight);
+      pdf.rect(totalsStartX + totalsLabelWidth, totalsSectionY, totalsValueWidth, totalsBoxHeight);
+      pdf.text('GST @ 18%', totalsStartX + 2, totalsSectionY + 8);
+      pdf.text(`Rs. ${quotationData.tax_amount.toFixed(2)}`, totalsStartX + totalsLabelWidth + totalsValueWidth - 2, totalsSectionY + 8, { align: 'right' });
       totalsSectionY += totalsBoxHeight;
     }
 
-    // Total row with boxes
+    // Total row with custom sized boxes
     pdf.setFontSize(14);
-    pdf.rect(colPositions[2], totalsSectionY, colWidths[2], totalsBoxHeight);
-    pdf.rect(colPositions[3], totalsSectionY, colWidths[3], totalsBoxHeight);
-    pdf.text('Total', colPositions[2] + 2, totalsSectionY + 8);
-    pdf.text(`Rs. ${quotationData.total_amount.toFixed(2)}`, colPositions[3] + colWidths[3] - 2, totalsSectionY + 8, { align: 'right' });
+    pdf.rect(totalsStartX, totalsSectionY, totalsLabelWidth, totalsBoxHeight);
+    pdf.rect(totalsStartX + totalsLabelWidth, totalsSectionY, totalsValueWidth, totalsBoxHeight);
+    pdf.text('Total', totalsStartX + 2, totalsSectionY + 8);
+    pdf.text(`Rs. ${quotationData.total_amount.toFixed(2)}`, totalsStartX + totalsLabelWidth + totalsValueWidth - 2, totalsSectionY + 8, { align: 'right' });
     
     yPosition = totalsSectionY + totalsBoxHeight + 15;
 
-    // Terms and Conditions
-    if (quotationData.terms_conditions) {
-      // Only move if header absolutely won't fit (minimal 8mm margin)
-      if (yPosition + 15 > pageHeight - 8) {
-        pdf.addPage();
-        yPosition = margin;
-      }
-      
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Terms & Conditions:', margin, yPosition);
-      yPosition += lineHeight + 2;
-
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(10);
-      
-      // Calculate text height but be much more aggressive about keeping on same page
-      const textLines = pdf.splitTextToSize(quotationData.terms_conditions, pageWidth - 2 * margin);
-      const estimatedTextHeight = textLines.length * 5;
-      
-      // Only move content if absolutely no space (minimal 8mm bottom margin)
-      if (yPosition + estimatedTextHeight > pageHeight - 8) {
-        pdf.addPage();
-        yPosition = margin;
-      }
-      
-      yPosition = addWrappedText(quotationData.terms_conditions, margin, yPosition, pageWidth - 2 * margin, 10);
-      yPosition += 10;
+    // Terms and Conditions (using standardized terms for consistency)
+    // Only move if header absolutely won't fit (minimal 8mm margin)
+    if (yPosition + 15 > pageHeight - 8) {
+      pdf.addPage();
+      yPosition = margin;
     }
+    
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Terms & Conditions:', margin, yPosition);
+    yPosition += lineHeight + 2;
+
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(10);
+    
+    // Use standardized terms for all formats
+    const standardTerms = [
+      '1. This quotation is valid for 30 days from the date of issue.',
+      '2. Prices are subject to change without notice.',
+      '3. Payment terms: 50% advance, 50% on delivery.',
+      '4. Delivery time: 7-14 business days after order confirmation.'
+    ];
+    
+    // Calculate text height for all standard terms
+    let termsTextHeight = standardTerms.length * 5; // 5mm per line
+    
+    // Only move content if absolutely no space (minimal 8mm bottom margin)
+    if (yPosition + termsTextHeight > pageHeight - 8) {
+      pdf.addPage();
+      yPosition = margin;
+    }
+    
+    // Render each term
+    standardTerms.forEach((term, index) => {
+      pdf.text(term, margin, yPosition + (index * 5));
+    });
+    
+    yPosition += termsTextHeight + 10;
 
     // Notes
     if (quotationData.notes && quotationData.notes !== 'NULL') {
@@ -949,7 +963,7 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     // Function to add table header
     const addTableHeader = (yPosition: number) => {
       const tableHeaders = ['Sr.No', 'Description of Goods/Services', 'UOM', 'Qty', 'Unit Price', 'GST', 'Total Price'];
-      const colWidths = [12, 73, 15, 12, 22, 16, 22]; // GST column before Total Price
+      const colWidths = [12, 73, 15, 12, 22, 24, 22]; // Increased GST column from 16 to 24mm
       const colStartX = margin;
       
       const colPositions = [colStartX];
@@ -1110,10 +1124,11 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     // Draw footer content (totals, terms, signature) - only once
     const footerStartY = currentY + 15;
     
-    // Totals section - positioned in the table area like the image
-    const totalsStartX = colPositions[4] + colWidths[4] - 8; // Start slightly before GST column
-    const totalsLabelWidth = colWidths[5] + 16; // GST column width + extra space for labels
-    const totalsValueWidth = colWidths[6]; // Total Price column width for values
+    // Totals section - perfectly aligned with table columns
+    // Table structure: [Sr.No: 12, Description: 73, UOM: 15, Qty: 12, Unit Price: 22, GST: 24, Total Price: 22]
+    const totalsStartX = colPositions[5]; // Start at GST column position
+    const totalsLabelWidth = colWidths[5]; // GST column width exactly (24mm)
+    const totalsValueWidth = colWidths[6]; // Total Price column width exactly (22mm)
     const totalsRowHeight = 10;
     
     pdf.setLineWidth(0.3);
@@ -1132,7 +1147,7 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     pdf.rect(totalsStartX, currentY, totalsLabelWidth, totalsRowHeight);
     pdf.rect(totalsStartX + totalsLabelWidth, currentY, totalsValueWidth, totalsRowHeight);
     
-    pdf.text('GST @ 18%', totalsStartX + totalsLabelWidth/2, currentY + 6, { align: 'center' });
+    pdf.text('GST 18%', totalsStartX + totalsLabelWidth/2, currentY + 6, { align: 'center' });
     pdf.text(totalGST.toFixed(2), totalsStartX + totalsLabelWidth + totalsValueWidth - 3, currentY + 6, { align: 'right' });
     currentY += totalsRowHeight;
     
@@ -1155,29 +1170,21 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     pdf.setFontSize(9);
     pdf.setFont('helvetica', 'normal');
     
-    // Validity line
-    const validityY = termsStartY + 12;
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Validity', margin + 20, validityY);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(': Prices are valid for 25 Days Only.', margin + 55, validityY);
+    // Updated standardized terms
+    const term1Y = termsStartY + 12;
+    pdf.text('1. This quotation is valid for 30 days from the date of issue.', margin + 5, term1Y);
     
-    // Delivery line
-    const deliveryY = validityY + 8;
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Delivery', margin + 20, deliveryY);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(': 6-10 Days after receiving the PO. (F.O.R Rawalpindi).', margin + 55, deliveryY);
+    const term2Y = term1Y + 8;
+    pdf.text('2. Prices are subject to change without notice.', margin + 5, term2Y);
     
-    // Optional Items line - grouped with other terms
-    const optionalY = deliveryY + 8;
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Optional Items', margin + 20, optionalY);
-    pdf.setFont('helvetica', 'normal');
-    pdf.text(': Optional items other than quoted will be charged separately', margin + 55, optionalY);
+    const term3Y = term2Y + 8;
+    pdf.text('3. Payment terms: 50% advance, 50% on delivery.', margin + 5, term3Y);
+    
+    const term4Y = term3Y + 8;
+    pdf.text('4. Delivery time: 7-14 business days after order confirmation.', margin + 5, term4Y);
     
     // Authorized Signature - below all terms
-    const signatureY = optionalY + 20;
+    const signatureY = term4Y + 20;
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(11);
     pdf.text('Authorized Signature', margin, signatureY);
@@ -1588,10 +1595,10 @@ export const generateModernQuotationPDF = async (items: any[], companyInfo?: any
     pdf.setFont('helvetica', 'normal');
     
     const terms = [
-      '• Validity: Prices are valid for 25 Days Only',
-      '• Delivery: 6-10 Days after receiving the PO (F.O.R Rawalpindi)',
-      '• Payment: As per agreed terms',
-      '• Optional items other than quoted will be charged separately'
+      '• This quotation is valid for 30 days from the date of issue.',
+      '• Prices are subject to change without notice.',
+      '• Payment terms: 50% advance, 50% on delivery.',
+      '• Delivery time: 7-14 business days after order confirmation.'
     ];
     
     terms.forEach((term, index) => {
@@ -2125,11 +2132,10 @@ export const generatePremiumQuotationPDF = async (items: any[], companyInfo?: an
     pdf.setFont('helvetica', 'normal');
     
     const terms = [
-      '1. Validity: Valid for 25 days from quotation date',
-      '2. Delivery: 6-10 business days post-PO (F.O.R Rawalpindi)',
-      '3. Payment: As per mutually agreed terms',
-      '4. Additional items will be quoted separately',
-      '5. Prices subject to change without notice'
+      '1. This quotation is valid for 30 days from the date of issue.',
+      '2. Prices are subject to change without notice.',
+      '3. Payment terms: 50% advance, 50% on delivery.',
+      '4. Delivery time: 7-14 business days after order confirmation.'
     ];
     
     terms.forEach((term, index) => {
