@@ -132,47 +132,77 @@ export const generateQuotationPDF = async (quotationData: QuotationData): Promis
 
     // Items
     pdf.setFont('helvetica', 'normal');
+    // Calculate totals section height once (will be used for all page break checks)
+    let totalsRows = 2; // Sub Total + Total
+    if (quotationData.tax_amount && quotationData.tax_amount > 0) {
+      totalsRows = 3; // Sub Total + GST + Total
+    }
+    const totalsHeight = (totalsRows * 12) + 25; // 12mm per box + spacing
+    
     let subtotal = 0;
 
     quotationData.items.forEach((item, index) => {
       const itemTotal = item.line_total || (item.quantity * item.unit_price);
       subtotal += itemTotal;
 
-      // Check if we need a new page
-      if (yPosition > pageHeight - 50) {
+      // Always reserve space for totals section after items table
+      const spaceNeeded = lineHeight + totalsHeight; // Current item + reserved space for totals
+      
+      // Check if current item + totals section fit on current page
+      if (yPosition + spaceNeeded > pageHeight - 10) {
         pdf.addPage();
         yPosition = margin;
       }
 
       pdf.text(item.description, colPositions[0] + 2, yPosition);
       pdf.text(item.quantity.toString(), colPositions[1] + 2, yPosition);
-  pdf.text(`Rs. ${item.unit_price.toFixed(2)}`, colPositions[2] + 2, yPosition);
-  pdf.text(`Rs. ${itemTotal.toFixed(2)}`, colPositions[3] + 2, yPosition);
+      pdf.text(`Rs. ${item.unit_price.toFixed(2)}`, colPositions[2] + 2, yPosition);
+      pdf.text(`Rs. ${itemTotal.toFixed(2)}`, colPositions[3] + colWidths[3] - 2, yPosition, { align: 'right' });
       yPosition += lineHeight;
     });
 
-    // Total Section
+    // Total Section (now attached to items - no separate page break check)
     yPosition += 10;
     pdf.line(colPositions[2], yPosition - 5, pageWidth - margin, yPosition - 5);
     
+    const totalsBoxHeight = 12;
+    let totalsSectionY = yPosition - 5;
+    
     pdf.setFont('helvetica', 'bold');
-    pdf.text('Subtotal:', colPositions[2] + 2, yPosition);
-  pdf.text(`Rs. ${quotationData.subtotal.toFixed(2)}`, colPositions[3] + 2, yPosition);
-    yPosition += lineHeight;
+    
+    // Subtotal row with boxes
+    pdf.rect(colPositions[2], totalsSectionY, colWidths[2], totalsBoxHeight);
+    pdf.rect(colPositions[3], totalsSectionY, colWidths[3], totalsBoxHeight);
+    pdf.text('Sub Total', colPositions[2] + 2, totalsSectionY + 8);
+    pdf.text(`Rs. ${quotationData.subtotal.toFixed(2)}`, colPositions[3] + colWidths[3] - 2, totalsSectionY + 8, { align: 'right' });
+    totalsSectionY += totalsBoxHeight;
 
+    // GST/Tax row with boxes (if applicable)
     if (quotationData.tax_amount && quotationData.tax_amount > 0) {
-      pdf.text('Tax:', colPositions[2] + 2, yPosition);
-  pdf.text(`Rs. ${quotationData.tax_amount.toFixed(2)}`, colPositions[3] + 2, yPosition);
-      yPosition += lineHeight;
+      pdf.rect(colPositions[2], totalsSectionY, colWidths[2], totalsBoxHeight);
+      pdf.rect(colPositions[3], totalsSectionY, colWidths[3], totalsBoxHeight);
+      pdf.text('GST @ 18%', colPositions[2] + 2, totalsSectionY + 8);
+      pdf.text(`Rs. ${quotationData.tax_amount.toFixed(2)}`, colPositions[3] + colWidths[3] - 2, totalsSectionY + 8, { align: 'right' });
+      totalsSectionY += totalsBoxHeight;
     }
 
+    // Total row with boxes
     pdf.setFontSize(14);
-    pdf.text('Total:', colPositions[2] + 2, yPosition);
-  pdf.text(`Rs. ${quotationData.total_amount.toFixed(2)}`, colPositions[3] + 2, yPosition);
-    yPosition += 15;
+    pdf.rect(colPositions[2], totalsSectionY, colWidths[2], totalsBoxHeight);
+    pdf.rect(colPositions[3], totalsSectionY, colWidths[3], totalsBoxHeight);
+    pdf.text('Total', colPositions[2] + 2, totalsSectionY + 8);
+    pdf.text(`Rs. ${quotationData.total_amount.toFixed(2)}`, colPositions[3] + colWidths[3] - 2, totalsSectionY + 8, { align: 'right' });
+    
+    yPosition = totalsSectionY + totalsBoxHeight + 15;
 
     // Terms and Conditions
     if (quotationData.terms_conditions) {
+      // Only move if header absolutely won't fit (minimal 8mm margin)
+      if (yPosition + 15 > pageHeight - 8) {
+        pdf.addPage();
+        yPosition = margin;
+      }
+      
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
       pdf.text('Terms & Conditions:', margin, yPosition);
@@ -180,12 +210,29 @@ export const generateQuotationPDF = async (quotationData: QuotationData): Promis
 
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
+      
+      // Calculate text height but be much more aggressive about keeping on same page
+      const textLines = pdf.splitTextToSize(quotationData.terms_conditions, pageWidth - 2 * margin);
+      const estimatedTextHeight = textLines.length * 5;
+      
+      // Only move content if absolutely no space (minimal 8mm bottom margin)
+      if (yPosition + estimatedTextHeight > pageHeight - 8) {
+        pdf.addPage();
+        yPosition = margin;
+      }
+      
       yPosition = addWrappedText(quotationData.terms_conditions, margin, yPosition, pageWidth - 2 * margin, 10);
       yPosition += 10;
     }
 
     // Notes
     if (quotationData.notes && quotationData.notes !== 'NULL') {
+      // Only move if header absolutely won't fit (minimal 8mm margin)
+      if (yPosition + 15 > pageHeight - 8) {
+        pdf.addPage();
+        yPosition = margin;
+      }
+      
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
       pdf.text('Notes:', margin, yPosition);
@@ -193,11 +240,48 @@ export const generateQuotationPDF = async (quotationData: QuotationData): Promis
 
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
+      
+      // Calculate text height but be aggressive about keeping on same page
+      const textLines = pdf.splitTextToSize(quotationData.notes, pageWidth - 2 * margin);
+      const estimatedTextHeight = textLines.length * 5;
+      
+      // Only move content if absolutely no space (minimal 8mm bottom margin)
+      if (yPosition + estimatedTextHeight > pageHeight - 8) {
+        pdf.addPage();
+        yPosition = margin;
+      }
+      
       yPosition = addWrappedText(quotationData.notes, margin, yPosition, pageWidth - 2 * margin, 10);
     }
 
-    // Footer
-    const footerY = pageHeight - 20;
+    // Authorized Signature Section (independent from other sections)
+    const signatureHeight = 40; // Space needed for signature section
+    
+    // Check if signature section fits on current page (minimal 8mm bottom margin)
+    if (yPosition + signatureHeight > pageHeight - 8) {
+      pdf.addPage();
+      yPosition = margin;
+    }
+    
+    yPosition += 15; // Space before signature
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Authorized Signature', margin, yPosition);
+    yPosition += 10;
+    
+    // Signature line
+    pdf.setDrawColor(0, 0, 0);
+    pdf.line(margin, yPosition + 15, margin + 80, yPosition + 15);
+    yPosition += 25;
+
+    // Footer - move to next page only if very little space left (like with 8+ items)
+    const footerHeight = 20;
+    if (yPosition + footerHeight > pageHeight - 5) {
+      pdf.addPage();
+      yPosition = margin;
+    }
+    
+    const footerY = yPosition + 10;
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
     pdf.text('Thank you for your business!', pageWidth / 2, footerY, { align: 'center' });
@@ -787,7 +871,7 @@ export const generateQuotationPDFFromHTML = async (elementId: string, filename?:
   }
 };
 
-export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: any, refNo?: string) => {
+export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: any, refNo?: string, customerInfo?: any) => {
   try {
     const jsPDF = await loadJsPDF();
     if (!jsPDF) {
@@ -799,6 +883,13 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     const pageHeight = pdf.internal.pageSize.getHeight();
     const margin = 15;
     let currentPage = 1;
+    
+    // Get current date for the PDF
+    const currentDate = new Date().toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit', 
+      year: 'numeric'
+    });
     
     // Function to add header only on first page
     const addFirstPageHeader = () => {
@@ -826,26 +917,26 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
       pdf.setFontSize(9);
       pdf.setFont('helvetica', 'normal');
       
-      // Date row
-      pdf.text('Date', rightBoxX + 2, margin + 8);
-      pdf.text(':', rightBoxX + 22, margin + 8);
-      pdf.text('21/12/2023', rightBoxX + 27, margin + 8);
+      // Date row - use current date and center the text
+      pdf.text('Date', rightBoxX + 12.5, margin + 8, { align: 'center' });
+      pdf.text(currentDate, rightBoxX + 25 + (rightBoxWidth - 25)/2, margin + 8, { align: 'center' });
       
-      // Ref.No row  
-      pdf.text('Ref.No', rightBoxX + 2, margin + 20);
-      pdf.text(':', rightBoxX + 22, margin + 20);
-      pdf.text(`AI/KRL/2023/SP-${refNo || '2112-02'}`, rightBoxX + 27, margin + 20);
+      // Ref.No row - use actual reference number and center the text
+      pdf.text('Ref.No', rightBoxX + 12.5, margin + 20, { align: 'center' });
+      const referenceText = refNo && refNo.trim() !== '' && refNo !== '-' ? refNo : '-';
+      pdf.text(referenceText, rightBoxX + 25 + (rightBoxWidth - 25)/2, margin + 20, { align: 'center' });
       
-      // Quotation title box
+      // Quotation title box - show customer name
       const titleY = margin + 35;
-      const titleBoxX = margin + 60;
       const titleBoxWidth = 100;
+      const titleBoxX = (pageWidth - titleBoxWidth) / 2; // Center the box horizontally
       const titleBoxHeight = 12;
       
       pdf.rect(titleBoxX, titleY, titleBoxWidth, titleBoxHeight);
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(10);
-      pdf.text(`Quotation for ( ${refNo || 'A-41156'} )`, titleBoxX + titleBoxWidth/2, titleY + 8, { align: 'center' });
+      const customerName = customerInfo?.name || 'Customer';
+      pdf.text(`Quotation for ${customerName}`, titleBoxX + titleBoxWidth/2, titleY + 8, { align: 'center' });
       
       return titleY + titleBoxHeight + 15;
     };
@@ -857,8 +948,8 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     
     // Function to add table header
     const addTableHeader = (yPosition: number) => {
-      const tableHeaders = ['Sr.No', 'Description of Goods/Services', 'UOM', 'Qty', 'Unit Price', 'Total Price', 'GST Rate'];
-      const colWidths = [15, 85, 20, 15, 25, 25, 20];
+      const tableHeaders = ['Sr.No', 'Description of Goods/Services', 'UOM', 'Qty', 'Unit Price', 'GST', 'Total Price'];
+      const colWidths = [12, 73, 15, 12, 22, 16, 22]; // GST column before Total Price
       const colStartX = margin;
       
       const colPositions = [colStartX];
@@ -949,12 +1040,12 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
         description,
         item.uom || item.unit_of_measure || 'No',
         quantity.toString(),
-        unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        `${gstRate}%`
+        unitPrice.toFixed(2),
+        `${gstRate}%`,
+        lineTotal.toFixed(2)
       ];
       
-      const alignments = ['center', 'left', 'center', 'center', 'right', 'right', 'center'];
+      const alignments = ['center', 'left', 'center', 'center', 'right', 'center', 'right'];
       
       rowData.forEach((data, colIndex) => {
         const cellWidth = colWidths[colIndex];
@@ -1020,9 +1111,9 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     const footerStartY = currentY + 15;
     
     // Totals section - positioned in the table area like the image
-    const totalsStartX = colPositions[4]; // Start from Unit Price column
-    const totalsLabelWidth = colWidths[4]; // Unit Price column width
-    const totalsValueWidth = colWidths[5]; // Total Price column width
+    const totalsStartX = colPositions[4] + colWidths[4] - 8; // Start slightly before GST column
+    const totalsLabelWidth = colWidths[5] + 16; // GST column width + extra space for labels
+    const totalsValueWidth = colWidths[6]; // Total Price column width for values
     const totalsRowHeight = 10;
     
     pdf.setLineWidth(0.3);
@@ -1034,7 +1125,7 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(9);
     pdf.text('Sub Total', totalsStartX + totalsLabelWidth/2, currentY + 6, { align: 'center' });
-    pdf.text(subTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsStartX + totalsLabelWidth + totalsValueWidth - 3, currentY + 6, { align: 'right' });
+    pdf.text(subTotal.toFixed(2), totalsStartX + totalsLabelWidth + totalsValueWidth - 3, currentY + 6, { align: 'right' });
     currentY += totalsRowHeight;
     
     // GST row
@@ -1042,7 +1133,7 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     pdf.rect(totalsStartX + totalsLabelWidth, currentY, totalsValueWidth, totalsRowHeight);
     
     pdf.text('GST @ 18%', totalsStartX + totalsLabelWidth/2, currentY + 6, { align: 'center' });
-    pdf.text(totalGST.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsStartX + totalsLabelWidth + totalsValueWidth - 3, currentY + 6, { align: 'right' });
+    pdf.text(totalGST.toFixed(2), totalsStartX + totalsLabelWidth + totalsValueWidth - 3, currentY + 6, { align: 'right' });
     currentY += totalsRowHeight;
     
     // Total row
@@ -1052,13 +1143,13 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(10);
     pdf.text('Total', totalsStartX + totalsLabelWidth/2, currentY + 6, { align: 'center' });
-    pdf.text(grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2 }), totalsStartX + totalsLabelWidth + totalsValueWidth - 3, currentY + 6, { align: 'right' });
+    pdf.text(grandTotal.toFixed(2), totalsStartX + totalsLabelWidth + totalsValueWidth - 3, currentY + 6, { align: 'right' });
     
     // Terms & Conditions
     const termsStartY = currentY + 25;
     
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(11);
+    pdf.setFontSize(12);
     pdf.text('Terms & Conditions:', margin, termsStartY);
     
     pdf.setFontSize(9);
@@ -1067,25 +1158,25 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     // Validity line
     const validityY = termsStartY + 12;
     pdf.setFont('helvetica', 'bold');
-    pdf.text('Validity', margin + 50, validityY);
+    pdf.text('Validity', margin + 20, validityY);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(': Prices are valid for 25 Days Only.', margin + 85, validityY);
+    pdf.text(': Prices are valid for 25 Days Only.', margin + 55, validityY);
     
     // Delivery line
     const deliveryY = validityY + 8;
     pdf.setFont('helvetica', 'bold');
-    pdf.text('Delivery', margin + 50, deliveryY);
+    pdf.text('Delivery', margin + 20, deliveryY);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(': 6-10 Days after receiving the PO. (F.O.R Rawalpindi).', margin + 85, deliveryY);
+    pdf.text(': 6-10 Days after receiving the PO. (F.O.R Rawalpindi).', margin + 55, deliveryY);
     
-    // Optional Items line
-    const optionalY = deliveryY + 12;
+    // Optional Items line - grouped with other terms
+    const optionalY = deliveryY + 8;
     pdf.setFont('helvetica', 'bold');
-    pdf.text('Optional Items :', margin, optionalY);
+    pdf.text('Optional Items', margin + 20, optionalY);
     pdf.setFont('helvetica', 'normal');
-    pdf.text('Optional items other than quoted will be charged separately', margin + 45, optionalY);
+    pdf.text(': Optional items other than quoted will be charged separately', margin + 55, optionalY);
     
-    // Authorized Signature
+    // Authorized Signature - below all terms
     const signatureY = optionalY + 20;
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(11);
@@ -1312,8 +1403,8 @@ export const generateModernQuotationPDF = async (items: any[], companyInfo?: any
       subTotal += lineTotal;
       totalGST += gstAmount;
       
-      // Check for page break
-      if (currentY + rowHeight + 110 > pageHeight - margin) {
+      // Check for page break - much more conservative to fit more items
+      if (currentY + rowHeight + 50 > pageHeight - margin) {
         // Footer for current page
         pdf.setFillColor(gold.r, gold.g, gold.b);
         pdf.rect(0, pageHeight - 8, pageWidth, 8, 'F');
@@ -1386,8 +1477,8 @@ export const generateModernQuotationPDF = async (items: any[], companyInfo?: any
       itemNumber++;
     });
     
-    // Check space for footer
-    if (currentY + 110 > pageHeight - margin) {
+    // Check space for summary section - be more conservative to fit more items
+    if (currentY + 50 > pageHeight - margin) {
       pdf.setFillColor(gold.r, gold.g, gold.b);
       pdf.rect(0, pageHeight - 8, pageWidth, 8, 'F');
       pdf.setTextColor(255, 255, 255);

@@ -310,8 +310,13 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       
       const refNo = formData.referenceNo && formData.referenceNo.trim() !== '' ? formData.referenceNo : '-';
       
+      // Get selected customer info for PDF generation
+      const selectedCustomer = formData.customerIds.length > 0 
+        ? customers.find(c => c.id === formData.customerIds[0])
+        : null;
+      
       if (formatType === 'classic') {
-        await generateDetailedQuotationPDF(transformedItems, undefined, refNo);
+        await generateDetailedQuotationPDF(transformedItems, undefined, refNo, selectedCustomer);
       } else if (formatType === 'modern') {
         const { generateModernQuotationPDF } = await import('../../../lib/pdfUtils');
         await generateModernQuotationPDF(transformedItems, undefined, refNo);
