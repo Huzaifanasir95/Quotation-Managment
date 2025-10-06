@@ -1403,7 +1403,8 @@ export const generateModernQuotationPDF = async (items: any[], companyInfo?: any
       subTotal += lineTotal;
       totalGST += gstAmount;
       
-      // Check for page break - much more conservative to fit more items
+      // Check for page break - allow maximum items, reserve minimal space for summary
+      // Only need space for summary section initially (42mm + 10mm margin = 50mm)
       if (currentY + rowHeight + 50 > pageHeight - margin) {
         // Footer for current page
         pdf.setFillColor(gold.r, gold.g, gold.b);
@@ -1477,8 +1478,9 @@ export const generateModernQuotationPDF = async (items: any[], companyInfo?: any
       itemNumber++;
     });
     
-    // Check space for summary section - be more conservative to fit more items
-    if (currentY + 50 > pageHeight - margin) {
+    // Check space for summary section + Terms + Signature + Footer (these stay together)
+    // Reserve ~100mm for all remaining sections to keep them together
+    if (currentY + 100 > pageHeight - margin) {
       pdf.setFillColor(gold.r, gold.g, gold.b);
       pdf.rect(0, pageHeight - 8, pageWidth, 8, 'F');
       pdf.setTextColor(255, 255, 255);
@@ -1887,8 +1889,9 @@ export const generatePremiumQuotationPDF = async (items: any[], companyInfo?: an
       subTotal += lineTotal;
       totalGST += gstAmount;
       
-      // Page break check
-      if (currentY + rowHeight + 100 > pageHeight - margin) {
+      // Page break check - allow maximum items, reserve minimal space for summary
+      // Only need space for summary section initially (48mm + 10mm margin = 50mm)
+      if (currentY + rowHeight + 50 > pageHeight - margin) {
         // Page footer
         pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
         pdf.rect(0, pageHeight - 10, pageWidth, 10, 'F');
@@ -1968,8 +1971,9 @@ export const generatePremiumQuotationPDF = async (items: any[], companyInfo?: an
       itemNumber++;
     });
     
-    // Check space for summary
-    if (currentY + 110 > pageHeight - margin) {
+    // Check space for summary + Terms + Signature + Footer (these stay together)
+    // Reserve ~120mm for all remaining sections to keep them together
+    if (currentY + 120 > pageHeight - margin) {
       pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
       pdf.rect(0, pageHeight - 10, pageWidth, 10, 'F');
       pdf.setTextColor(255, 255, 255);
