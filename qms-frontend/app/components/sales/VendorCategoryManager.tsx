@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Vendor } from '../../lib/api';
+import { Vendor, apiClient } from '../../lib/api';
 
 interface VendorCategory {
   id: string;
@@ -51,50 +51,151 @@ export default function VendorCategoryManager({
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'categories' | 'requests' | 'analytics'>('categories');
+  const [categories, setCategories] = useState<any[]>([]);
 
   // Get unique categories from items
   const itemCategories = [...new Set(items.map(item => item.category || 'Uncategorized'))];
 
-  // Load existing category-vendor mappings
+  // Load existing category-vendor mappings and backend data
   useEffect(() => {
     if (showModal) {
       loadVendorCategories();
       loadRateRequests();
+      loadCategories();
     }
   }, [showModal, quotationId]);
 
+  const loadCategories = async () => {
+    try {
+      const response = await apiClient.getVendorCategoriesList();
+      if (response.success) {
+        setCategories(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    }
+  };
+
   const loadVendorCategories = async () => {
     try {
-      // Load from localStorage for now (can be replaced with API call)
-      const stored = localStorage.getItem(`vendor_categories_${quotationId}`);
-      if (stored) {
-        setVendorCategories(JSON.parse(stored));
+      setIsLoading(true);
+      
+      // First try to load from backend
+      const response = await apiClient.getVendorCategories();
+      if (response.success) {
+        const backendCategories = response.data.vendorCategories || [];
+        const categoryStats = response.data.categoryStats || [];
+        
+        // Transform backend data to match our component structure
+        const transformedCategories: VendorCategory[] = itemCategories.map(categoryName => {
+          // Find if this category exists in backend
+          const categoryData = categories.find(c => c.name === categoryName);
+          const categoryId = categoryData?.id;
+          
+          // Find vendor assignments for this category
+          const assignments = backendCategories.filter((vc: any) => 
+            vc.category && vc.category.name === categoryName
+          );
+          
+          const vendorIds = assignments.map((a: any) => a.vendor.id);
+          
+          // Find stats for this category
+          const stats = categoryStats.find((s: any) => s.name === categoryName) || {
+            totalVendors: vendorIds.length,
+            requestsSent: 0,
+            pending: 0,
+            responded: 0
+          };
+          
+          return {
+            id: categoryId || `cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            categoryName,
+            vendorIds,
+            responseStatus: stats.pending > 0 ? 'pending' : stats.responded > 0 ? 'received' : 'not_sent',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+        });
+        
+        setVendorCategories(transformedCategories);
       } else {
-        // Initialize with item categories
-        const initialCategories: VendorCategory[] = itemCategories.map(category => ({
-          id: `cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          categoryName: category,
-          vendorIds: [],
-          responseStatus: 'not_sent',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }));
-        setVendorCategories(initialCategories);
+        // Fallback to localStorage if backend fails
+        const stored = localStorage.getItem(`vendor_categories_${quotationId}`);
+        if (stored) {
+          setVendorCategories(JSON.parse(stored));
+        } else {
+          // Initialize with item categories
+          const initialCategories: VendorCategory[] = itemCategories.map(category => ({
+            id: `cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            categoryName: category,
+            vendorIds: [],
+            responseStatus: 'not_sent',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }));
+          setVendorCategories(initialCategories);
+        }
       }
     } catch (error) {
       console.error('Failed to load vendor categories:', error);
+      // Fallback to localStorage
+      const stored = localStorage.getItem(`vendor_categories_${quotationId}`);
+      if (stored) {
+        setVendorCategories(JSON.parse(stored));
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const loadRateRequests = async () => {
     try {
-      // Load from localStorage for now (can be replaced with API call)
+      // Try to load from backend API first
+      const categoryIds = vendorCategories.map(cat => cat.id);
+      let allRequests: VendorRateRequest[] = [];
+      
+      for (const categoryId of categoryIds) {
+        try {
+          const response = await apiClient.getCategoryRateRequests(categoryId);
+          if (response.success && response.data) {
+            // Transform backend data to match our component structure
+            const backendRequests = response.data.map((req: any) => ({
+              id: req.id,
+              quotationId,
+              vendorId: req.vendor_id || '',
+              categoryId,
+              requestDate: req.created_at,
+              responseDate: req.response_date,
+              status: req.status || 'sent',
+              communicationMethod: req.specifications?.communicationMethod || 'manual',
+              requestData: req.specifications || {},
+              responseData: req.response_data,
+              expiryDate: req.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+            }));
+            
+            allRequests = [...allRequests, ...backendRequests];
+          }
+        } catch (error) {
+          console.warn(`Failed to load rate requests for category ${categoryId}:`, error);
+        }
+      }
+      
+      if (allRequests.length > 0) {
+        setRateRequests(allRequests);
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to load rate requests from API:', error);
+    }
+    
+    // Fallback to localStorage
+    try {
       const stored = localStorage.getItem(`rate_requests_${quotationId}`);
       if (stored) {
         setRateRequests(JSON.parse(stored));
       }
     } catch (error) {
-      console.error('Failed to load rate requests:', error);
+      console.error('Failed to load rate requests from localStorage:', error);
     }
   };
 
@@ -114,41 +215,118 @@ export default function VendorCategoryManager({
     }
   };
 
-  const updateCategoryVendors = (categoryId: string, vendorIds: string[]) => {
-    const updatedCategories = vendorCategories.map(cat => 
-      cat.id === categoryId 
-        ? { ...cat, vendorIds, updatedAt: new Date().toISOString() }
-        : cat
-    );
-    saveVendorCategories(updatedCategories);
+  const updateCategoryVendors = async (categoryId: string, vendorIds: string[]) => {
+    try {
+      const category = vendorCategories.find(c => c.id === categoryId);
+      if (!category) return;
+      
+      // Find the actual category from backend
+      const backendCategory = categories.find(c => c.name === category.categoryName);
+      
+      if (backendCategory) {
+        // Update backend - assign new vendors and remove old ones
+        const currentVendorIds = category.vendorIds;
+        const vendorsToAdd = vendorIds.filter(id => !currentVendorIds.includes(id));
+        const vendorsToRemove = currentVendorIds.filter(id => !vendorIds.includes(id));
+        
+        // Add new vendors
+        if (vendorsToAdd.length > 0) {
+          await apiClient.assignVendorsToCategory(backendCategory.id, vendorsToAdd);
+        }
+        
+        // Remove vendors (for each vendor individually)
+        for (const vendorId of vendorsToRemove) {
+          await apiClient.removeVendorFromCategory(backendCategory.id, vendorId);
+        }
+      }
+      
+      // Update local state
+      const updatedCategories = vendorCategories.map(cat => 
+        cat.id === categoryId 
+          ? { ...cat, vendorIds, updatedAt: new Date().toISOString() }
+          : cat
+      );
+      saveVendorCategories(updatedCategories);
+    } catch (error) {
+      console.error('Failed to update category vendors:', error);
+      // Still update local state even if backend fails
+      const updatedCategories = vendorCategories.map(cat => 
+        cat.id === categoryId 
+          ? { ...cat, vendorIds, updatedAt: new Date().toISOString() }
+          : cat
+      );
+      saveVendorCategories(updatedCategories);
+    }
   };
 
-  const addRateRequest = (categoryId: string, vendorId: string, method: 'email' | 'whatsapp' | 'manual') => {
-    const newRequest: VendorRateRequest = {
-      id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      quotationId,
-      vendorId,
-      categoryId,
-      requestDate: new Date().toISOString(),
-      status: 'sent',
-      communicationMethod: method,
-      requestData: {
-        items: items.filter(item => (item.category || 'Uncategorized') === vendorCategories.find(c => c.id === categoryId)?.categoryName)
-      },
-      expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days from now
-    };
+  const addRateRequest = async (categoryId: string, vendorId: string, method: 'email' | 'whatsapp' | 'manual') => {
+    try {
+      const category = vendorCategories.find(c => c.id === categoryId);
+      if (!category) return;
 
-    const updatedRequests = [...rateRequests, newRequest];
-    setRateRequests(updatedRequests);
-    localStorage.setItem(`rate_requests_${quotationId}`, JSON.stringify(updatedRequests));
+      const categoryItems = items.filter(item => (item.category || 'Uncategorized') === category.categoryName);
+      
+      // Create rate request via API
+      const response = await apiClient.createRateRequest({
+        category_id: categoryId,
+        quotation_id: quotationId,
+        title: `Rate Request for ${category.categoryName}`,
+        description: `Rate request for category: ${category.categoryName}`,
+        request_type: 'category',
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        specifications: {
+          items: categoryItems,
+          quotationId,
+          categoryName: category.categoryName,
+          communicationMethod: method
+        },
+        vendor_ids: [vendorId]
+      });
 
-    // Update category status
-    const updatedCategories = vendorCategories.map(cat => 
-      cat.id === categoryId 
-        ? { ...cat, responseStatus: 'pending' as const, lastRequestDate: new Date().toISOString() }
-        : cat
-    );
-    saveVendorCategories(updatedCategories);
+      if (response.success) {
+        // Reload rate requests
+        await loadRateRequests();
+        
+        // Update category status
+        const updatedCategories = vendorCategories.map(cat => 
+          cat.id === categoryId 
+            ? { ...cat, responseStatus: 'pending' as const, lastRequestDate: new Date().toISOString() }
+            : cat
+        );
+        saveVendorCategories(updatedCategories);
+      } else {
+        console.error('Failed to create rate request:', response.error);
+      }
+    } catch (error) {
+      console.error('Error creating rate request:', error);
+      
+      // Fallback to localStorage
+      const newRequest: VendorRateRequest = {
+        id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        quotationId,
+        vendorId,
+        categoryId,
+        requestDate: new Date().toISOString(),
+        status: 'sent',
+        communicationMethod: method,
+        requestData: {
+          items: items.filter(item => (item.category || 'Uncategorized') === vendorCategories.find(c => c.id === categoryId)?.categoryName)
+        },
+        expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      };
+
+      const updatedRequests = [...rateRequests, newRequest];
+      setRateRequests(updatedRequests);
+      localStorage.setItem(`rate_requests_${quotationId}`, JSON.stringify(updatedRequests));
+
+      // Update category status
+      const updatedCategories = vendorCategories.map(cat => 
+        cat.id === categoryId 
+          ? { ...cat, responseStatus: 'pending' as const, lastRequestDate: new Date().toISOString() }
+          : cat
+      );
+      saveVendorCategories(updatedCategories);
+    }
   };
 
   const getVendorRequestStatus = (categoryId: string, vendorId: string) => {

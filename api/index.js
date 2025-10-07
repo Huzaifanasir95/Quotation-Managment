@@ -35,10 +35,12 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Import route modules
 const customersRoutes = require('./routes/customers');
 const documentsRoutes = require('./routes/documents');
+const vendorCategoriesRoutes = require('./routes/vendor-categories');
 
 // Use route modules
 app.use('/api/v1/customers', customersRoutes);
 app.use('/api/documents', documentsRoutes);
+app.use('/api/v1/vendor-categories', vendorCategoriesRoutes);
 
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {

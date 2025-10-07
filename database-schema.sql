@@ -463,6 +463,49 @@ CREATE TABLE public.quotations (
   CONSTRAINT quotations_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id),
   CONSTRAINT quotations_parent_quotation_id_fkey FOREIGN KEY (parent_quotation_id) REFERENCES public.quotations(id)
 );
+CREATE TABLE public.rate_request_vendors (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  rate_request_id uuid NOT NULL,
+  vendor_id uuid NOT NULL,
+  status character varying DEFAULT 'pending'::character varying CHECK (status::text = ANY (ARRAY['pending'::character varying::text, 'sent'::character varying::text, 'responded'::character varying::text, 'declined'::character varying::text])),
+  sent_at timestamp without time zone,
+  responded_at timestamp without time zone,
+  email_sent boolean DEFAULT false,
+  whatsapp_sent boolean DEFAULT false,
+  response_data jsonb,
+  quoted_price numeric,
+  quoted_delivery_time integer,
+  vendor_notes text,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT rate_request_vendors_pkey PRIMARY KEY (id),
+  CONSTRAINT rate_request_vendors_rate_request_id_fkey FOREIGN KEY (rate_request_id) REFERENCES public.rate_requests(id),
+  CONSTRAINT rate_request_vendors_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id)
+);
+CREATE TABLE public.rate_requests (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  request_number character varying NOT NULL UNIQUE,
+  category_id uuid NOT NULL,
+  quotation_id uuid,
+  quotation_item_id uuid,
+  request_type character varying DEFAULT 'category'::character varying CHECK (request_type::text = ANY (ARRAY['category'::character varying::text, 'specific_item'::character varying::text])),
+  title character varying NOT NULL,
+  description text,
+  quantity numeric,
+  unit_of_measure character varying,
+  specifications jsonb,
+  deadline date,
+  status character varying DEFAULT 'draft'::character varying CHECK (status::text = ANY (ARRAY['draft'::character varying::text, 'sent'::character varying::text, 'completed'::character varying::text, 'cancelled'::character varying::text])),
+  created_by uuid NOT NULL,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  sent_at timestamp without time zone,
+  CONSTRAINT rate_requests_pkey PRIMARY KEY (id),
+  CONSTRAINT rate_requests_quotation_item_id_fkey FOREIGN KEY (quotation_item_id) REFERENCES public.quotation_items(id),
+  CONSTRAINT rate_requests_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+  CONSTRAINT rate_requests_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.product_categories(id),
+  CONSTRAINT rate_requests_quotation_id_fkey FOREIGN KEY (quotation_id) REFERENCES public.quotations(id)
+);
 CREATE TABLE public.sales_order_items (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   sales_order_id uuid NOT NULL,
@@ -649,6 +692,19 @@ CREATE TABLE public.vendor_bills (
   CONSTRAINT vendor_bills_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id),
   CONSTRAINT vendor_bills_business_entity_id_fkey FOREIGN KEY (business_entity_id) REFERENCES public.business_entities(id),
   CONSTRAINT vendor_bills_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.vendor_categories (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  vendor_id uuid NOT NULL,
+  category_id uuid NOT NULL,
+  is_active boolean DEFAULT true,
+  assigned_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  assigned_by uuid,
+  notes text,
+  CONSTRAINT vendor_categories_pkey PRIMARY KEY (id),
+  CONSTRAINT vendor_categories_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id),
+  CONSTRAINT vendor_categories_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.product_categories(id),
+  CONSTRAINT vendor_categories_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES public.users(id)
 );
 CREATE TABLE public.vendors (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

@@ -1092,6 +1092,72 @@ class ApiClient {
 
     return response.blob();
   }
+
+  // Vendor Categories methods
+  async getVendorCategories(params?: { category_id?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.category_id) queryParams.append('category_id', params.category_id);
+    
+    const endpoint = `/vendor-categories${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request(endpoint);
+  }
+
+  async getCategoryVendors(categoryId: string, includeUnassigned: boolean = false) {
+    const queryParams = new URLSearchParams();
+    if (includeUnassigned) queryParams.append('include_unassigned', 'true');
+    
+    return this.request(`/vendor-categories/category/${categoryId}/vendors?${queryParams.toString()}`);
+  }
+
+  async assignVendorsToCategory(categoryId: string, vendorIds: string[], notes?: string) {
+    return this.request(`/vendor-categories/category/${categoryId}/vendors`, {
+      method: 'POST',
+      body: JSON.stringify({ vendor_ids: vendorIds, notes })
+    });
+  }
+
+  async removeVendorFromCategory(categoryId: string, vendorId: string) {
+    return this.request(`/vendor-categories/category/${categoryId}/vendor/${vendorId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async getCategoryRateRequests(categoryId: string, status?: string) {
+    const queryParams = new URLSearchParams();
+    if (status) queryParams.append('status', status);
+    
+    return this.request(`/vendor-categories/category/${categoryId}/rate-requests?${queryParams.toString()}`);
+  }
+
+  async createRateRequest(requestData: {
+    category_id: string;
+    quotation_id?: string;
+    quotation_item_id?: string;
+    request_type?: 'category' | 'specific_item';
+    title: string;
+    description?: string;
+    quantity?: number;
+    unit_of_measure?: string;
+    specifications?: any;
+    deadline?: string;
+    vendor_ids?: string[];
+  }) {
+    return this.request('/vendor-categories/rate-requests', {
+      method: 'POST',
+      body: JSON.stringify(requestData)
+    });
+  }
+
+  async updateRateRequestStatus(requestId: string, status: string) {
+    return this.request(`/vendor-categories/rate-requests/${requestId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    });
+  }
+
+  async getVendorCategoriesList() {
+    return this.request('/vendor-categories/categories');
+  }
 }
 
 // Create and export API client instance
