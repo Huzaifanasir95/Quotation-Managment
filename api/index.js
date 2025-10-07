@@ -359,245 +359,152 @@ app.get('/api/v1/quotations', async (req, res) => {
 // Create quotation endpoint
 app.post('/api/v1/quotations', async (req, res) => {
   try {
-    const { items, customers, ...quotationData } = req.body;
-    console.log('🚀 Creating quotation with data:', { 
-      quotationData, 
-      itemsCount: items?.length,
-      customersData: customers,
-      hasCustomers: !!customers,
-      customersLength: customers?.length 
-    });
+    console.log('� Creating quotation with data:', JSON.stringify(req.body, null, 2));
+    const { items, ...quotationData } = req.body;
 
-    // Handle multiple customers or single customer_id
-    let customerIds = [];
-    
-    if (customers && Array.isArray(customers) && customers.length > 0) {
-      // Multiple customers selected
-      customerIds = customers.map(customer => {
-        if (typeof customer === 'object' && customer.id) {
-          return customer.id;
-        }
-        return customer;
-      });
-      console.log('📋 Multiple customers mode:', customerIds);
-    } else if (quotationData.customer_id) {
-      // Single customer mode (backward compatibility)
-      customerIds = [quotationData.customer_id];
-      console.log('👤 Single customer mode:', customerIds);
-    } else {
-      console.error('❌ No customers provided in request body:', { customers, customer_id: quotationData.customer_id });
-      return res.status(400).json({
-        success: false,
-        message: 'No customers provided. Please select at least one customer.',
-        debug: {
-          hasCustomers: !!customers,
-          customersType: typeof customers,
-          customersLength: customers?.length,
-          hasCustomerId: !!quotationData.customer_id,
-          customerIdType: typeof quotationData.customer_id,
-          receivedBody: req.body
-        }
-      });
+    // Map reference_no to reference_number for compatibility
+    if (quotationData.reference_no && !quotationData.reference_number) {
+      quotationData.reference_number = quotationData.reference_no;
+      delete quotationData.reference_no;
     }
 
-    console.log('🎯 Final customer IDs to process:', customerIds);
+    // Generate unique quotation number using timestamp + random suffix for concurrent requests
+    const currentYear = new Date().getFullYear();
+    const timestamp = Date.now();
+    const randomSuffix = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    
+    // Try to get the next sequential number first
+    let quotation_number;
+    try {
+      const { data: lastQuotation } = await supabase
+        .from('quotations')
+        .select('quotation_number')
+        .like('quotation_number', `Q-${currentYear}-%`)
+        .order('quotation_number', { ascending: false })
+        .limit(1)
+        .single();
 
-    const createdQuotations = [];
-    const errors = [];
+      let nextNumber = 1;
+      if (lastQuotation) {
+        const lastNumber = parseInt(lastQuotation.quotation_number.split('-')[2]);
+        nextNumber = lastNumber + 1;
+      }
 
-    // Create quotation for each customer
-    for (const customerId of customerIds) {
-      try {
-        // Handle customer_id - keep as string for UUID or convert to number for integer IDs
-        let customer_id = customerId;
+      quotation_number = `Q-${currentYear}-${nextNumber.toString().padStart(3, '0')}`;
+    } catch (error) {
+      // Fallback to timestamp-based number if query fails
+      quotation_number = `Q-${currentYear}-${timestamp.toString().slice(-6)}`;
+    }
+
+    // Calculate totals
+    let subtotal = 0;
+    let tax_amount = 0;
+    let discount_amount = 0;
+
+    const processedItems = items.map(item => {
+      const line_total = item.quantity * item.unit_price;
+      const discount = line_total * (item.discount_percent || 0) / 100;
+      const taxable_amount = line_total - discount;
+      const tax = taxable_amount * (item.tax_percent || 0) / 100;
+
+      subtotal += line_total;
+      discount_amount += discount;
+      tax_amount += tax;
+
+      return {
+        ...item,
+        line_total: taxable_amount + tax
+      };
+    });
+
+    const total_amount = subtotal - discount_amount + tax_amount;
+
+    const finalQuotationData = {
+      ...quotationData,
+      quotation_number,
+      subtotal,
+      tax_amount,
+      discount_amount,
+      total_amount
+    };
+
+    // Create quotation with retry logic for duplicate quotation numbers
+    let quotation;
+    let quotationError;
+    let retryCount = 0;
+    const maxRetries = 5;
+
+    while (retryCount < maxRetries) {
+      const result = await supabase
+        .from('quotations')
+        .insert(finalQuotationData)
+        .select('*')
+        .single();
+      
+      quotation = result.data;
+      quotationError = result.error;
+
+      // If successful, break out of retry loop
+      if (!quotationError) {
+        break;
+      }
+
+      // If it's a duplicate key error, generate a new quotation number and retry
+      if (quotationError.code === '23505' && quotationError.message.includes('quotation_number')) {
+        retryCount++;
+        console.log(`🔄 Duplicate quotation number detected, retrying (${retryCount}/${maxRetries})...`);
         
-        console.log('🔄 Processing customer:', customer_id, 'Type:', typeof customer_id);
-
-        // Validate that customer exists
-        const { data: customerExists, error: customerCheckError } = await supabase
-          .from('customers')
-          .select('id')
-          .eq('id', customer_id)
-          .single();
-
-        if (customerCheckError || !customerExists) {
-          console.error('❌ Customer not found:', customer_id, customerCheckError);
-          errors.push({
-            customer_id,
-            error: `Customer with ID ${customer_id} not found`
-          });
-          continue;
-        }
-
-        // Generate quotation number
-        const currentYear = new Date().getFullYear();
-        const { data: lastQuotation } = await supabase
-          .from('quotations')
-          .select('quotation_number')
-          .like('quotation_number', `Q-${currentYear}-%`)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        let nextNumber = 1;
-        if (lastQuotation && lastQuotation.quotation_number) {
-          const lastNumber = parseInt(lastQuotation.quotation_number.split('-')[2]);
-          nextNumber = isNaN(lastNumber) ? 1 : lastNumber + 1;
-        }
-
-        const quotation_number = `Q-${currentYear}-${nextNumber.toString().padStart(5, '0')}`;
-
-        // Calculate totals
-        let subtotal = 0;
-        let tax_amount = 0;
-        let discount_amount = 0;
-
-        const processedItems = items?.map(item => {
-          const line_total = item.quantity * item.unit_price;
-          const profit_percent = item.profit_percent || item.discount_percent || 0;
-          const profit = line_total * profit_percent / 100;
-          const taxable_amount = line_total + profit;
-          const tax = taxable_amount * (item.tax_percent || 0) / 100;
-
-          subtotal += line_total;
-          discount_amount += profit;
-          tax_amount += tax;
-
-          return {
-            ...item,
-            line_total: taxable_amount + tax
-          };
-        }) || [];
-
-        const total_amount = subtotal + discount_amount + tax_amount;
-
-        // Validate required fields
-        if (!quotationData.quotation_date) {
-          throw new Error('quotation_date is required');
-        }
-
-        // Build final quotation data with processed customer_id
-        const finalQuotationData = {
-          customer_id, // Use the processed customer_id
-          quotation_date: quotationData.quotation_date,
-          valid_until: quotationData.valid_until || null,
-          reference_number: quotationData.reference_number || null,
-          terms_conditions: quotationData.terms_conditions || null,
-          notes: quotationData.notes || null,
-          quotation_number,
-          subtotal: Number(subtotal) || 0,
-          tax_amount: Number(tax_amount) || 0,
-          discount_amount: Number(discount_amount) || 0,
-          total_amount: Number(total_amount) || 0,
-          status: 'draft',
-          created_at: new Date().toISOString()
-        };
-
-        console.log('📝 Final quotation data for customer', customer_id, ':', finalQuotationData);
-
-        // Create quotation
-        const { data: quotation, error: quotationError } = await supabase
-          .from('quotations')
-          .insert(finalQuotationData)
-          .select('*')
-          .single();
-
-        if (quotationError) {
-          console.error('❌ Quotation creation error for customer', customer_id, ':', quotationError);
-          console.error('❌ Failed quotation data:', finalQuotationData);
-          errors.push({
-            customer_id,
-            error: quotationError.message,
-            details: quotationError.details || quotationError.hint || null,
-            code: quotationError.code || null
-          });
-          continue;
-        }
-
-        console.log('✅ Quotation created successfully for customer', customer_id, ':', quotation);
-
-        // Create quotation items if there are any
-        if (processedItems.length > 0) {
-          const quotationItems = processedItems.map(item => ({
-            quotation_id: quotation.id,
-            product_id: item.product_id || null,
-            description: item.description || 'No description',
-            category: item.category || null,
-            serial_number: item.serial_number || null,
-            item_name: item.item_name || null,
-            unit_of_measure: item.unit_of_measure || null,
-            gst_percent: Number(item.gst_percent) || 0,
-            item_type: item.item_type || 'inventory',
-            quantity: Number(item.quantity) || 1,
-            unit_price: Number(item.unit_price) || 0,
-            profit_percent: Number(item.profit_percent || item.discount_percent) || 0,
-            tax_percent: Number(item.tax_percent) || 0,
-            line_total: Number(item.line_total) || (Number(item.quantity) || 1) * (Number(item.unit_price) || 0)
-          }));
-
-          console.log('📦 Creating quotation items for quotation', quotation.id, ':', quotationItems);
-
-          const { error: itemsError } = await supabase
-            .from('quotation_items')
-            .insert(quotationItems);
-
-          if (itemsError) {
-            console.error('❌ Quotation items creation error for quotation', quotation.id, ':', itemsError);
-            // Rollback quotation creation
-            await supabase.from('quotations').delete().eq('id', quotation.id);
-            errors.push({
-              customer_id,
-              error: `Failed to create quotation items: ${itemsError.message}`
-            });
-            continue;
-          }
-        }
-
-        createdQuotations.push(quotation);
-
-      } catch (customerError) {
-        console.error('💥 Error processing customer', customerId, ':', customerError);
-        errors.push({
-          customer_id: customerId,
-          error: customerError.message
-        });
+        // Generate a new unique quotation number using timestamp + retry count
+        const timestamp = Date.now();
+        const uniqueSuffix = `${timestamp.toString().slice(-4)}${retryCount}`;
+        finalQuotationData.quotation_number = `Q-${currentYear}-${uniqueSuffix}`;
+        
+        // Small delay to avoid rapid retries
+        await new Promise(resolve => setTimeout(resolve, 50 * retryCount));
+      } else {
+        // For other errors, don't retry
+        break;
       }
     }
 
-    // Response based on results
-    if (createdQuotations.length === 0) {
-      console.error('❌ All quotation creations failed:', errors);
+    if (quotationError) {
+      console.error('❌ Quotation creation error:', quotationError);
       return res.status(400).json({
         success: false,
-        message: 'Failed to create quotations for all customers',
-        errors,
-        debug: {
-          totalCustomers: customerIds.length,
-          processedCustomers: customerIds,
-          errorCount: errors.length
-        }
+        error: 'Failed to create quotation',
+        code: 'CREATION_FAILED',
+        details: quotationError.message
       });
     }
 
-    if (errors.length > 0) {
-      return res.status(207).json({ // 207 Multi-Status
-        success: true,
-        message: `Created ${createdQuotations.length} quotation(s), ${errors.length} failed`,
-        data: { 
-          quotations: createdQuotations,
-          quotation: createdQuotations[0], // Add single quotation for backward compatibility
-          errors 
-        }
+    // Create quotation items
+    const quotationItems = processedItems.map(item => ({
+      ...item,
+      quotation_id: quotation.id
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('quotation_items')
+      .insert(quotationItems);
+
+    if (itemsError) {
+      // Rollback quotation creation
+      await supabase.from('quotations').delete().eq('id', quotation.id);
+      return res.status(400).json({
+        success: false,
+        error: 'Failed to create quotation items',
+        code: 'ITEMS_CREATION_FAILED',
+        details: itemsError.message
       });
     }
 
     res.status(201).json({
       success: true,
-      message: `${createdQuotations.length > 1 ? createdQuotations.length + ' quotations' : 'Quotation'} created successfully`,
+      message: 'Quotation created successfully',
       data: { 
-        quotations: createdQuotations,
-        quotation: createdQuotations[0], // Add single quotation for backward compatibility
-        count: createdQuotations.length
+        quotation,
+        quotation_id: quotation.id,
+        id: quotation.id
       }
     });
 
