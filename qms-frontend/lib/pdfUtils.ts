@@ -2520,11 +2520,12 @@ export const generateMultiCustomerQuotationPDF = async (quotationData: MultiCust
     const lineHeight = 6;
     let yPosition = margin;
 
-    // Professional Color Scheme
-    const primaryBlue = { r: 37, g: 99, b: 235 };
-    const accentGold = { r: 245, g: 158, b: 11 };
-    const darkText = { r: 31, g: 41, b: 55 };
-    const lightGray = { r: 249, g: 250, b: 251 };
+    // Premium Color Scheme - Match the premium format
+    const deepTeal = { r: 13, g: 71, b: 161 };      // Deep professional blue
+    const brightOrange = { r: 255, g: 111, b: 0 };  // Vibrant accent
+    const charcoal = { r: 44, g: 44, b: 44 };       // Dark text
+    const lightCream = { r: 255, g: 251, b: 245 };  // Warm background
+    const white = { r: 255, g: 255, b: 255 };
 
     // Helper function to add text with word wrapping
     const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10) => {
@@ -2534,136 +2535,147 @@ export const generateMultiCustomerQuotationPDF = async (quotationData: MultiCust
       return y + (lines.length * lineHeight);
     };
 
-    // Complete Header - Same as original
-    pdf.setFillColor(accentGold.r, accentGold.g, accentGold.b);
-    pdf.rect(0, 0, pageWidth, 6, 'F');
+    // Premium geometric logo
+    const drawPremiumLogo = (x: number, y: number, size: number) => {
+      // Diamond shape background
+      pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
+      pdf.triangle(x, y - size, x + size, y, x, y + size, 'F');
+      pdf.triangle(x, y - size, x - size, y, x, y + size, 'F');
+      
+      // Orange accent diamond
+      pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+      const innerSize = size * 0.6;
+      pdf.triangle(x, y - innerSize, x + innerSize, y, x, y + innerSize, 'F');
+      pdf.triangle(x, y - innerSize, x - innerSize, y, x, y + innerSize, 'F');
+      
+      // Center white circle
+      pdf.setFillColor(255, 255, 255);
+      pdf.circle(x, y, size * 0.35, 'F');
+      
+      // Company initial
+      pdf.setTextColor(deepTeal.r, deepTeal.g, deepTeal.b);
+      pdf.setFontSize(size * 0.5);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('A', x, y + (size * 0.15), { align: 'center' });
+    };
 
-    pdf.setFillColor(lightGray.r, lightGray.g, lightGray.b);
-    pdf.rect(0, 6, pageWidth, 70, 'F');
-
-    const leftSectionWidth = pageWidth * 0.65;
-    const leftPadding = margin;
+    // Premium Header - Same as premium format
+    // Diagonal stripe pattern background
+    pdf.setFillColor(lightCream.r, lightCream.g, lightCream.b);
+    pdf.rect(0, 0, pageWidth, 70, 'F');
     
-    const logoX = leftPadding + 15;
-    const logoY = yPosition + 25;
-    const logoSize = 15;
+    // Top accent stripe - Orange
+    pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
+    pdf.rect(0, 0, pageWidth, 4, 'F');
     
-    pdf.setFillColor(primaryBlue.r, primaryBlue.g, primaryBlue.b);
-    pdf.triangle(logoX, logoY - logoSize, logoX + logoSize, logoY, logoX, logoY + logoSize, 'F');
-    pdf.triangle(logoX, logoY - logoSize, logoX - logoSize, logoY, logoX, logoY + logoSize, 'F');
+    // Diagonal accent element
+    const lightTeal = {
+      r: Math.min(255, deepTeal.r + 200),
+      g: Math.min(255, deepTeal.g + 200), 
+      b: Math.min(255, deepTeal.b + 200)
+    };
+    pdf.setFillColor(lightTeal.r, lightTeal.g, lightTeal.b);
+    pdf.triangle(pageWidth - 60, 0, pageWidth, 0, pageWidth, 70, 'F');
     
-    pdf.setFillColor(accentGold.r, accentGold.g, accentGold.b);
-    const innerSize = logoSize * 0.7;
-    pdf.triangle(logoX, logoY - innerSize, logoX + innerSize, logoY, logoX, logoY + innerSize, 'F');
-    pdf.triangle(logoX, logoY - innerSize, logoX - innerSize, logoY, logoX, logoY + innerSize, 'F');
+    // Premium logo
+    drawPremiumLogo(margin + 10, 25, 10);
     
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(16);
+    // Company branding with modern typography
+    pdf.setTextColor(deepTeal.r, deepTeal.g, deepTeal.b);
+    pdf.setFontSize(24);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('A', logoX, logoY + 5, { align: 'center' });
-
-    const companyStartX = logoX + logoSize + 20;
+    pdf.text('ANOOSH', margin + 30, 20);
     
-    pdf.setTextColor(primaryBlue.r, primaryBlue.g, primaryBlue.b);
-    pdf.setFontSize(26);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('ANOOSH', companyStartX, yPosition + 18);
-    pdf.text('INTERNATIONAL', companyStartX, yPosition + 30);
-    
-    pdf.setDrawColor(accentGold.r, accentGold.g, accentGold.b);
-    pdf.setLineWidth(3);
-    pdf.line(companyStartX, yPosition + 33, companyStartX + 110, yPosition + 33);
-    
-    pdf.setTextColor(darkText.r, darkText.g, darkText.b);
-    pdf.setFontSize(10);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('IMPORT & EXPORT SOLUTIONS', companyStartX, yPosition + 42);
-
-    const rightSectionStart = leftSectionWidth;
-    const rightPadding = 10;
-    const cardWidth = pageWidth - rightSectionStart - margin - rightPadding;
-    const cardHeight = 55;
-    const cardX = rightSectionStart + rightPadding;
-    const cardY = yPosition + 10;
-
-    pdf.setDrawColor(accentGold.r, accentGold.g, accentGold.b);
-    pdf.setLineWidth(3);
-    pdf.roundedRect(cardX - 2, cardY - 2, cardWidth + 4, cardHeight + 4, 6, 6, 'S');
-
-    pdf.setFillColor(255, 255, 255);
-    pdf.roundedRect(cardX, cardY, cardWidth, cardHeight, 4, 4, 'F');
-
-    pdf.setFillColor(primaryBlue.r, primaryBlue.g, primaryBlue.b);
-    pdf.rect(cardX, cardY, cardWidth, 12, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(12);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('QUOTATION', cardX + (cardWidth / 2), cardY + 8, { align: 'center' });
-
-    const contentStartY = cardY + 20;
-    const lineSpacing = 10;
-    
-    pdf.setTextColor(darkText.r, darkText.g, darkText.b);
-    pdf.setFontSize(9);
-    
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('Date:', cardX + 5, contentStartY);
+    pdf.setFontSize(24);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(new Date().toLocaleDateString('en-GB'), cardX + 25, contentStartY);
+    pdf.text('INTERNATIONAL', margin + 30, 28);
+    
+    // Orange accent line
+    pdf.setDrawColor(brightOrange.r, brightOrange.g, brightOrange.b);
+    pdf.setLineWidth(2);
+    pdf.line(margin + 30, 30, margin + 100, 30);
+    
+    // Subtitle
+    pdf.setTextColor(charcoal.r, charcoal.g, charcoal.b);
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('IMPORT & EXPORT SOLUTIONS', margin + 30, 36);
+    
+    // Modern info card - floating design
+    const cardX = pageWidth - margin - 65;
+    const cardY = 12;
+    const cardWidth = 60;
+    const cardHeight = 32;
+    
+    // Card shadow
+    pdf.setFillColor(220, 220, 220);
+    pdf.roundedRect(cardX + 2, cardY + 2, cardWidth, cardHeight, 4, 4, 'F');
+    
+    // Main card
+    pdf.setFillColor(white.r, white.g, white.b);
+    pdf.setDrawColor(brightOrange.r, brightOrange.g, brightOrange.b);
+    pdf.setLineWidth(1);
+    pdf.roundedRect(cardX, cardY, cardWidth, cardHeight, 4, 4, 'FD');
+    
+    // Card header
+    pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
+    pdf.rect(cardX, cardY, cardWidth, 8, 'F');
+    
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('QUOTATION', cardX + (cardWidth / 2), cardY + 5.5, { align: 'center' });
+    
+    // Card content
+    pdf.setTextColor(charcoal.r, charcoal.g, charcoal.b);
+    pdf.setFontSize(7);
+    pdf.setFont('helvetica', 'bold');
+    
+    pdf.text('Date:', cardX + 3, cardY + 14);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(new Date().toLocaleDateString('en-GB'), cardX + 15, cardY + 14);
     
     pdf.setFont('helvetica', 'bold');
-    pdf.text('Reference:', cardX + 5, contentStartY + lineSpacing);
+    pdf.text('Reference:', cardX + 3, cardY + 21);
     pdf.setFont('helvetica', 'normal');
     const refNumber = quotationData.reference_no || quotationData.quotation_number || 'REF-' + new Date().getFullYear() + '-001';
-    const displayRef = refNumber.length > 18 ? refNumber.substring(0, 15) + '...' : refNumber;
-    pdf.text(displayRef, cardX + 5, contentStartY + lineSpacing + 6);
+    const displayRef = refNumber.length > 12 ? refNumber.substring(0, 9) + '...' : refNumber;
+    pdf.text(displayRef, cardX + 20, cardY + 21);
     
     pdf.setFont('helvetica', 'bold');
-    pdf.text('Status:', cardX + 5, contentStartY + (lineSpacing * 2) + 6);
-    pdf.setTextColor(accentGold.r, accentGold.g, accentGold.b);
+    pdf.text('Status:', cardX + 3, cardY + 28);
+    pdf.setTextColor(brightOrange.r, brightOrange.g, brightOrange.b);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('DRAFT', cardX + 30, contentStartY + (lineSpacing * 2) + 6);
-
-    const contactBarY = 76;
-    const contactBarHeight = 20;
+    pdf.text('DRAFT', cardX + 17, cardY + 28);
     
-    pdf.setFillColor(primaryBlue.r, primaryBlue.g, primaryBlue.b);
-    pdf.rect(0, contactBarY, pageWidth, contactBarHeight, 'F');
-
+    // Contact strip
+    pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
+    pdf.rect(0, 50, pageWidth, 18, 'F');
+    
     pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(9);
+    pdf.setFontSize(7);
     pdf.setFont('helvetica', 'normal');
     
-    const contactTextY = contactBarY + 12;
-    const sectionWidth = pageWidth / 3;
+    const contactY = 58;
+    pdf.text('KRL, Rawalpindi', margin + 3, contactY);
     
-    pdf.text('KRL, Rawalpindi', margin + 5, contactTextY);
-    pdf.text('Phone: +92-XXX-XXXXXXX', sectionWidth + 20, contactTextY);
-    pdf.text('Email: info@anoosh.com', (sectionWidth * 2) + 20, contactTextY);
+    // Vertical separator
+    pdf.setDrawColor(brightOrange.r, brightOrange.g, brightOrange.b);
+    pdf.line(margin + 50, 53, margin + 50, 65);
     
-    pdf.setDrawColor(accentGold.r, accentGold.g, accentGold.b);
-    pdf.setLineWidth(3);
-    pdf.line(sectionWidth, contactBarY + 4, sectionWidth, contactBarY + contactBarHeight - 4);
-    pdf.line(sectionWidth * 2, contactBarY + 4, sectionWidth * 2, contactBarY + contactBarHeight - 4);
+    pdf.text('Phone: +92-XXX-XXXXXXX', margin + 55, contactY);
+    
+    pdf.line(margin + 115, 53, margin + 115, 65);
+    
+    pdf.text('Email: info@anoosh.com', margin + 120, contactY);
 
-    yPosition += 100;
-
-    pdf.setDrawColor(accentGold.r, accentGold.g, accentGold.b);
-    pdf.setLineWidth(2);
-    pdf.line(margin, yPosition, pageWidth - margin, yPosition);
-    
-    pdf.setDrawColor(primaryBlue.r, primaryBlue.g, primaryBlue.b);
-    pdf.setLineWidth(0.5);
-    pdf.line(margin, yPosition + 3, pageWidth - margin, yPosition + 3);
-    
-    yPosition += 15;
+    yPosition = 76; // After header
 
     // CUSTOMER INFORMATION SECTION - MULTIPLE CUSTOMERS
-    pdf.setFillColor(primaryBlue.r, primaryBlue.g, primaryBlue.b);
+    pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
     pdf.rect(margin, yPosition, pageWidth - (margin * 2), 10, 'F');
     
-    pdf.setFillColor(accentGold.r, accentGold.g, accentGold.b);
+    pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
     pdf.rect(margin, yPosition, 4, 10, 'F');
     
     pdf.setTextColor(255, 255, 255);
@@ -2672,28 +2684,47 @@ export const generateMultiCustomerQuotationPDF = async (quotationData: MultiCust
     pdf.text(`CUSTOMER INFORMATION (${quotationData.customers.length} Recipients)`, margin + 8, yPosition + 7);
     yPosition += 15;
 
-    // Display each customer separately
+    // Display each customer separately with intelligent page breaks
     quotationData.customers.forEach((customer, index) => {
-      // Check for page break
-      const customerCardHeight = 45;
-      if (yPosition + customerCardHeight > pageHeight - margin - 100) {
+      // Calculate customer card height dynamically based on content
+      let customerCardHeight = 30; // Base height for minimal info
+      
+      // Add height for each field present
+      if (customer.contact_person || customer.email) customerCardHeight += 8;
+      if (customer.phone) customerCardHeight += 8;
+      if (customer.address) {
+        const addressLines = pdf.splitTextToSize(customer.address, pageWidth - margin - 50);
+        customerCardHeight += (addressLines.length * 6);
+      }
+      
+      // Check if this customer card fits on current page
+      // A4 page height is 297mm, with 15mm bottom margin = 282mm usable
+      // We need space for: current card + items table to start (minimum 60mm for table header + few rows)
+      const spaceNeeded = customerCardHeight + 5; // card + spacing after it
+      const minimumSpaceForItemsTable = 60; // Minimum to start items table
+      const bottomMargin = 15;
+      const availableSpace = pageHeight - bottomMargin - yPosition;
+      
+      // Only create new page if this card won't fit AND we have space for items table after it
+      // Don't break if we're still in the upper portion of the page (< 150mm)
+      if (availableSpace < spaceNeeded + minimumSpaceForItemsTable && yPosition > 150) {
         pdf.addPage();
-        yPosition = margin + 20;
+        yPosition = margin + 20; // Start with some top margin on new page
       }
 
       // Customer card
-      pdf.setFillColor(lightGray.r, lightGray.g, lightGray.b);
+      pdf.setFillColor(lightCream.r, lightCream.g, lightCream.b);
       pdf.rect(margin, yPosition, pageWidth - (margin * 2), customerCardHeight, 'F');
       
       // Customer number badge
-      pdf.setFillColor(primaryBlue.r, primaryBlue.g, primaryBlue.b);
+      pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
       pdf.circle(margin + 8, yPosition + 8, 5, 'F');
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'bold');
       pdf.text((index + 1).toString(), margin + 8, yPosition + 10, { align: 'center' });
       
-      pdf.setTextColor(darkText.r, darkText.g, darkText.b);
+      pdf.setTextColor(charcoal.r, charcoal.g, charcoal.b);
       pdf.setFontSize(10);
       
       const leftCol = margin + 18;
@@ -2734,7 +2765,7 @@ export const generateMultiCustomerQuotationPDF = async (quotationData: MultiCust
         pdf.setFont('helvetica', 'bold');
         pdf.text('Address:', leftCol, currentRowY);
         pdf.setFont('helvetica', 'normal');
-        const addressLines = pdf.splitTextToSize(customer.address, pageWidth - margin - 35);
+        const addressLines = pdf.splitTextToSize(customer.address, pageWidth - margin - 50);
         pdf.text(addressLines, leftCol + 25, currentRowY);
       }
       
@@ -2753,10 +2784,10 @@ export const generateMultiCustomerQuotationPDF = async (quotationData: MultiCust
 
     const headerHeight = 12;
     
-    pdf.setFillColor(primaryBlue.r, primaryBlue.g, primaryBlue.b);
+    pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
     pdf.rect(margin, yPosition, pageWidth - 2 * margin, headerHeight, 'F');
     
-    pdf.setFillColor(accentGold.r, accentGold.g, accentGold.b);
+    pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
     pdf.rect(margin, yPosition, pageWidth - 2 * margin, 2, 'F');
     
     pdf.setTextColor(255, 255, 255);
@@ -2771,7 +2802,7 @@ export const generateMultiCustomerQuotationPDF = async (quotationData: MultiCust
     
     yPosition += headerHeight;
 
-    pdf.setTextColor(darkText.r, darkText.g, darkText.b);
+    pdf.setTextColor(charcoal.r, charcoal.g, charcoal.b);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(9);
     
@@ -2792,7 +2823,7 @@ export const generateMultiCustomerQuotationPDF = async (quotationData: MultiCust
       }
 
       if (index % 2 === 1) {
-        pdf.setFillColor(lightGray.r, lightGray.g, lightGray.b);
+        pdf.setFillColor(lightCream.r, lightCream.g, lightCream.b);
         pdf.rect(margin, yPosition, pageWidth - 2 * margin, rowHeight, 'F');
       }
 
@@ -2843,11 +2874,11 @@ export const generateMultiCustomerQuotationPDF = async (quotationData: MultiCust
     pdf.roundedRect(summaryX + 1, yPosition + 1, summaryWidth, actualSummaryHeight, 3, 3, 'F');
     
     pdf.setFillColor(255, 255, 255);
-    pdf.setDrawColor(primaryBlue.r, primaryBlue.g, primaryBlue.b);
+    pdf.setDrawColor(deepTeal.r, deepTeal.g, deepTeal.b);
     pdf.setLineWidth(1);
     pdf.roundedRect(summaryX, yPosition, summaryWidth, actualSummaryHeight, 3, 3, 'FD');
     
-    pdf.setFillColor(primaryBlue.r, primaryBlue.g, primaryBlue.b);
+    pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
     pdf.rect(summaryX, yPosition, summaryWidth, 10, 'F');
     
     pdf.setTextColor(255, 255, 255);
@@ -2855,7 +2886,7 @@ export const generateMultiCustomerQuotationPDF = async (quotationData: MultiCust
     pdf.setFont('helvetica', 'bold');
     pdf.text('SUMMARY', summaryX + (summaryWidth / 2), yPosition + 6.5, { align: 'center' });
     
-    pdf.setTextColor(darkText.r, darkText.g, darkText.b);
+    pdf.setTextColor(charcoal.r, charcoal.g, charcoal.b);
     pdf.setFontSize(10);
     let summaryY = yPosition + 18;
     
@@ -2873,12 +2904,12 @@ export const generateMultiCustomerQuotationPDF = async (quotationData: MultiCust
       summaryY += 8;
     }
 
-    pdf.setDrawColor(accentGold.r, accentGold.g, accentGold.b);
+    pdf.setDrawColor(brightOrange.r, brightOrange.g, brightOrange.b);
     pdf.setLineWidth(1);
     pdf.line(summaryX + 5, summaryY, summaryX + summaryWidth - 5, summaryY);
     summaryY += 6;
 
-    pdf.setFillColor(accentGold.r, accentGold.g, accentGold.b);
+    pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
     pdf.rect(summaryX, summaryY - 3, summaryWidth, 12, 'F');
     
     pdf.setTextColor(255, 255, 255);
@@ -2898,16 +2929,16 @@ export const generateMultiCustomerQuotationPDF = async (quotationData: MultiCust
       yPosition = margin + 20;
     }
     
-    pdf.setFillColor(lightGray.r, lightGray.g, lightGray.b);
+    pdf.setFillColor(lightCream.r, lightCream.g, lightCream.b);
     pdf.rect(margin, yPosition, pageWidth - (margin * 2), 8, 'F');
     
-    pdf.setTextColor(primaryBlue.r, primaryBlue.g, primaryBlue.b);
+    pdf.setTextColor(deepTeal.r, deepTeal.g, deepTeal.b);
     pdf.setFontSize(12);
     pdf.setFont('helvetica', 'bold');
     pdf.text('TERMS & CONDITIONS', margin + 2, yPosition + 5.5);
     yPosition += 12;
 
-    pdf.setTextColor(darkText.r, darkText.g, darkText.b);
+    pdf.setTextColor(charcoal.r, charcoal.g, charcoal.b);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(9);
     
@@ -2927,13 +2958,13 @@ export const generateMultiCustomerQuotationPDF = async (quotationData: MultiCust
     yPosition += (standardTerms.length * 6) + 10;
 
     if (quotationData.notes && quotationData.notes !== 'NULL') {
-      pdf.setTextColor(primaryBlue.r, primaryBlue.g, primaryBlue.b);
+      pdf.setTextColor(deepTeal.r, deepTeal.g, deepTeal.b);
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
       pdf.text('ADDITIONAL NOTES', margin, yPosition);
       yPosition += 8;
 
-      pdf.setTextColor(darkText.r, darkText.g, darkText.b);
+      pdf.setTextColor(charcoal.r, charcoal.g, charcoal.b);
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(9);
       yPosition = addWrappedText(quotationData.notes, margin + 3, yPosition, pageWidth - 2 * margin - 6, 9);
@@ -2949,27 +2980,27 @@ export const generateMultiCustomerQuotationPDF = async (quotationData: MultiCust
       yPosition = margin + 20;
     }
     
-    pdf.setTextColor(primaryBlue.r, primaryBlue.g, primaryBlue.b);
+    pdf.setTextColor(deepTeal.r, deepTeal.g, deepTeal.b);
     pdf.setFontSize(11);
     pdf.setFont('helvetica', 'bold');
     pdf.text('AUTHORIZED SIGNATURE', margin, yPosition);
     yPosition += 15;
     
-    pdf.setDrawColor(darkText.r, darkText.g, darkText.b);
+    pdf.setDrawColor(charcoal.r, charcoal.g, charcoal.b);
     pdf.setLineWidth(0.5);
     pdf.line(margin, yPosition, margin + 80, yPosition);
     
-    pdf.setTextColor(darkText.r, darkText.g, darkText.b);
+    pdf.setTextColor(charcoal.r, charcoal.g, charcoal.b);
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
     pdf.text('For Anoosh International', margin, yPosition + 8);
     
     // Footer
     const footerY = pageHeight - 15;
-    pdf.setFillColor(primaryBlue.r, primaryBlue.g, primaryBlue.b);
+    pdf.setFillColor(deepTeal.r, deepTeal.g, deepTeal.b);
     pdf.rect(0, footerY, pageWidth, 15, 'F');
     
-    pdf.setFillColor(accentGold.r, accentGold.g, accentGold.b);
+    pdf.setFillColor(brightOrange.r, brightOrange.g, brightOrange.b);
     pdf.rect(0, footerY, pageWidth, 2, 'F');
     
     pdf.setTextColor(255, 255, 255);
