@@ -12,14 +12,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// CORS configuration
+// CORS configuration - Updated for anoosh.vercel.app deployment
 app.use(cors({
   origin: [
+    'https://anoosh.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001',
+    // Legacy domains for backward compatibility
     'https://qms-azure.vercel.app', 
     'https://qms-*.vercel.app',
-    'https://qms-gkv7ritb5-huzaifa-nasirs-projects-70949826.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:3001'
+    'https://qms-gkv7ritb5-huzaifa-nasirs-projects-70949826.vercel.app'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
