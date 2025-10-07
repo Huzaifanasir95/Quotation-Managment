@@ -18,8 +18,17 @@ export async function validateServerAuth(): Promise<User | null> {
       return null;
     }
 
-    // Validate with backend only (no JWT verification)
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000/api/v1'}/auth/profile`, {
+    // Validate with backend - supports both localhost and production
+    const getApiUrl = () => {
+      if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+        return process.env.NEXT_PUBLIC_API_BASE_URL;
+      }
+      // Default to production for server-side rendering
+      return 'https://anoosh.vercel.app/api/v1';
+    };
+    
+    const API_BASE_URL = getApiUrl();
+    const response = await fetch(`${API_BASE_URL}/auth/profile`, {
       headers: {
         'Authorization': `Bearer ${authToken}`
       }

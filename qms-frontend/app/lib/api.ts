@@ -1,7 +1,37 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 
-  (typeof window !== 'undefined' && window.location.origin.includes('vercel.app') 
-    ? '/api/v1' 
-    : 'http://localhost:5000/api/v1');
+// API Base URL Configuration - Works for both localhost and production
+const getApiBaseUrl = () => {
+  // 1. Use environment variable if set (highest priority)
+  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+  
+  // 2. Client-side detection based on current domain
+  if (typeof window !== 'undefined') {
+    const origin = window.location.origin;
+    
+    // Production: anoosh.vercel.app
+    if (origin.includes('anoosh.vercel.app')) {
+      return 'https://anoosh.vercel.app/api/v1';
+    }
+    
+    // Other Vercel deployments (fallback)
+    if (origin.includes('vercel.app')) {
+      return `${origin}/api/v1`;
+    }
+    
+    // Localhost development
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return 'http://localhost:5000/api/v1';
+    }
+  }
+  
+  // 3. Server-side fallback (for SSR)
+  return 'http://localhost:5000/api/v1';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+console.log('🌐 API Base URL configured as:', API_BASE_URL);
 
 // API utility functions
 class ApiClient {

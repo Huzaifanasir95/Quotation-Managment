@@ -20,12 +20,18 @@ const protectedRoutes = [
 async function verifyToken(token: string, request: NextRequest): Promise<boolean> {
   try {
     // Determine API base URL based on environment
-    let apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL;
+    let apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     
     // If no environment variable is set, determine from the current request
     if (!apiBaseUrl) {
       const { protocol, host } = request.nextUrl;
-      apiBaseUrl = `${protocol}//${host}/api/v1`;
+      if (host.includes('anoosh.vercel.app')) {
+        apiBaseUrl = 'https://anoosh.vercel.app/api/v1';
+      } else if (host.includes('vercel.app')) {
+        apiBaseUrl = `${protocol}//${host}/api/v1`;
+      } else {
+        apiBaseUrl = 'http://localhost:5000/api/v1';
+      }
     }
     
     console.log('🔍 Verifying token with API:', apiBaseUrl);
