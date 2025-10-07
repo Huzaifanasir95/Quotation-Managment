@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { apiClient, Customer, Vendor } from '../../lib/api';
-import { generateQuotationPDF, generateEnhancedQuotationPDF, generateDetailedQuotationPDF, generateMultiCustomerQuotationPDF } from '../../../lib/pdfUtils';
+import { generateQuotationPDF, generateEnhancedQuotationPDF, generateDetailedQuotationPDF, generateMultiCustomerQuotationPDF, generateQuotationPDFFormat2, generateMultiCustomerQuotationPDFFormat2 } from '../../../lib/pdfUtils';
 import { loadJsPDF, loadXLSX } from '../../../lib/dynamicImports';
 import VendorRateRequestModals from './VendorRateRequestModals';
 import VendorCategoryManager from './VendorCategoryManager';
@@ -463,7 +463,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   };
 
   // New handler for generating PDF after customer selection
-  const handleGeneratePDFForCustomers = async (selectedCustomers: Customer[], combinedPDF: boolean) => {
+  const handleGeneratePDFForCustomers = async (selectedCustomers: Customer[], combinedPDF: boolean, format: 'format1' | 'format2' = 'format1') => {
     setIsGeneratingPDF(true);
     
     try {
@@ -495,7 +495,12 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           notes: formData.notes !== 'NULL' ? formData.notes : ''
         };
 
-        await generateMultiCustomerQuotationPDF(multiCustomerData);
+        // Generate combined PDF based on selected format
+        if (format === 'format2') {
+          await generateMultiCustomerQuotationPDFFormat2(multiCustomerData);
+        } else {
+          await generateMultiCustomerQuotationPDF(multiCustomerData);
+        }
       } else {
         // Generate individual PDFs for each selected customer
         for (const selectedCustomer of selectedCustomers) {
@@ -534,7 +539,12 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
             notes: formData.notes !== 'NULL' ? formData.notes : ''
           };
 
-          await generateQuotationPDF(quotationData);
+          // Generate PDF based on selected format
+          if (format === 'format2') {
+            await generateQuotationPDFFormat2(quotationData);
+          } else {
+            await generateQuotationPDF(quotationData);
+          }
           
           // Add small delay between PDF generations to prevent issues
           if (selectedCustomers.length > 1) {
