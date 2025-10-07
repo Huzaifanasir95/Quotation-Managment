@@ -1001,74 +1001,137 @@ export const generateMultiCustomerQuotationPDFFormat2 = async (quotationData: Mu
     const navyBlue = { r: 30, g: 58, b: 95 };
     const gold = { r: 201, g: 169, b: 97 };
     const lightBg = { r: 248, g: 250, b: 252 };
-    const textDark = { r: 50, g: 50, b: 50 };
+    const textDark = { r: 31, g: 41, b: 55 };
+    const borderLight = { r: 226, g: 232, b: 240 };
     
-    // Helper function for page header
-    const addPageHeader = (pageNum: number) => {
-      // Company logo/info section
+    // Helper to draw Anoosh International logo
+    const drawLogo = (x: number, y: number, size: number) => {
+      // Outer circle - Navy Blue
+      pdf.setFillColor(navyBlue.r, navyBlue.g, navyBlue.b);
+      pdf.circle(x, y, size, 'F');
+      
+      // Gold middle ring
+      pdf.setFillColor(gold.r, gold.g, gold.b);
+      pdf.circle(x, y, size * 0.85, 'F');
+      
+      // Inner circle - White
       pdf.setFillColor(255, 255, 255);
-      pdf.rect(0, 0, pageWidth, 45, 'F');
+      pdf.circle(x, y, size * 0.75, 'F');
       
-      // Company name and info
-      pdf.setTextColor(navyBlue.r, navyBlue.g, navyBlue.b);
-      pdf.setFontSize(18);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('ANOOSH INTERNATIONAL', margin, 20);
-      
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(gold.r, gold.g, gold.b);
-      pdf.text('IMPORT / EXPORT', margin, 27);
-      
-      pdf.setTextColor(textDark.r, textDark.g, textDark.b);
-      pdf.setFontSize(8);
-      pdf.text('Address: Directorate of Technical Procurement (L), KRL, Rawalpindi', margin, 35);
-      pdf.text(`Phone: +92-XXX-XXXXXXX`, margin, 40);
-      
-      // Date and Reference box on the right
-      const boxWidth = 45;
-      const boxHeight = 25;
-      const boxX = pageWidth - margin - boxWidth;
-      const boxY = 15;
-      
-      pdf.setFillColor(255, 255, 255);
+      // Navy Blue inner ring
       pdf.setDrawColor(navyBlue.r, navyBlue.g, navyBlue.b);
       pdf.setLineWidth(0.5);
-      pdf.rect(boxX, boxY, boxWidth, boxHeight);
+      pdf.circle(x, y, size * 0.5, 'S');
       
-      pdf.setFontSize(7);
+      // Company initial 'A'
+      pdf.setTextColor(navyBlue.r, navyBlue.g, navyBlue.b);
+      pdf.setFontSize(size * 0.9);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('DATE', boxX + 3, boxY + 6);
-      pdf.text('REF', boxX + 3, boxY + 16);
-      
-      pdf.setFont('helvetica', 'normal');
-      const dateText = new Date().toLocaleDateString('en-GB');
-      const refText = quotationData.reference_no || quotationData.quotation_number || '-';
-      pdf.text(dateText, boxX + 3, boxY + 11);
-      pdf.text(refText.length > 15 ? refText.substring(0, 12) + '...' : refText, boxX + 3, boxY + 21);
-      
-      pdf.line(boxX, boxY + 12.5, boxX + boxWidth, boxY + 12.5);
-      
-      // Navy blue QUOTATION bar
-      pdf.setFillColor(navyBlue.r, navyBlue.g, navyBlue.b);
-      pdf.rect(0, 45, pageWidth, 15, 'F');
-      
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('QUOTATION', margin, 55);
-      
-      return 70; // Return Y position where content should start
+      pdf.text('A', x, y + (size * 0.25), { align: 'center' });
+    };
+    
+    // Function to add branded header
+    const addBrandedHeader = (isFirstPage: boolean = true) => {
+      if (isFirstPage) {
+        // Top accent bar - Gold
+        pdf.setFillColor(gold.r, gold.g, gold.b);
+        pdf.rect(0, 0, pageWidth, 3, 'F');
+        
+        // Logo
+        drawLogo(margin + 10, 20, 10);
+        
+        // Company Name
+        pdf.setTextColor(navyBlue.r, navyBlue.g, navyBlue.b);
+        pdf.setFontSize(22);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('ANOOSH INTERNATIONAL', margin + 30, 18);
+        
+        // Tagline
+        pdf.setFontSize(9);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(gold.r, gold.g, gold.b);
+        pdf.text('IMPORT / EXPORT', margin + 30, 24);
+        
+        // Contact bar background
+        pdf.setFillColor(lightBg.r, lightBg.g, lightBg.b);
+        pdf.rect(margin, 30, pageWidth - (margin * 2), 12, 'F');
+        
+        // Contact information
+        pdf.setFontSize(8);
+        pdf.setTextColor(textDark.r, textDark.g, textDark.b);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text('Address: Directorate of Technical Procurement (L), KRL, Rawalpindi', margin + 3, 36);
+        pdf.text('Phone: +92-XXX-XXXXXXX', pageWidth - margin - 45, 36);
+        
+        // Document title section
+        pdf.setFillColor(navyBlue.r, navyBlue.g, navyBlue.b);
+        pdf.rect(0, 48, pageWidth, 20, 'F');
+        
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(18);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('QUOTATION', margin, 60);
+        
+        // Document info boxes
+        const infoBoxY = 52;
+        const boxWidth = 45;
+        const startX = pageWidth - margin - boxWidth;
+        
+        pdf.setFillColor(255, 255, 255);
+        pdf.setDrawColor(gold.r, gold.g, gold.b);
+        pdf.setLineWidth(0.5);
+        pdf.roundedRect(startX, infoBoxY, boxWidth, 13, 2, 2, 'FD');
+        
+        pdf.setTextColor(navyBlue.r, navyBlue.g, navyBlue.b);
+        pdf.setFontSize(7);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('DATE', startX + 2, infoBoxY + 4);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(new Date().toLocaleDateString('en-GB'), startX + 2, infoBoxY + 8);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('REF', startX + 25, infoBoxY + 4);
+        pdf.setFont('helvetica', 'normal');
+        const refText = quotationData.reference_no || quotationData.quotation_number || 'N/A';
+        pdf.text(refText.substring(0, 10), startX + 25, infoBoxY + 8);
+        
+        return 75; // Return Y position
+      } else {
+        // Continuation page header
+        pdf.setFillColor(gold.r, gold.g, gold.b);
+        pdf.rect(0, 0, pageWidth, 2, 'F');
+        
+        pdf.setFillColor(navyBlue.r, navyBlue.g, navyBlue.b);
+        pdf.rect(0, 2, pageWidth, 15, 'F');
+        
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('ANOOSH INTERNATIONAL - QUOTATION (Continued)', margin, 12);
+        
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(`Page ${currentPage}`, pageWidth - margin - 15, 12);
+        
+        return 25;
+      }
     };
     
     // Add first page header
-    let yPosition = addPageHeader(currentPage);
+    let yPosition = addBrandedHeader(true);
     
     // Add customer information section for each customer
     quotationData.customers.forEach((customer, index) => {
+      // Calculate dynamic customer card height
+      let customerCardHeight = 22; // Base height
+      if (customer.contact_person || customer.email) customerCardHeight += 7;
+      if (customer.phone) customerCardHeight += 7;
+      if (customer.address) {
+        const addressLines = pdf.splitTextToSize(customer.address, pageWidth - margin - 50);
+        customerCardHeight += (addressLines.length * 5);
+      }
+      
       // Check if we need a new page for this customer
-      const customerCardHeight = 35; // Estimated height
-      if (yPosition + customerCardHeight + 60 > pageHeight - 15) {
+      if (yPosition + customerCardHeight + 15 > pageHeight - 15) {
         // Add footer
         pdf.setFillColor(gold.r, gold.g, gold.b);
         pdf.rect(0, pageHeight - 8, pageWidth, 8, 'F');
@@ -1078,7 +1141,7 @@ export const generateMultiCustomerQuotationPDFFormat2 = async (quotationData: Mu
         
         pdf.addPage();
         currentPage++;
-        yPosition = addPageHeader(currentPage);
+        yPosition = addBrandedHeader(false);
       }
       
       // Customer number badge and info
@@ -1089,18 +1152,18 @@ export const generateMultiCustomerQuotationPDFFormat2 = async (quotationData: Mu
       
       // Customer number circle
       pdf.setFillColor(navyBlue.r, navyBlue.g, navyBlue.b);
-      pdf.circle(margin + 8, cardStartY + 10, 6, 'F');
+      pdf.circle(margin + 8, cardStartY + 8, 6, 'F');
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(11);
       pdf.setFont('helvetica', 'bold');
-      pdf.text((index + 1).toString(), margin + 8, cardStartY + 13, { align: 'center' });
+      pdf.text((index + 1).toString(), margin + 8, cardStartY + 11, { align: 'center' });
       
       // Customer details
       pdf.setTextColor(textDark.r, textDark.g, textDark.b);
       pdf.setFontSize(9);
       
       const infoX = margin + 20;
-      let infoY = cardStartY + 10;
+      let infoY = cardStartY + 8;
       
       pdf.setFont('helvetica', 'bold');
       pdf.text('Company:', infoX, infoY);
@@ -1124,25 +1187,32 @@ export const generateMultiCustomerQuotationPDFFormat2 = async (quotationData: Mu
         pdf.text(customer.email, pageWidth / 2 + 25, infoY);
       }
       
-      infoY += 7;
+      if (customer.contact_person || customer.email) {
+        infoY += 7;
+      }
+      
       if (customer.phone) {
         pdf.setFont('helvetica', 'bold');
         pdf.text('Phone:', infoX, infoY);
         pdf.setFont('helvetica', 'normal');
         pdf.text(customer.phone, infoX + 25, infoY);
+        infoY += 7;
       }
       
-      infoY += 7;
       if (customer.address) {
         pdf.setFont('helvetica', 'bold');
         pdf.text('Address:', infoX, infoY);
         pdf.setFont('helvetica', 'normal');
         const addressLines = pdf.splitTextToSize(customer.address, pageWidth - margin - 50);
         pdf.text(addressLines, infoX + 25, infoY);
+        infoY += (addressLines.length * 5);
       }
       
-      yPosition = cardStartY + customerCardHeight + 10;
+      yPosition = cardStartY + customerCardHeight + 8; // Add spacing between customer cards
     });
+    
+    // Add spacing before items table
+    yPosition += 5;
     
     // Items Table Header
     const tableStartY = yPosition;
@@ -1190,7 +1260,7 @@ export const generateMultiCustomerQuotationPDFFormat2 = async (quotationData: Mu
         
         pdf.addPage();
         currentPage++;
-        yPosition = addPageHeader(currentPage);
+        yPosition = addBrandedHeader(false);
         
         // Re-add table header
         pdf.setFillColor(navyBlue.r, navyBlue.g, navyBlue.b);
@@ -1311,7 +1381,7 @@ export const generateMultiCustomerQuotationPDFFormat2 = async (quotationData: Mu
       
       pdf.addPage();
       currentPage++;
-      yPosition = addPageHeader(currentPage);
+      yPosition = addBrandedHeader(false);
     }
     
     pdf.setTextColor(navyBlue.r, navyBlue.g, navyBlue.b);
