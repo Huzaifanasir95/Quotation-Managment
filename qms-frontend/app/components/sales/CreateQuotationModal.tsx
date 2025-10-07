@@ -2041,159 +2041,178 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
 
           {activeTab === 'preview' && (
             <div className="max-w-6xl mx-auto">
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-medium text-gray-900 flex items-center">
-                    <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Review & Create Quotation
-                  </h3>
-                  
-                  {/* PDF Download Button */}
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-medium text-gray-900">Review & Create Quotation</h3>
+                
+                {/* Simplified Action Buttons */}
+                <div className="flex items-center space-x-1">
                   <button
                     onClick={handleDownloadPDF}
                     disabled={isGeneratingPDF || !formData.customerIds.length || items.length === 0}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
+                    className="px-3 py-1.5 text-xs text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md flex items-center space-x-1.5"
+                    title="Download PDF"
                   >
                     {isGeneratingPDF ? (
                       <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <svg className="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Generating...
+                        <span>Generating...</span>
                       </>
                     ) : (
                       <>
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        Download PDF
+                        <span>Download PDF</span>
                       </>
                     )}
                   </button>
                 </div>
-                
-                {/* Two Column Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Left Column */}
-                  <div className="space-y-4">
-                    {/* Customer Info */}
+              </div>
+
+              {formData.customerIds.length === 0 || items.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div className="text-gray-400 mb-4">
+                    <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-500 text-lg">Quotation Incomplete</p>
+                  <p className="text-gray-400 text-sm">
+                    {formData.customerIds.length === 0 && items.length === 0 ? (
+                      'Please add customers and items before creating the quotation'
+                    ) : formData.customerIds.length === 0 ? (
+                      'Please select at least one customer'
+                    ) : (
+                      'Please add at least one item'
+                    )}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Summary Cards Row */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {/* Customers Summary */}
                     <div className="bg-white border border-gray-200 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                        <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        Customer
-                      </h4>
-                      <p className="text-gray-700 font-medium">
-                        {formData.customerIds.length > 0 ? `${formData.customerIds.length} customer(s) selected` : 'No customers selected'}
-                      </p>
-                      {formData.customerIds.length > 0 && (
-                        <div className="mt-2 text-sm text-gray-500">
-                          <p>Multiple customers selected - details available in preview panel</p>
-                        </div>
-                      )}
+                        <span className="text-sm font-medium text-gray-700">Customers</span>
+                      </div>
+                      <p className="text-2xl font-bold text-blue-600">{formData.customerIds.length}</p>
                     </div>
-                    
-                    {/* Items */}
+
+                    {/* Items Summary */}
                     <div className="bg-white border border-gray-200 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                        <svg className="w-4 h-4 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                         </svg>
-                        Items ({items.length})
-                      </h4>
-                      {items.length > 0 ? (
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                        <span className="text-sm font-medium text-gray-700">Items</span>
+                      </div>
+                      <p className="text-2xl font-bold text-purple-600">{items.length}</p>
+                    </div>
+
+                    {/* Attachments Summary */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                        </svg>
+                        <span className="text-sm font-medium text-gray-700">Files</span>
+                      </div>
+                      <p className="text-2xl font-bold text-orange-600">{attachments.length}</p>
+                    </div>
+
+                    {/* Total Amount */}
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                        </svg>
+                        <span className="text-sm font-medium text-gray-700">Total</span>
+                      </div>
+                      <p className="text-xl font-bold text-green-600">
+                        Rs. {items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Details Section */}
+                  <div className="bg-white border border-gray-200 rounded-lg">
+                    <div className="px-4 py-3 border-b border-gray-200">
+                      <h4 className="font-medium text-gray-900">Quotation Details</h4>
+                    </div>
+                    <div className="p-4 space-y-4">
+                      {/* Customer List */}
+                      <div>
+                        <h5 className="text-sm font-medium text-gray-700 mb-2">Selected Customers:</h5>
+                        <div className="space-y-1">
+                          {formData.customerIds.map(customerId => {
+                            const customer = customers.find(c => c.id === customerId);
+                            return customer ? (
+                              <div key={customer.id} className="text-sm text-gray-600 bg-gray-50 px-3 py-1 rounded">
+                                {customer.name} {customer.email && `(${customer.email})`}
+                              </div>
+                            ) : null;
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Items List */}
+                      <div>
+                        <h5 className="text-sm font-medium text-gray-700 mb-2">Items Summary:</h5>
+                        <div className="space-y-1">
                           {items.map((item, index) => {
                             const isCustomItem = item.isCustom === true;
                             const itemName = isCustomItem 
                               ? (item.customDescription || 'Custom Item')
                               : (products.find(p => p.id === item.productId)?.name || 'Product');
-                            const stock = isCustomItem ? 'N/A' : (products.find(p => p.id === item.productId)?.stock || 0);
                             
                             return (
-                              <div key={item.id} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center space-x-2">
-                                    <p className="font-medium text-gray-900 truncate">
-                                      {itemName}
-                                    </p>
-                                    {isCustomItem && (
-                                      <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">Custom</span>
-                                    )}
-                                  </div>
-                                  <p className="text-gray-500">Qty: {item.quantity} × Rs. {item.unitPrice} {!isCustomItem && `(Stock: ${stock})`}</p>
-                                </div>
-                                <span className="font-medium text-gray-900">Rs. {(item.quantity * item.unitPrice).toFixed(2)}</span>
+                              <div key={item.id} className="flex justify-between items-center text-sm bg-gray-50 px-3 py-1 rounded">
+                                <span className="text-gray-600">
+                                  {itemName} {isCustomItem && <span className="text-blue-600">(Custom)</span>}
+                                </span>
+                                <span className="text-gray-900 font-medium">
+                                  {item.quantity} × Rs. {item.unitPrice} = Rs. {(item.quantity * item.unitPrice).toFixed(2)}
+                                </span>
                               </div>
                             );
                           })}
                         </div>
-                      ) : (
-                        <p className="text-gray-500 text-sm">No items added</p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Right Column */}
-                  <div className="space-y-4">
-                    {/* Attachments */}
-                    <div className="bg-white border border-gray-200 rounded-lg p-4">
-                      <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                        <svg className="w-4 h-4 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                        </svg>
-                        Attachments ({attachments.length})
-                      </h4>
-                      {attachments.length > 0 ? (
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {attachments.map((file, index) => (
-                            <div key={index} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-gray-900 truncate">{file.name}</p>
-                                <p className="text-gray-500">{formatFileSize(file.size)}</p>
-                              </div>
-                              <div className="flex-shrink-0">
-                                {file.type.startsWith('image/') ? (
-                                  <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                  </svg>
-                                ) : file.type === 'application/pdf' ? (
-                                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                  </svg>
-                                ) : (
-                                  <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                  </svg>
-                                )}
-                              </div>
-                            </div>
-                          ))}
+                      </div>
+
+                      {/* Terms and Conditions */}
+                      {formData.termsAndConditions && (
+                        <div>
+                          <h5 className="text-sm font-medium text-gray-700 mb-2">Terms & Conditions:</h5>
+                          <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
+                            {formData.termsAndConditions}
+                          </div>
                         </div>
-                      ) : (
-                        <p className="text-gray-500 text-sm">No files attached</p>
                       )}
-                    </div>
-                    
-                    {/* Total Summary */}
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-lg font-medium text-gray-900">Total Amount:</span>
-                        <span className="text-2xl font-bold text-green-600">
-                          Rs. {items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0).toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="mt-2 text-sm text-green-700">
-                        {items.length} item{items.length !== 1 ? 's' : ''} • {attachments.length} attachment{attachments.length !== 1 ? 's' : ''}
-                      </div>
+
+                      {/* Attachments */}
+                      {attachments.length > 0 && (
+                        <div>
+                          <h5 className="text-sm font-medium text-gray-700 mb-2">Attached Files:</h5>
+                          <div className="space-y-1">
+                            {attachments.map((file, index) => (
+                              <div key={index} className="text-sm text-gray-600 bg-gray-50 px-3 py-1 rounded">
+                                {file.name} ({formatFileSize(file.size)})
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
