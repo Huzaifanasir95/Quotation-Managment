@@ -408,23 +408,26 @@ app.post('/api/v1/quotations', async (req, res) => {
     // Create quotation for each customer
     for (const customerId of customerIds) {
       try {
-        // Handle customer_id - convert to proper format
+        // Handle customer_id - keep as string for UUID or convert to number for integer IDs
         let customer_id = customerId;
         
-        // If customer_id is a string that looks like a number, convert it
-        if (typeof customer_id === 'string' && /^\d+$/.test(customer_id)) {
-          customer_id = parseInt(customer_id, 10);
-        }
-        // If customer_id is already a number, keep it as is
-        else if (typeof customer_id === 'number') {
-          customer_id = customer_id;
-        }
-        // For UUID strings, keep as string (this handles localhost compatibility)
-        else {
-          customer_id = customer_id;
-        }
-
         console.log('🔄 Processing customer:', customer_id, 'Type:', typeof customer_id);
+
+        // Validate that customer exists
+        const { data: customerExists, error: customerCheckError } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('id', customer_id)
+          .single();
+
+        if (customerCheckError || !customerExists) {
+          console.error('❌ Customer not found:', customer_id, customerCheckError);
+          errors.push({
+            customer_id,
+            error: `Customer with ID ${customer_id} not found`
+          });
+          continue;
+        }
 
         // Generate quotation number
         const currentYear = new Date().getFullYear();
@@ -563,10 +566,16 @@ app.post('/api/v1/quotations', async (req, res) => {
 
     // Response based on results
     if (createdQuotations.length === 0) {
+      console.error('❌ All quotation creations failed:', errors);
       return res.status(400).json({
         success: false,
         message: 'Failed to create quotations for all customers',
-        errors
+        errors,
+        debug: {
+          totalCustomers: customerIds.length,
+          processedCustomers: customerIds,
+          errorCount: errors.length
+        }
       });
     }
 
@@ -594,10 +603,15 @@ app.post('/api/v1/quotations', async (req, res) => {
 
   } catch (error) {
     console.error('💥 Quotation creation error:', error);
+    console.error('💥 Request body:', req.body);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
-      error: error.message
+      error: error.message,
+      debug: {
+        stack: error.stack,
+        requestBody: req.body
+      }
     });
   }
 });
