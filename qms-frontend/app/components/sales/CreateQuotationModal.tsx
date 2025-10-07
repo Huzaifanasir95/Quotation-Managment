@@ -3,10 +3,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { apiClient, Customer, Vendor } from '../../lib/api';
-import { generateQuotationPDF, generateEnhancedQuotationPDF, generateDetailedQuotationPDF } from '../../../lib/pdfUtils';
+import { generateQuotationPDF, generateEnhancedQuotationPDF, generateDetailedQuotationPDF, generateMultiCustomerQuotationPDF } from '../../../lib/pdfUtils';
 import { loadJsPDF, loadXLSX } from '../../../lib/dynamicImports';
 import VendorRateRequestModals from './VendorRateRequestModals';
 import VendorCategoryManager from './VendorCategoryManager';
+import CustomerPdfSelectionModal from './CustomerPdfSelectionModal';
 
 interface CreateQuotationModalProps {
   isOpen: boolean;
@@ -47,6 +48,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [customerSearchTerm, setCustomerSearchTerm] = useState<string>('');
+  const [showCustomerPdfModal, setShowCustomerPdfModal] = useState(false);
   
   // Vendor rate request states
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -456,51 +458,93 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       return;
     }
 
+    // Open the customer selection modal
+    setShowCustomerPdfModal(true);
+  };
+
+  // New handler for generating PDF after customer selection
+  const handleGeneratePDFForCustomers = async (selectedCustomers: Customer[], combinedPDF: boolean) => {
     setIsGeneratingPDF(true);
     
     try {
-      // Find the first selected customer for PDF generation
-      const selectedCustomer = customers.find(c => c.id === formData.customerIds[0]);
-      if (!selectedCustomer) {
-        throw new Error('Customer not found');
-      }
+      if (combinedPDF) {
+        // Generate one combined PDF with all customers displayed separately
+        const subtotal = items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0);
+        const taxAmount = 0; // You can add tax calculation here if needed
+        const totalAmount = subtotal + taxAmount;
 
-      // Calculate totals
-      const subtotal = items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0);
-      const taxAmount = 0; // You can add tax calculation here if needed
-      const totalAmount = subtotal + taxAmount;
+        const multiCustomerData = {
+          customers: selectedCustomers,
+          quotation_number: `QUOTE-${Date.now()}`,
+          reference_no: formData.referenceNo,
+          quotation_date: new Date().toISOString().split('T')[0],
+          valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          items: items.map(item => {
+            const product = products.find(p => p.id === item.productId);
+            return {
+              description: product?.name || item.customDescription || 'Unknown Product',
+              quantity: item.quantity,
+              unit_price: item.unitPrice,
+              line_total: item.quantity * item.unitPrice
+            };
+          }),
+          subtotal: subtotal,
+          tax_amount: taxAmount,
+          total_amount: totalAmount,
+          terms_conditions: formData.termsConditions || 'Standard terms and conditions apply.',
+          notes: formData.notes !== 'NULL' ? formData.notes : ''
+        };
 
-      // Prepare quotation data for PDF
-      const quotationData = {
-        quotation_number: `QUOTE-${Date.now()}`,
-        reference_no: formData.referenceNo,
-        customer: {
-          id: selectedCustomer.id,
-          name: selectedCustomer.name,
-          email: selectedCustomer.email || '',
-          phone: selectedCustomer.phone || '',
-          contact_person: selectedCustomer.contact_person || '',
-          address: selectedCustomer.address || 'Address not provided'
-        },
-        quotation_date: new Date().toISOString().split('T')[0],
-        valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        items: items.map(item => {
-          const product = products.find(p => p.id === item.productId);
-          return {
-            description: product?.name || 'Unknown Product',
-            quantity: item.quantity,
-            unit_price: item.unitPrice,
-            line_total: item.quantity * item.unitPrice
+        await generateMultiCustomerQuotationPDF(multiCustomerData);
+      } else {
+        // Generate individual PDFs for each selected customer
+        for (const selectedCustomer of selectedCustomers) {
+          // Calculate totals
+          const subtotal = items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0);
+          const taxAmount = 0; // You can add tax calculation here if needed
+          const totalAmount = subtotal + taxAmount;
+
+          // Prepare quotation data for PDF
+          const quotationData = {
+            quotation_number: `QUOTE-${Date.now()}-${selectedCustomer.id}`,
+            reference_no: formData.referenceNo,
+            customer: {
+              id: selectedCustomer.id,
+              name: selectedCustomer.name,
+              email: selectedCustomer.email || '',
+              phone: selectedCustomer.phone || '',
+              contact_person: selectedCustomer.contact_person || '',
+              address: selectedCustomer.address || 'Address not provided'
+            },
+            quotation_date: new Date().toISOString().split('T')[0],
+            valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            items: items.map(item => {
+              const product = products.find(p => p.id === item.productId);
+              return {
+                description: product?.name || item.customDescription || 'Unknown Product',
+                quantity: item.quantity,
+                unit_price: item.unitPrice,
+                line_total: item.quantity * item.unitPrice
+              };
+            }),
+            subtotal: subtotal,
+            tax_amount: taxAmount,
+            total_amount: totalAmount,
+            terms_conditions: formData.termsConditions || 'Standard terms and conditions apply.',
+            notes: formData.notes !== 'NULL' ? formData.notes : ''
           };
-        }),
-        subtotal: subtotal,
-        tax_amount: taxAmount,
-        total_amount: totalAmount,
-        terms_conditions: formData.termsConditions || 'Standard terms and conditions apply.',
-        notes: formData.notes !== 'NULL' ? formData.notes : ''
-      };
 
-      await generateQuotationPDF(quotationData);
+          await generateQuotationPDF(quotationData);
+          
+          // Add small delay between PDF generations to prevent issues
+          if (selectedCustomers.length > 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+      }
+      
+      // Close the modal after successful generation
+      setShowCustomerPdfModal(false);
       
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -2187,11 +2231,11 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                       </div>
 
                       {/* Terms and Conditions */}
-                      {formData.termsAndConditions && (
+                      {formData.termsConditions && (
                         <div>
                           <h5 className="text-sm font-medium text-gray-700 mb-2">Terms & Conditions:</h5>
                           <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
-                            {formData.termsAndConditions}
+                            {formData.termsConditions}
                           </div>
                         </div>
                       )}
@@ -2541,6 +2585,13 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         onCategoryVendorsUpdate={setCategoryVendors}
         showModal={showVendorCategoryModal}
         setShowModal={setShowVendorCategoryModal}
+      />
+      <CustomerPdfSelectionModal
+        isOpen={showCustomerPdfModal}
+        onClose={() => setShowCustomerPdfModal(false)}
+        customers={customers.filter(c => formData.customerIds.includes(c.id))}
+        onGeneratePDF={handleGeneratePDFForCustomers}
+        isGenerating={isGeneratingPDF}
       />
     </>,
     document.body
