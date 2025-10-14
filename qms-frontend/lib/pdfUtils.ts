@@ -5,6 +5,10 @@ interface QuotationItem {
   quantity: number;
   unit_price: number;
   line_total?: number;
+  is_custom?: boolean;
+  actual_price?: number;
+  custom_description?: string;
+  profit_percent?: number;
 }
 
 interface Customer {
@@ -30,6 +34,168 @@ interface QuotationData {
   terms_conditions?: string;
   notes?: string;
 }
+
+export const generateSimpleQuotationPDF = async (quotationData: QuotationData): Promise<void> => {
+  try {
+    const jsPDF = await loadJsPDF();
+    if (!jsPDF) {
+      throw new Error('PDF generation library not available');
+    }
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 20;
+    let yPosition = margin;
+
+    // Left Box - Client Details with enhanced formatting
+    pdf.setDrawColor(0);
+    pdf.setLineWidth(0.5);
+    const boxWidth = 100; // Increased width for better readability
+    const boxHeight = 30; // Increased height for better spacing
+    pdf.rect(margin, yPosition, boxWidth, boxHeight);
+    
+    // Client Name and Address with improved formatting
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(30, 58, 95); // Navy blue color for company name
+    pdf.text(quotationData.customer.name.toUpperCase(), margin + 5, yPosition + 7);
+    
+    if (quotationData.customer.address) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0); // Reset to black for address
+      const addressLines = pdf.splitTextToSize(quotationData.customer.address, boxWidth - 10);
+      addressLines.forEach((line: string, index: number) => {
+        pdf.text(line, margin + 5, yPosition + 12 + (index * 5));
+      });
+    }
+
+    // Right Box - Date and Reference
+    const rightBoxX = pageWidth - margin - boxWidth;
+    pdf.rect(rightBoxX, yPosition, boxWidth, boxHeight);
+    
+    // Date and Reference
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Date:', rightBoxX + 5, yPosition + 7);
+    pdf.text('Ref.No:', rightBoxX + 5, yPosition + 17);
+    pdf.setFont('helvetica', 'normal');
+    const currentDate = new Date(quotationData.quotation_date).toLocaleDateString('en-GB');
+    pdf.text(currentDate, rightBoxX + 25, yPosition + 7);
+    pdf.text(quotationData.reference_no || '', rightBoxX + 25, yPosition + 17);
+
+    // Quotation Title
+    yPosition += boxHeight + 15;
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(`Quotation for (${quotationData.reference_no || 'N/A'})`, margin, yPosition);
+
+    // Table Headers
+    yPosition += 10;
+    const headers = ['Sr.No', 'Description of Goods/Services', 'A/U', 'Qty', 'Unit Price', 'Total Price', 'GST Rate'];
+    const colWidths = [15, 70, 20, 15, 25, 25, 20];
+    const tableWidth = pageWidth - (2 * margin);
+    
+    // Draw Table Header
+    pdf.setFillColor(240, 240, 240);
+    pdf.rect(margin, yPosition, tableWidth, 10, 'F');
+    pdf.setFontSize(9);
+    
+    let xOffset = margin;
+    headers.forEach((header, index) => {
+      pdf.text(header, xOffset + 2, yPosition + 6);
+      xOffset += colWidths[index];
+    });
+
+    // Table Content
+    yPosition += 10;
+    let subtotal = 0;
+    
+    quotationData.items.forEach((item, index) => {
+      const itemPrice = item.is_custom ? item.actual_price : item.unit_price;
+      const lineTotal = item.line_total || (item.quantity * (itemPrice || 0));
+      subtotal += lineTotal;
+
+      const rowData = [
+        (index + 1).toString(),
+        item.description,
+        'No',
+        item.quantity.toString(),
+        (itemPrice || 0).toFixed(2),
+        lineTotal.toFixed(2),
+        '18%'
+      ];
+
+      if (yPosition > pageHeight - 60) {
+        pdf.addPage();
+        yPosition = margin;
+      }
+
+      xOffset = margin;
+      rowData.forEach((text, colIndex) => {
+        const maxWidth = colWidths[colIndex] - 4;
+        if (colIndex === 1) { // Description column
+          const lines = pdf.splitTextToSize(text, maxWidth);
+          pdf.text(lines, xOffset + 2, yPosition + 5);
+          if (lines.length > 1) {
+            yPosition += (lines.length - 1) * 5;
+          }
+        } else {
+          pdf.text(text, xOffset + 2, yPosition + 5);
+        }
+        xOffset += colWidths[colIndex];
+      });
+
+      // Draw row lines
+      pdf.line(margin, yPosition, margin + tableWidth, yPosition);
+      yPosition += 10;
+    });
+
+    // Totals
+    pdf.line(margin, yPosition - 10, margin + tableWidth, yPosition - 10);
+    const totalsX = margin + tableWidth - 45;
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Sub Total', totalsX - 60, yPosition);
+    pdf.text(subtotal.toFixed(2), totalsX, yPosition);
+    
+    yPosition += 7;
+    const gst = subtotal * 0.18;
+    pdf.text('GST @ 18%', totalsX - 60, yPosition);
+    pdf.text(gst.toFixed(2), totalsX, yPosition);
+    
+    yPosition += 7;
+    pdf.text('Total', totalsX - 60, yPosition);
+    pdf.text((subtotal + gst).toFixed(2), totalsX, yPosition);
+
+    // Terms and Conditions
+    yPosition += 15;
+    pdf.text('Terms & Conditions:', margin, yPosition);
+    yPosition += 7;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(9);
+    
+    const terms = [
+      'Validity  : Prices are valid for 25 Days Only.',
+      'Delivery  : 6-10 Days after receiving the PO. (F.O.R Rawalpindi).',
+      'Optional Items : Optional items other than quoted will be charged separately'
+    ];
+
+    terms.forEach(term => {
+      pdf.text(term, margin, yPosition);
+      yPosition += 7;
+    });
+
+    // Signature
+    yPosition += 10;
+    pdf.text('Yours Truly,', margin, yPosition);
+    yPosition += 10;
+    pdf.text('On Behalf of', margin, yPosition);
+    pdf.line(margin, yPosition + 1, margin + 30, yPosition + 1);
+
+    pdf.save('quotation.pdf');
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    throw new Error('Failed to generate PDF. Please try again.');
+  }
+};
 
 export const generateQuotationPDF = async (quotationData: QuotationData): Promise<void> => {
   try {
@@ -188,13 +354,15 @@ export const generateQuotationPDF = async (quotationData: QuotationData): Promis
     const sectionWidth = pageWidth / 3;
     
     // Location
-    pdf.text('KRL, Rawalpindi', margin + 5, contactTextY);
+    const address = quotationData.customer.address || 'N/A';
+    pdf.text(address.length > 30 ? address.substring(0, 27) + '...' : address, margin + 5, contactTextY);
     
     // Phone
-    pdf.text('Phone: +92-XXX-XXXXXXX', sectionWidth + 20, contactTextY);
+    pdf.text(`Phone: ${quotationData.customer.phone || 'N/A'}`, sectionWidth + 20, contactTextY);
     
     // Email  
-    pdf.text('Email: info@anoosh.com', (sectionWidth * 2) + 20, contactTextY);
+    const email = quotationData.customer.email || 'N/A';
+    pdf.text(`Email: ${email.length > 25 ? email.substring(0, 22) + '...' : email}`, (sectionWidth * 2) + 20, contactTextY);
     
     // Orange vertical separators
     pdf.setDrawColor(brightOrange.r, brightOrange.g, brightOrange.b);
@@ -341,7 +509,8 @@ export const generateQuotationPDF = async (quotationData: QuotationData): Promis
     const spaceNeededForItems = itemsNeeded * rowHeight;
     
     quotationData.items.forEach((item, index) => {
-      const itemTotal = item.line_total || (item.quantity * item.unit_price);
+      const price = item.is_custom ? item.actual_price : item.unit_price;
+      const itemTotal = item.line_total || (item.quantity * (price || 0));
       subtotal += itemTotal;
 
       // Only create new page if we truly don't have space for current item + minimum footer content
@@ -366,12 +535,13 @@ export const generateQuotationPDF = async (quotationData: QuotationData): Promis
       pdf.line(margin, yPosition + rowHeight, pageWidth - margin, yPosition + rowHeight);
 
       // Row content
+      const itemPrice = item.is_custom ? item.actual_price : item.unit_price;
       const rowData = [
         (index + 1).toString(),
         item.description.length > 45 ? item.description.substring(0, 42) + '...' : item.description,
         item.quantity.toString(),
-        `Rs. ${item.unit_price.toFixed(2)}`,
-        `Rs. ${itemTotal.toFixed(2)}`
+        `Rs. ${(itemPrice || 0).toFixed(2)}`,
+        `Rs. ${(itemTotal || 0).toFixed(2)}`
       ];
 
       const alignments = ['center', 'left', 'center', 'right', 'right'];
@@ -756,7 +926,8 @@ export const generateQuotationPDFFormat2 = async (quotationData: QuotationData):
     let itemNumber = 1;
     
     quotationData.items.forEach((item) => {
-      const lineTotal = item.line_total || (item.quantity * item.unit_price);
+      const price = item.is_custom ? item.actual_price : item.unit_price;
+      const lineTotal = item.line_total || (item.quantity * (price || 0));
       subTotal += lineTotal;
       
       // Check for page break
@@ -798,13 +969,14 @@ export const generateQuotationPDFFormat2 = async (quotationData: QuotationData):
         description = description.substring(0, 52) + '...';
       }
       
+      const itemPrice = item.is_custom ? item.actual_price : item.unit_price;
       const rowData = [
         itemNumber.toString(),
         description,
-        'No', // Unit
+        'No', // A/U
         item.quantity.toString(),
-        'Rs. ' + item.unit_price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        'Rs. ' + lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        'Rs. ' + (itemPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        'Rs. ' + (lineTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       ];
       
       const alignments = ['center', 'left', 'center', 'center', 'right', 'right'];
@@ -1230,7 +1402,7 @@ export const generateMultiCustomerQuotationPDFFormat2 = async (quotationData: Mu
     pdf.setFontSize(9);
     pdf.setFont('helvetica', 'bold');
     
-    const headers = ['ITEM', 'DESCRIPTION', 'UNIT', 'QTY', 'RATE', 'AMOUNT'];
+    const headers = ['ITEM', 'DESCRIPTION', 'A/U', 'QTY', 'RATE', 'AMOUNT'];
     headers.forEach((header, index) => {
       const centerX = colPositions[index] + colWidths[index] / 2;
       pdf.text(header, centerX, yPosition + 7, { align: 'center' });
@@ -1886,7 +2058,7 @@ export const generateEnhancedQuotationPDF = async (quotationData: EnhancedQuotat
     
     // Table headers
     const colWidths = [15, 80, 20, 15, 25, 25, 20]; // Sr.No, Description, UOM, Qty, Unit Price, Total Price, GST Rate
-    const headers = ['Sr.No', 'Description of Goods/Services', 'UOM', 'Qty', 'Unit Price', 'Total Price', 'GST Rate'];
+    const headers = ['Sr.No', 'Description of Goods/Services', 'A/U', 'Qty', 'Unit Price', 'Total Price', 'GST Rate'];
     
     let xPos = margin;
     headers.forEach((header, index) => {
@@ -1915,7 +2087,7 @@ export const generateEnhancedQuotationPDF = async (quotationData: EnhancedQuotat
       const rowData = [
         (index + 1).toString(),
         item.description,
-        item.uom,
+        item.auField,
         item.quantity.toString(),
         item.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
         item.totalPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
@@ -1924,7 +2096,7 @@ export const generateEnhancedQuotationPDF = async (quotationData: EnhancedQuotat
 
       rowData.forEach((data, colIndex) => {
         const align = colIndex === 1 ? 'left' : 'center'; // Description left-aligned, others centered
-        drawCell(xPos, yPosition, colWidths[colIndex], rowHeight, data, align, 8);
+        drawCell(xPos, yPosition, colWidths[colIndex], rowHeight, data ?? '', align, 8);
         xPos += colWidths[colIndex];
       });
       
@@ -2040,7 +2212,7 @@ export const generateQuotationPDFFromHTML = async (elementId: string, filename?:
   }
 };
 
-export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: any, refNo?: string, customerInfo?: any) => {
+export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: any, refNo?: string, customerInfo?: any, quotationData?: any) => {
   try {
     const jsPDF = await loadJsPDF();
     if (!jsPDF) {
@@ -2063,18 +2235,25 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     // Function to add header only on first page
     const addFirstPageHeader = () => {
       // Left company info box
-      const leftBoxWidth = 120;
+      const leftBoxWidth = 60;  // Reduced from 80 to 60 for better proportions
       const leftBoxHeight = 25;
       pdf.setLineWidth(0.5);
       pdf.rect(margin, margin, leftBoxWidth, leftBoxHeight);
       
+      // Customer Name and Details
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('ANOOSH INTERNATIONAL', margin + 3, margin + 8);
+      pdf.text(customerInfo?.name?.toUpperCase() || 'Customer', margin + 3, margin + 8);
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
-      pdf.text('Import & Export Solutions', margin + 3, margin + 15);
-      pdf.text('KRL, Rawalpindi', margin + 3, margin + 21);
+      
+      // Customer Address - Split into multiple lines if needed
+      if (customerInfo?.address) {
+        const addressLines = pdf.splitTextToSize(customerInfo.address, leftBoxWidth - 6);
+        addressLines.forEach((line: string, index: number) => {
+          pdf.text(line, margin + 3, margin + 15 + (index * 6));
+        });
+      }
       
       // Right info boxes
       const rightBoxX = pageWidth - 80;
@@ -2120,7 +2299,7 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
     
     // Function to add table header
     const addTableHeader = (yPosition: number) => {
-      const tableHeaders = ['Sr.No', 'Description of Goods/Services', 'UOM', 'Qty', 'Unit Price', 'GST', 'Total Price'];
+      const tableHeaders = ['Sr.No', 'Description of Goods/Services', 'A/U', 'Qty', 'Unit Price', 'GST', 'Total Price'];
       const colWidths = [12, 73, 15, 12, 22, 24, 22]; // Increased GST column from 16 to 24mm
       const colStartX = margin;
       
@@ -2210,7 +2389,7 @@ export const generateDetailedQuotationPDF = async (items: any[], companyInfo?: a
       const rowData = [
         (index + 1).toString(),
         description,
-        item.uom || item.unit_of_measure || 'No',
+        item.auField || item.auField || 'No',
         quantity.toString(),
         unitPrice.toFixed(2),
         `${gstRate}%`,
@@ -3681,7 +3860,7 @@ export const generateMultiCustomerQuotationPDF = async (quotationData: MultiCust
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'bold');
     
-    const headers = ['ITEM #', 'DESCRIPTION', 'QTY', 'UNIT PRICE', 'TOTAL'];
+    const headers = ['ITEM #', 'DESCRIPTION', 'QTY', 'A/U PRICE', 'TOTAL'];
     headers.forEach((header, index) => {
       const centerX = colPositions[index] + (colWidths[index] / 2);
       pdf.text(header, centerX, yPosition + 8, { align: 'center' });

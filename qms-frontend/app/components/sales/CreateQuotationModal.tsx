@@ -9,6 +9,18 @@ import VendorRateRequestModals from './VendorRateRequestModals';
 import VendorCategoryManager from './VendorCategoryManager';
 import CustomerPdfSelectionModal from './CustomerPdfSelectionModal';
 
+// Calculation functions
+const calculateRatePerUnit = (actualPrice: number, profitPercent: number, gstPercent: number) => {
+  const priceWithProfit = actualPrice * (1 + profitPercent / 100);
+  const finalPrice = priceWithProfit * (1 + gstPercent / 100);
+  return Number(finalPrice.toFixed(2));
+};
+
+const calculateTotal = (quantity: number, actualPrice: number, profitPercent: number, gstPercent: number) => {
+  const ratePerUnit = calculateRatePerUnit(actualPrice, profitPercent, gstPercent);
+  return Number((quantity * ratePerUnit).toFixed(2));
+};
+
 interface CreateQuotationModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -18,7 +30,7 @@ type TabType = 'customer' | 'items' | 'terms' | 'attachments' | 'preview';
 
 export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreated }: CreateQuotationModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('customer');
+  const [activeTab, setActiveTab] = useState<TabType>('attachments');
   const [formData, setFormData] = useState({
     customerIds: [] as string [],
     validUntil: '',
@@ -29,17 +41,17 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [items, setItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+  const [defaultTerms, setDefaultTerms] = useState<string>('');
+  const [isLoadingTerms, setIsLoadingTerms] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
   const [showPdfFormatModal, setShowPdfFormatModal] = useState(false);
   const [pdfOptions, setPdfOptions] = useState({
     showTotals: true,
     showTax: true,
     showDiscount: true
   });
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
-  const [defaultTerms, setDefaultTerms] = useState<string>('');
-  const [isLoadingTerms, setIsLoadingTerms] = useState(false);
-  const [products, setProducts] = useState<any[]>([]);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -74,7 +86,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
 
   // Reset modal state when it opens or closes
   const resetModalState = () => {
-    setActiveTab('customer');
+    setActiveTab('attachments');
     setFormData({
       customerIds: [],
       validUntil: '',
@@ -110,14 +122,24 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
 
   const tabs = [
     { 
+      id: 'attachments', 
+      name: 'Attachments', 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+        </svg>
+      ),
+      step: 1
+    },
+    { 
       id: 'customer', 
-      name: 'Customer Info', 
+      name: 'Qoutation Info', 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
       ),
-      step: 1
+      step: 2
     },
     { 
       id: 'items', 
@@ -127,7 +149,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
         </svg>
       ),
-      step: 2
+      step: 3
     },
     { 
       id: 'terms', 
@@ -135,16 +157,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      ),
-      step: 3
-    },
-    { 
-      id: 'attachments', 
-      name: 'Attachments', 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
         </svg>
       ),
       step: 4
@@ -271,70 +283,20 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       id: Date.now(), 
       productId: null, 
       quantity: 1, 
-      unitPrice: 0, 
+      actualPrice: 0,
+      profitPercent: 0,
+      gstPercent: 0,
+      ratePerUnit: 0,
       isCustom: true, 
       customDescription: '',
       category: '',
-      serialNo: '',
-      itemName: '',
-      auField: 'No', // A/U field with default "No"
-      uom: '', // Unit of Measure
-      gstPercent: 0 // GST percentage
+      auField: 'No',
+      uom: '',
+      total: 0
     }]);
   };
 
-  const handlePrintAsPDF = async () => {
-    if (items.length === 0) {
-      alert('Please add at least one item to generate PDF');
-      return;
-    }
-    // Show format selection modal
-    setShowPdfFormatModal(true);
-  };
 
-  const generatePDFWithFormat = async (formatType: 'classic' | 'modern' | 'premium') => {
-    setShowPdfFormatModal(false);
-    
-    try {
-      // Transform items to match PDF function expectations
-      const transformedItems = items.map(item => {
-        const product = products.find(p => p.id === item.productId);
-        return {
-          ...item,
-          description: item.isCustom 
-            ? (item.customDescription || item.itemName || 'Custom Item')
-            : (product?.name || item.description || 'Inventory Item'),
-          unit_price: item.unitPrice,
-          gst_percent: item.gstPercentage || item.gstPercent || 18,
-          unit_of_measure: item.uom || 'No'
-        };
-      });
-      
-      const refNo = formData.referenceNo && formData.referenceNo.trim() !== '' ? formData.referenceNo : '-';
-      
-      // Get selected customer info for PDF generation
-      const selectedCustomer = formData.customerIds.length > 0 
-        ? customers.find(c => c.id === formData.customerIds[0])
-        : null;
-      
-      if (formatType === 'classic') {
-        await generateDetailedQuotationPDF(transformedItems, undefined, refNo, selectedCustomer);
-      } else if (formatType === 'modern') {
-        const { generateModernQuotationPDF } = await import('../../../lib/pdfUtils');
-        await generateModernQuotationPDF(transformedItems, undefined, refNo);
-      } else {
-        // Premium format
-        const { generatePremiumQuotationPDF } = await import('../../../lib/pdfUtils');
-        await generatePremiumQuotationPDF(transformedItems, undefined, refNo);
-      }
-      
-      // Note: pdfOptions (showTotals, showTax, showDiscount) are captured but need to be 
-      // implemented in the PDF generation functions in pdfUtils.ts
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
-    }
-  };
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
@@ -458,8 +420,77 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       return;
     }
 
-    // Open the customer selection modal
-    setShowCustomerPdfModal(true);
+    // Show format selection modal
+    setShowPdfFormatModal(true);
+  };
+
+  const generatePDFWithFormat = async (formatType: 'classic' | 'modern' | 'premium') => {
+    setShowPdfFormatModal(false);
+    setIsGeneratingPDF(true);
+    
+    try {
+      // Transform items to match PDF function expectations
+      const transformedItems = items.map(item => {
+        const product = products.find(p => p.id === item.productId);
+        return {
+          ...item,
+          description: item.isCustom 
+            ? (item.customDescription || item.itemName || 'Custom Item')
+            : (product?.name || item.description || 'Inventory Item'),
+          unit_price: item.unitPrice,
+          gst_percent: item.gstPercentage || item.gstPercent || 18,
+          unit_of_measure: item.uom || 'No'
+        };
+      });
+      
+      const refNo = formData.referenceNo && formData.referenceNo.trim() !== '' ? formData.referenceNo : '-';
+      
+      // Get selected customer info for PDF generation
+      const selectedCustomer = formData.customerIds.length > 0 
+        ? customers.find(c => c.id === formData.customerIds[0])
+        : null;
+      
+      if (formatType === 'classic') {
+        await generateDetailedQuotationPDF(transformedItems, undefined, refNo, selectedCustomer);
+      } else if (formatType === 'modern') {
+        await generateQuotationPDF({
+          customer: selectedCustomer || {
+            id: '',
+            name: '',
+            email: '',
+            phone: '',
+            contact_person: '',
+          },
+          quotation_date: new Date().toISOString().split('T')[0],
+          valid_until: formData.validUntil,
+          items: transformedItems,
+          subtotal: transformedItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price || 0)), 0),
+          total_amount: transformedItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price || 0) * 1.18), 0),
+        });
+      } else {
+        // Premium format
+        await generateEnhancedQuotationPDF({
+          date: new Date().toLocaleDateString('en-GB'),
+          refNo: refNo,
+          companyName: 'Directorate of Technical Procurement (L),',
+          companyAddress: 'KRL, Rawalpindi.',
+          items: transformedItems,
+          subTotal: transformedItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price || 0)), 0),
+          gstAmount: transformedItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price || 0) * 0.18), 0),
+          total: transformedItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price || 0) * 1.18), 0),
+          termsConditions: {
+            validity: 'Prices are valid for 25 Days Only.',
+            delivery: '6-10 Days after receiving the PO. (F.O.R Rawalpindi).',
+            optionalItems: 'Optional items other than quoted will be charged separately'
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   // New handler for generating PDF after customer selection
@@ -469,7 +500,13 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     try {
       if (combinedPDF) {
         // Generate one combined PDF with all customers displayed separately
-        const subtotal = items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0);
+        const subtotal = items.reduce((total, item) => {
+          if (item.isCustom) {
+            return total + (item.total || 0);
+          } else {
+            return total + (item.quantity * item.unitPrice);
+          }
+        }, 0);
         const taxAmount = 0; // You can add tax calculation here if needed
         const totalAmount = subtotal + taxAmount;
 
@@ -505,7 +542,13 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         // Generate individual PDFs for each selected customer
         for (const selectedCustomer of selectedCustomers) {
           // Calculate totals
-          const subtotal = items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0);
+          const subtotal = items.reduce((total, item) => {
+            if (item.isCustom) {
+              return total + (item.total || 0);
+            } else {
+              return total + (item.quantity * item.unitPrice);
+            }
+          }, 0);
           const taxAmount = 0; // You can add tax calculation here if needed
           const totalAmount = subtotal + taxAmount;
 
@@ -580,8 +623,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           'A/U': item.auField || 'No',
           'Description': item.isCustom ? item.customDescription : product?.name || 'N/A',
           'Quantity': item.quantity,
-          'Unit Price': `Rs. ${item.unitPrice.toLocaleString()}`,
-          'Total': `Rs. ${(item.quantity * item.unitPrice).toLocaleString()}`,
+          'Unit Price': `Rs. ${item.unitPrice.toFixed(2)}`,
+          'Total': `Rs. ${(item.quantity * item.unitPrice).toFixed(2)}`,
           'Type': item.isCustom ? 'Custom' : 'Inventory'
         };
       });
@@ -710,8 +753,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           item.itemName || (item.isCustom ? item.customDescription : product?.name) || 'N/A',
           item.auField || 'No',
           item.quantity.toString(),
-          `Rs. ${item.unitPrice.toLocaleString()}`,
-          `Rs. ${(item.quantity * item.unitPrice).toLocaleString()}`,
+          `Rs. ${item.unitPrice.toFixed(2)}`,
+          `Rs. ${(item.quantity * item.unitPrice).toFixed(2)}`,
           item.isCustom ? 'Custom' : 'Inventory'
         ];
       });
@@ -1114,7 +1157,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           <div className="p-8">
           {activeTab === 'customer' && (
             <div className="max-w-6xl mx-auto">
-              <h3 className="text-lg font-medium text-gray-900 mb-6">Customer Information</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-6">Qoutation Information</h3>
               
               {/* Grid Layout */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1223,7 +1266,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Valid Until</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Submission Date</label>
                         <input
                           type="date"
                           value={formData.validUntil}
@@ -1392,18 +1435,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                     </button>
                   </div>
 
-                  {/* Export Action */}
-                  <button 
-                    onClick={() => handlePrintAsPDF()} 
-                    className="px-3 py-1.5 text-xs text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md flex items-center space-x-1.5"
-                    disabled={items.length === 0}
-                    title="Print as PDF"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span>Print as PDF</span>
-                  </button>
+                  {/* PDF Export button removed */}
                 </div>
               </div>
               
@@ -1465,8 +1497,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                       rows={2}
                                     />
                                   </div>
-                                                                    
-                                  {/* New Fields */}
+                                  
                                   <div className="grid grid-cols-2 gap-2">
                                     <div>
                                       <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
@@ -1484,34 +1515,131 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                     </div>
                                     
                                     <div>
-                                      <label className="block text-xs font-medium text-gray-700 mb-1">Serial No</label>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
                                       <input
-                                        type="text"
-                                        value={item.serialNo || ''}
+                                        type="number"
+                                        min="1"
+                                        value={item.quantity}
                                         onChange={(e) => {
                                           const newItems = [...items];
-                                          newItems[index] = { ...item, serialNo: e.target.value };
+                                          const qty = Number(e.target.value);
+                                          const total = calculateTotal(qty, item.actualPrice, item.profitPercent, item.gstPercent);
+                                          newItems[index] = { 
+                                            ...item, 
+                                            quantity: qty,
+                                            total: total
+                                          };
                                           setItems(newItems);
                                         }}
                                         className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                        placeholder="Serial Number"
+                                        placeholder="Enter quantity"
                                       />
                                     </div>
                                   </div>
 
                                   <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                      <label className="block text-xs font-medium text-gray-700 mb-1">Item Name</label>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">Actual Price</label>
                                       <input
-                                        type="text"
-                                        value={item.itemName || ''}
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={item.actualPrice}
                                         onChange={(e) => {
                                           const newItems = [...items];
-                                          newItems[index] = { ...item, itemName: e.target.value };
+                                          const price = Number(Number(e.target.value).toFixed(2));
+                                          const ratePerUnit = Number(calculateRatePerUnit(price, item.profitPercent, item.gstPercent).toFixed(2));
+                                          newItems[index] = { 
+                                            ...item, 
+                                            actualPrice: price,
+                                            ratePerUnit: ratePerUnit,
+                                            total: Number((ratePerUnit * item.quantity).toFixed(2))
+                                          };
                                           setItems(newItems);
                                         }}
                                         className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                        placeholder="Item Name"
+                                        placeholder="Enter actual price"
+                                      />
+                                    </div>
+                                    
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">Profit %</label>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        max="100"
+                                        value={item.profitPercent}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          const profit = Number(e.target.value);
+                                          const ratePerUnit = calculateRatePerUnit(item.actualPrice, profit, item.gstPercent);
+                                          newItems[index] = { 
+                                            ...item, 
+                                            profitPercent: profit,
+                                            ratePerUnit: ratePerUnit,
+                                            total: calculateTotal(item.quantity, item.actualPrice, profit, item.gstPercent)
+                                          };
+                                          setItems(newItems);
+                                        }}
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="Enter profit percentage"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">UOM (Unit of Measure)</label>
+                                      <input
+                                        type="text"
+                                        value={item.uom || ''}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          newItems[index] = { ...item, uom: e.target.value };
+                                          setItems(newItems);
+                                        }}
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="e.g., pcs, kg, ltr, m, etc."
+                                      />
+                                    </div>
+                                    
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">GST %</label>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        max="100"
+                                        value={item.gstPercent}
+                                        onChange={(e) => {
+                                          const newItems = [...items];
+                                          const gst = Number(e.target.value);
+                                          const ratePerUnit = calculateRatePerUnit(item.actualPrice, item.profitPercent, gst);
+                                          newItems[index] = { 
+                                            ...item, 
+                                            gstPercent: gst,
+                                            ratePerUnit: ratePerUnit,
+                                            total: calculateTotal(item.quantity, item.actualPrice, item.profitPercent, gst)
+                                          };
+                                          setItems(newItems);
+                                        }}
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="Enter GST percentage"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">Rate/Unit</label>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        value={item.ratePerUnit}
+                                        disabled
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm bg-gray-50"
+                                        placeholder="Calculated automatically"
                                       />
                                     </div>
                                     
@@ -1530,92 +1658,23 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         <option value="Yes">Yes</option>
                                       </select>
                                     </div>
-                                  <div className="grid grid-cols-1 gap-2">
-                                    <div>
-                                      <label className="block text-xs font-medium text-gray-700 mb-1">UOM (Unit of Measure)</label>
-                                      <input
-                                        type="text"
-                                        value={item.uom || ''}
-                                        onChange={(e) => {
-                                          const newItems = [...items];
-                                          newItems[index] = { ...item, uom: e.target.value };
-                                          setItems(newItems);
-                                        }}
-                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                        placeholder="e.g., pcs, kg, ltr, m, etc."
-                                      />
-                                    </div>
-                                  <div className="grid grid-cols-1 gap-2">
-                                    <div>
-                                      <label className="block text-xs font-medium text-gray-700 mb-1">GST %</label>
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        max="100"
-                                        value={item.gstPercentage || ''}
-                                        onChange={(e) => {
-                                          const newItems = [...items];
-                                          newItems[index] = { ...item, gstPercentage: Number(e.target.value) };
-                                          setItems(newItems);
-                                        }}
-                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                        placeholder="e.g., 18, 12, 5"
-                                      />
-                                    </div>
                                   </div>
-                                  </div>
-                                  </div>
+
                                   <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                      <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
-                                      <input
-                                        type="number"
-                                        min="1"
-                                        value={item.quantity}
-                                        onChange={(e) => {
-                                          const newItems = [...items];
-                                          newItems[index] = { ...item, quantity: Number(e.target.value) };
-                                          setItems(newItems);
-                                        }}
-                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                        placeholder="Qty"
-                                      />
-                                    </div>
-                                    
-                                    <div>
-                                      <label className="block text-xs font-medium text-gray-700 mb-1">Price</label>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">Total</label>
                                       <input
                                         type="number"
                                         step="0.01"
-                                        value={item.unitPrice}
-                                        onChange={(e) => {
-                                          const newItems = [...items];
-                                          newItems[index] = { ...item, unitPrice: Number(e.target.value) };
-                                          setItems(newItems);
-                                        }}
-                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                        placeholder="Price"
+                                        value={item.total}
+                                        disabled
+                                        className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm bg-gray-50"
+                                        placeholder="Calculated automatically"
                                       />
                                     </div>
                                   </div>
                                   
-                                  <div className="bg-gray-50 p-2 border-t border-gray-200 rounded-lg">
-                                    <div className="flex justify-between items-center">
-                                      <p className="text-sm text-gray-900">
-                                        <span className="font-medium">Total:</span> Rs. {(item.quantity * item.unitPrice).toFixed(2)}
-                                      </p>
-                                      <button
-                                        onClick={() => {
-                                          setSelectedItemForRates(index);
-                                          setShowRateComparison(true);
-                                        }}
-                                        className="text-xs text-purple-600 hover:text-purple-700 font-medium"
-                                      >
-                                        Compare Rates
-                                      </button>
-                                    </div>
-                                  </div>
+
                                 </>
                               ) : (
                                 <>
@@ -1627,7 +1686,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                       onChange={(e) => {
                                         const product = products.find(p => p.id === e.target.value);
                                         const newItems = [...items];
-                                        newItems[index] = { ...item, productId: e.target.value, unitPrice: product?.price || 0 };
+                                        newItems[index] = { ...item, productId: e.target.value, unitPrice: Number((product?.price || 0).toFixed(2)) };
                                         setItems(newItems);
                                       }}
                                       className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
@@ -1675,24 +1734,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                   </div>
                                   
                                   <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                      <label className="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
-                                      <input
-                                        type="number"
-                                        min="1"
-                                        value={item.quantity}
-                                        onChange={(e) => {
-                                          const newItems = [...items];
-                                          newItems[index] = { ...item, quantity: Number(e.target.value) };
-                                          setItems(newItems);
-                                        }}
-                                        className={`w-full text-black p-2 border rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500 ${isOverStock ? 'border-red-500' : 'border-gray-300'}`}
-                                        placeholder="Qty"
-                                      />
-                                      {isOverStock && <p className="text-red-500 text-xs mt-1">Insufficient stock</p>}
-                                    </div>
-                                    
-                                    <div>
+                                                                      <div>
                                       <label className="block text-xs font-medium text-gray-700 mb-1">Price</label>
                                       <input
                                         type="number"
@@ -1700,7 +1742,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         value={item.unitPrice}
                                         onChange={(e) => {
                                           const newItems = [...items];
-                                          newItems[index] = { ...item, unitPrice: Number(e.target.value) };
+                                          newItems[index] = { ...item, unitPrice: Number(Number(e.target.value).toFixed(2)) };
                                           setItems(newItems);
                                         }}
                                         className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
@@ -1844,22 +1886,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                       ))}
                                     </select>
                                   </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                                    <input
-                                      type="number"
-                                      min="1"
-                                      value={item.quantity}
-                                      onChange={(e) => {
-                                        const newItems = [...items];
-                                        newItems[index] = { ...item, quantity: Number(e.target.value) };
-                                        setItems(newItems);
-                                      }}
-                                      className={`w-full text-black p-2 border rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500 ${isOverStock ? 'border-red-500' : 'border-gray-300'}`}
-                                      placeholder="Quantity"
-                                    />
-                                    {isOverStock && <p className="text-red-500 text-xs mt-1">Insufficient stock</p>}
-                                  </div>
+                                  
                                   <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Unit Price</label>
                                     <input
@@ -1899,7 +1926,13 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                     <div className="flex justify-between items-center">
                       <span className="text-lg font-medium text-gray-900">Total Amount:</span>
                       <span className="text-xl font-bold text-gray-900">
-                        Rs. {items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0).toFixed(2)}
+                        Rs. {items.reduce((total, item) => {
+                          if (item.isCustom) {
+                            return total + (item.total || 0);
+                          } else {
+                            return total + (item.quantity * item.unitPrice);
+                          }
+                        }, 0).toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -2190,7 +2223,13 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                         <span className="text-sm font-medium text-gray-700">Total</span>
                       </div>
                       <p className="text-xl font-bold text-green-600">
-                        Rs. {items.reduce((total, item) => total + (item.quantity * item.unitPrice), 0).toFixed(2)}
+                        Rs. {items.reduce((total, item) => {
+                          if (item.isCustom) {
+                            return total + (item.total || 0);
+                          } else {
+                            return total + (item.quantity * item.unitPrice);
+                          }
+                        }, 0).toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -2232,7 +2271,17 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                   {itemName} {isCustomItem && <span className="text-blue-600">(Custom)</span>}
                                 </span>
                                 <span className="text-gray-900 font-medium">
-                                  {item.quantity} × Rs. {item.unitPrice} = Rs. {(item.quantity * item.unitPrice).toFixed(2)}
+                                  {isCustomItem ? (
+                                    // For custom items, show calculated rate per unit and total
+                                    <>
+                                      {item.quantity} × Rs. {item.ratePerUnit?.toFixed(2) || "0.00"} = Rs. {item.total?.toFixed(2) || "0.00"}
+                                    </>
+                                  ) : (
+                                    // For regular items, show unit price calculation
+                                    <>
+                                      {item.quantity} × Rs. {item.unitPrice?.toFixed(2) || "0.00"} = Rs. {(item.quantity * item.unitPrice).toFixed(2)}
+                                    </>
+                                  )}
                                 </span>
                               </div>
                             );
@@ -2300,28 +2349,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
               </button>
               {activeTab === 'preview' ? (
                 <div className="flex space-x-2">
-                  <button
-                    onClick={handleDownloadPDF}
-                    disabled={isGeneratingPDF || !formData.customerIds.length || items.length === 0}
-                    className="px-4 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center text-sm"
-                  >
-                    {isGeneratingPDF ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Download PDF
-                      </>
-                    )}
-                  </button>
                   <button
                     onClick={handleSubmit}
                     disabled={isLoading || isUploading || !formData.customerIds.length || items.length === 0}
@@ -2565,7 +2592,9 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     </div>
   );
 
-  // Render modal using portal to document.body for proper screen centering
+  // Comment explaining that we merged the duplicate pdfFormatModal declarations
+  // The pdfFormatModal is now defined above with enhanced features including PDF options
+
   return createPortal(
     <>
       {modalContent}
