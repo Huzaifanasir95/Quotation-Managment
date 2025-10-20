@@ -46,13 +46,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [defaultTerms, setDefaultTerms] = useState<string>('');
   const [isLoadingTerms, setIsLoadingTerms] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
-  const [showPdfFormatModal, setShowPdfFormatModal] = useState(false);
   const [selectedPdfFormat, setSelectedPdfFormat] = useState<'classic' | 'modern' | 'premium'>('classic');
-  const [pdfOptions, setPdfOptions] = useState({
-    showTotals: true,
-    showTax: true,
-    showDiscount: true
-  });
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -422,80 +416,11 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       return;
     }
 
-    // Show format selection modal
-    setShowPdfFormatModal(true);
+    // Directly show customer PDF selection modal (which includes format selection)
+    setShowCustomerPdfModal(true);
   };
 
-  const generatePDFWithFormat = async (formatType: 'classic' | 'modern' | 'premium') => {
-    setShowPdfFormatModal(false);
-    setIsGeneratingPDF(true);
-    
-    try {
-      // Transform items to match PDF function expectations
-      const transformedItems = items.map(item => {
-        const product = products.find(p => p.id === item.productId);
-        return {
-          ...item,
-          description: item.isCustom 
-            ? (item.customDescription || item.itemName || 'Custom Item')
-            : (product?.name || item.description || 'Inventory Item'),
-          unit_price: item.unitPrice,
-          gst_percent: item.gstPercentage || item.gstPercent || 18,
-          unit_of_measure: item.uom || 'No'
-        };
-      });
-      
-      const refNo = formData.referenceNo && formData.referenceNo.trim() !== '' ? formData.referenceNo : '-';
-      
-      // Get selected customer info for PDF generation
-      const selectedCustomer = formData.customerIds.length > 0 
-        ? customers.find(c => c.id === formData.customerIds[0])
-        : null;
-      
-      if (formatType === 'classic') {
-        await generateDetailedQuotationPDF(transformedItems, undefined, refNo, selectedCustomer);
-      } else if (formatType === 'modern') {
-        await generateQuotationPDF({
-          customer: selectedCustomer || {
-            id: '',
-            name: '',
-            email: '',
-            phone: '',
-            contact_person: '',
-          },
-          quotation_date: new Date().toISOString().split('T')[0],
-          valid_until: formData.validUntil,
-          items: transformedItems,
-          subtotal: transformedItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price || 0)), 0),
-          total_amount: transformedItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price || 0) * 1.18), 0),
-        });
-      } else {
-        // Premium format
-        await generateEnhancedQuotationPDF({
-          date: new Date().toLocaleDateString('en-GB'),
-          refNo: refNo,
-          companyName: 'Directorate of Technical Procurement (L),',
-          companyAddress: 'KRL, Rawalpindi.',
-          items: transformedItems,
-          subTotal: transformedItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price || 0)), 0),
-          gstAmount: transformedItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price || 0) * 0.18), 0),
-          total: transformedItems.reduce((sum, item) => sum + (item.quantity * (item.unit_price || 0) * 1.18), 0),
-          termsConditions: {
-            validity: 'Prices are valid for 25 Days Only.',
-            delivery: '6-10 Days after receiving the PO. (F.O.R Rawalpindi).',
-            optionalItems: 'Optional items other than quoted will be charged separately'
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
-    } finally {
-      setIsGeneratingPDF(false);
-    }
-  };
-
-  // New handler for generating PDF after customer selection
+  // Handler for generating PDF after customer selection
   const handleGeneratePDFForCustomers = async (selectedCustomers: Customer[], combinedPDF: boolean) => {
     setIsGeneratingPDF(true);
     
@@ -2553,105 +2478,9 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
     </div>
   );
 
-  // PDF Format Selection Modal
-  const pdfFormatModal = showPdfFormatModal && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Select PDF Format</h3>
-          <p className="text-gray-500 text-sm mt-1">Choose your preferred quotation format</p>
-        </div>
-        
-        <div className="p-6">
-          <div className="mb-6">
-            <p className="text-sm text-gray-600 mb-4">Select a format and choose whether to generate combined or individual PDFs for your customers.</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Format 1 */}
-          <button
-            onClick={() => {
-              setShowPdfFormatModal(false);
-              setSelectedPdfFormat('classic');
-              setShowCustomerPdfModal(true);
-            }}
-            className="group relative bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-blue-500 hover:shadow-lg transition-all duration-200"
-          >
-            <div className="absolute top-2 right-2 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-sm group-hover:bg-blue-500 group-hover:text-white transition-colors">
-              1
-            </div>
-            <div className="mb-3">
-              <svg className="w-10 h-10 text-gray-400 group-hover:text-blue-500 transition-colors mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h4 className="text-base font-bold text-gray-900">Format 1</h4>
-            <p className="text-xs text-gray-500 mt-2">Premium Teal & Orange</p>
-          </button>
-
-          {/* Format 2 */}
-          <button
-            onClick={() => {
-              setShowPdfFormatModal(false);
-              setSelectedPdfFormat('modern');
-              setShowCustomerPdfModal(true);
-            }}
-            className="group relative bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-purple-500 hover:shadow-lg transition-all duration-200"
-          >
-            <div className="absolute top-2 right-2 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center font-bold text-sm group-hover:bg-purple-500 group-hover:text-white transition-colors">
-              2
-            </div>
-            <div className="mb-3">
-              <svg className="w-10 h-10 text-gray-400 group-hover:text-purple-500 transition-colors mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-              </svg>
-            </div>
-            <h4 className="text-base font-bold text-gray-900">Format 2</h4>
-            <p className="text-xs text-gray-500 mt-2">Navy Blue & Gold</p>
-          </button>
-
-          {/* Format 3 */}
-          <button
-            onClick={() => {
-              setShowPdfFormatModal(false);
-              setSelectedPdfFormat('premium');
-              setShowCustomerPdfModal(true);
-            }}
-            className="group relative bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-amber-500 hover:shadow-lg transition-all duration-200"
-          >
-            <div className="absolute top-2 right-2 w-6 h-6 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center font-bold text-sm group-hover:bg-amber-500 group-hover:text-white transition-colors">
-              3
-            </div>
-            <div className="mb-3">
-              <svg className="w-10 h-10 text-gray-400 group-hover:text-amber-500 transition-colors mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-              </svg>
-            </div>
-            <h4 className="text-base font-bold text-gray-900">Format 3</h4>
-            <p className="text-xs text-gray-500 mt-2">Executive Premium</p>
-          </button>
-          </div>
-        </div>
-
-        <div className="bg-gray-50 px-6 py-4 flex justify-end">
-          <button
-            onClick={() => setShowPdfFormatModal(false)}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Comment explaining that we merged the duplicate pdfFormatModal declarations
-  // The pdfFormatModal is now defined above with enhanced features including PDF options
-
   return createPortal(
     <>
       {modalContent}
-      {pdfFormatModal}
       <VendorRateRequestModals
         showVendorRateModal={showVendorRateModal}
         setShowVendorRateModal={setShowVendorRateModal}
