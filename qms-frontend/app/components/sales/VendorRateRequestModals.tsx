@@ -84,13 +84,15 @@ export default function VendorRateRequestModals({
           // Prepare data for Excel
           const excelData = categoryItems.map((item, idx) => {
             const product = products.find(p => p.id === item.productId);
+            const itemName = item.itemName || (item.isCustom ? item.customDescription : product?.name) || 'N/A';
+            const description = item.isCustom ? item.customDescription : (product?.description || product?.name) || 'N/A';
+            
             return {
               'S.No': idx + 1,
-              'Category': item.category || 'N/A',
-              'Serial No': item.serialNo || 'N/A',
-              'Item Name': item.itemName || (item.isCustom ? item.customDescription : product?.name) || 'N/A',
-              'Description': item.isCustom ? item.customDescription : product?.name || 'N/A',
-              'Quantity': item.quantity,
+              'Category': item.category || 'Uncategorized',
+              'Item Name': itemName,
+              'Description': description,
+              'Quantity': item.quantity || 0,
               'Unit of Measure': item.uom || 'pcs',
               'Your Rate (PKR)': '', // Empty for vendor to fill
               'Lead Time (Days)': '', // Empty for vendor to fill
@@ -106,14 +108,13 @@ export default function VendorRateRequestModals({
             [`Reference: ${formData.referenceNo || 'N/A'}`],
             [], // Empty row
             // Column headers
-            ['S.No', 'Category', 'Serial No', 'Item Name', 'Description', 'Quantity', 'Unit of Measure', 'Your Rate (PKR)', 'Lead Time (Days)', 'Remarks']
+            ['S.No', 'Category', 'Item Name', 'Description', 'Quantity', 'Unit of Measure', 'Your Rate (PKR)', 'Lead Time (Days)', 'Remarks']
           ];
 
           // Add data rows
           const dataRows = excelData.map(row => [
             row['S.No'],
             row['Category'],
-            row['Serial No'],
             row['Item Name'],
             row['Description'],
             row['Quantity'],
@@ -132,7 +133,6 @@ export default function VendorRateRequestModals({
           ws['!cols'] = [
             { wch: 8 },  // S.No
             { wch: 20 }, // Category
-            { wch: 15 }, // Serial No
             { wch: 30 }, // Item Name
             { wch: 40 }, // Description
             { wch: 12 }, // Quantity
