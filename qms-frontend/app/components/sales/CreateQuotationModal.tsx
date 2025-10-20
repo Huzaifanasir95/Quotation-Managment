@@ -421,7 +421,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   };
 
   // Handler for generating PDF after customer selection
-  const handleGeneratePDFForCustomers = async (selectedCustomers: Customer[], combinedPDF: boolean) => {
+  const handleGeneratePDFForCustomers = async (selectedCustomers: Customer[], combinedPDF: boolean, format: 'format1' | 'format2' = 'format1') => {
     setIsGeneratingPDF(true);
     
     try {
@@ -468,37 +468,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         };
 
         // Generate combined PDF based on selected format
-        if (selectedPdfFormat === 'modern') {
+        if (format === 'format2') {
           await generateMultiCustomerQuotationPDFFormat2(multiCustomerData);
-        } else if (selectedPdfFormat === 'premium') {
-          // For premium, generate for first customer (as premium doesn't support multi-customer yet)
-          const firstCustomer = selectedCustomers[0];
-          await generateEnhancedQuotationPDF({
-            date: new Date().toLocaleDateString('en-GB'),
-            refNo: formData.referenceNo || '-',
-            companyName: firstCustomer.name,
-            companyAddress: firstCustomer.address || 'Address not provided',
-            items: transformedItems.map((item, index) => ({
-              id: String(index + 1),
-              srNo: index + 1,
-              description: item.description,
-              uom: item.unit_of_measure || 'No',
-              quantity: item.quantity,
-              unitPrice: item.unit_price,
-              totalPrice: item.line_total,
-              gstRate: item.gst_percent || 18,
-              isCustom: item.is_custom,
-              auField: 'No'
-            })),
-            subTotal: subtotal,
-            gstAmount: taxAmount,
-            total: totalAmount,
-            termsConditions: {
-              validity: 'Prices are valid for 25 Days Only.',
-              delivery: '6-10 Days after receiving the PO. (F.O.R Rawalpindi).',
-              optionalItems: 'Optional items other than quoted will be charged separately'
-            }
-          });
         } else {
           await generateMultiCustomerQuotationPDF(multiCustomerData);
         }
@@ -569,7 +540,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
             };
 
             // Generate PDF based on selected format
-            if (selectedPdfFormat === 'modern') {
+            if (format === 'format2') {
               await generateQuotationPDFFormat2(quotationData);
             } else {
               await generateQuotationPDF(quotationData);
