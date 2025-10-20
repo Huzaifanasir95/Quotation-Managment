@@ -47,6 +47,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [isLoadingTerms, setIsLoadingTerms] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [showPdfFormatModal, setShowPdfFormatModal] = useState(false);
+  const [selectedPdfFormat, setSelectedPdfFormat] = useState<'classic' | 'modern' | 'premium'>('classic');
   const [pdfOptions, setPdfOptions] = useState({
     showTotals: true,
     showTax: true,
@@ -495,10 +496,26 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   };
 
   // New handler for generating PDF after customer selection
-  const handleGeneratePDFForCustomers = async (selectedCustomers: Customer[], combinedPDF: boolean, format: 'format1' | 'format2' = 'format1') => {
+  const handleGeneratePDFForCustomers = async (selectedCustomers: Customer[], combinedPDF: boolean) => {
     setIsGeneratingPDF(true);
     
     try {
+      // Transform items to match PDF function expectations
+      const transformedItems = items.map(item => {
+        const product = products.find(p => p.id === item.productId);
+        return {
+          description: item.isCustom 
+            ? (item.customDescription || item.itemName || 'Custom Item')
+            : (product?.name || item.description || 'Inventory Item'),
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          line_total: item.quantity * item.unitPrice,
+          is_custom: item.isCustom,
+          gst_percent: item.gstPercentage || item.gstPercent || 18,
+          unit_of_measure: item.uom || 'No'
+        };
+      });
+
       if (combinedPDF) {
         // Generate one combined PDF with all customers displayed separately
         const subtotal = items.reduce((total, item) => {
@@ -508,7 +525,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
             return total + (item.quantity * item.unitPrice);
           }
         }, 0);
-        const taxAmount = 0; // You can add tax calculation here if needed
+        const taxAmount = subtotal * 0.18;
         const totalAmount = subtotal + taxAmount;
 
         const multiCustomerData = {
@@ -517,15 +534,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           reference_no: formData.referenceNo,
           quotation_date: new Date().toISOString().split('T')[0],
           valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          items: items.map(item => {
-            const product = products.find(p => p.id === item.productId);
-            return {
-              description: product?.name || item.customDescription || 'Unknown Product',
-              quantity: item.quantity,
-              unit_price: item.unitPrice,
-              line_total: item.quantity * item.unitPrice
-            };
-          }),
+          items: transformedItems,
           subtotal: subtotal,
           tax_amount: taxAmount,
           total_amount: totalAmount,
@@ -534,8 +543,37 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         };
 
         // Generate combined PDF based on selected format
-        if (format === 'format2') {
+        if (selectedPdfFormat === 'modern') {
           await generateMultiCustomerQuotationPDFFormat2(multiCustomerData);
+        } else if (selectedPdfFormat === 'premium') {
+          // For premium, generate for first customer (as premium doesn't support multi-customer yet)
+          const firstCustomer = selectedCustomers[0];
+          await generateEnhancedQuotationPDF({
+            date: new Date().toLocaleDateString('en-GB'),
+            refNo: formData.referenceNo || '-',
+            companyName: firstCustomer.name,
+            companyAddress: firstCustomer.address || 'Address not provided',
+            items: transformedItems.map((item, index) => ({
+              id: String(index + 1),
+              srNo: index + 1,
+              description: item.description,
+              uom: item.unit_of_measure || 'No',
+              quantity: item.quantity,
+              unitPrice: item.unit_price,
+              totalPrice: item.line_total,
+              gstRate: item.gst_percent || 18,
+              isCustom: item.is_custom,
+              auField: 'No'
+            })),
+            subTotal: subtotal,
+            gstAmount: taxAmount,
+            total: totalAmount,
+            termsConditions: {
+              validity: 'Prices are valid for 25 Days Only.',
+              delivery: '6-10 Days after receiving the PO. (F.O.R Rawalpindi).',
+              optionalItems: 'Optional items other than quoted will be charged separately'
+            }
+          });
         } else {
           await generateMultiCustomerQuotationPDF(multiCustomerData);
         }
@@ -550,44 +588,67 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
               return total + (item.quantity * item.unitPrice);
             }
           }, 0);
-          const taxAmount = 0; // You can add tax calculation here if needed
+          const taxAmount = subtotal * 0.18;
           const totalAmount = subtotal + taxAmount;
 
-          // Prepare quotation data for PDF
-          const quotationData = {
-            quotation_number: `QUOTE-${Date.now()}-${selectedCustomer.id}`,
-            reference_no: formData.referenceNo,
-            customer: {
-              id: selectedCustomer.id,
-              name: selectedCustomer.name,
-              email: selectedCustomer.email || '',
-              phone: selectedCustomer.phone || '',
-              contact_person: selectedCustomer.contact_person || '',
-              address: selectedCustomer.address || 'Address not provided'
-            },
-            quotation_date: new Date().toISOString().split('T')[0],
-            valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            items: items.map(item => {
-              const product = products.find(p => p.id === item.productId);
-              return {
-                description: product?.name || item.customDescription || 'Unknown Product',
+          // Prepare quotation data for PDF based on selected format
+          if (selectedPdfFormat === 'premium') {
+            // Premium format - Enhanced PDF
+            await generateEnhancedQuotationPDF({
+              date: new Date().toLocaleDateString('en-GB'),
+              refNo: formData.referenceNo || '-',
+              companyName: selectedCustomer.name,
+              companyAddress: selectedCustomer.address || 'Address not provided',
+              items: transformedItems.map((item, index) => ({
+                id: String(index + 1),
+                srNo: index + 1,
+                description: item.description,
+                uom: item.unit_of_measure || 'No',
                 quantity: item.quantity,
-                unit_price: item.unitPrice,
-                line_total: item.quantity * item.unitPrice
-              };
-            }),
-            subtotal: subtotal,
-            tax_amount: taxAmount,
-            total_amount: totalAmount,
-            terms_conditions: formData.termsConditions || 'Standard terms and conditions apply.',
-            notes: formData.notes !== 'NULL' ? formData.notes : ''
-          };
-
-          // Generate PDF based on selected format
-          if (format === 'format2') {
-            await generateQuotationPDFFormat2(quotationData);
+                unitPrice: item.unit_price,
+                totalPrice: item.line_total,
+                gstRate: item.gst_percent || 18,
+                isCustom: item.is_custom,
+                auField: 'No'
+              })),
+              subTotal: subtotal,
+              gstAmount: taxAmount,
+              total: totalAmount,
+              termsConditions: {
+                validity: 'Prices are valid for 25 Days Only.',
+                delivery: '6-10 Days after receiving the PO. (F.O.R Rawalpindi).',
+                optionalItems: 'Optional items other than quoted will be charged separately'
+              }
+            });
           } else {
-            await generateQuotationPDF(quotationData);
+            // Format 1 or Format 2
+            const quotationData = {
+              quotation_number: `QUOTE-${Date.now()}-${selectedCustomer.id}`,
+              reference_no: formData.referenceNo,
+              customer: {
+                id: selectedCustomer.id,
+                name: selectedCustomer.name,
+                email: selectedCustomer.email || '',
+                phone: selectedCustomer.phone || '',
+                contact_person: selectedCustomer.contact_person || '',
+                address: selectedCustomer.address || 'Address not provided'
+              },
+              quotation_date: new Date().toISOString().split('T')[0],
+              valid_until: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              items: transformedItems,
+              subtotal: subtotal,
+              tax_amount: taxAmount,
+              total_amount: totalAmount,
+              terms_conditions: formData.termsConditions || 'Standard terms and conditions apply.',
+              notes: formData.notes !== 'NULL' ? formData.notes : ''
+            };
+
+            // Generate PDF based on selected format
+            if (selectedPdfFormat === 'modern') {
+              await generateQuotationPDFFormat2(quotationData);
+            } else {
+              await generateQuotationPDF(quotationData);
+            }
           }
           
           // Add small delay between PDF generations to prevent issues
@@ -2502,54 +2563,18 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         </div>
         
         <div className="p-6">
-          {/* PDF Options */}
-          <div className="mb-6 bg-gray-50 rounded-lg p-4">
-            <h4 className="font-semibold text-gray-900 mb-3">PDF Display Options</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={pdfOptions.showTotals}
-                  onChange={(e) => setPdfOptions({...pdfOptions, showTotals: e.target.checked})}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <span className="ml-2 text-sm text-gray-700">Show Total Amounts</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={pdfOptions.showTax}
-                  onChange={(e) => setPdfOptions({...pdfOptions, showTax: e.target.checked})}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <span className="ml-2 text-sm text-gray-700">Show Tax Details</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={pdfOptions.showDiscount}
-                  onChange={(e) => setPdfOptions({...pdfOptions, showDiscount: e.target.checked})}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <span className="ml-2 text-sm text-gray-700">Show Discounts</span>
-              </label>
-            </div>
-            <div className="mt-3 text-xs text-gray-500">
-              {!pdfOptions.showTotals && (
-                <div className="flex items-center text-amber-600">
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                  Quotation will be generated without total amounts (for rate inquiry purposes)
-                </div>
-              )}
-            </div>
+          <div className="mb-6">
+            <p className="text-sm text-gray-600 mb-4">Select a format and choose whether to generate combined or individual PDFs for your customers.</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Format 1 */}
           <button
-            onClick={() => generatePDFWithFormat('classic')}
+            onClick={() => {
+              setShowPdfFormatModal(false);
+              setSelectedPdfFormat('classic');
+              setShowCustomerPdfModal(true);
+            }}
             className="group relative bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-blue-500 hover:shadow-lg transition-all duration-200"
           >
             <div className="absolute top-2 right-2 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-sm group-hover:bg-blue-500 group-hover:text-white transition-colors">
@@ -2561,11 +2586,16 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
               </svg>
             </div>
             <h4 className="text-base font-bold text-gray-900">Format 1</h4>
+            <p className="text-xs text-gray-500 mt-2">Premium Teal & Orange</p>
           </button>
 
           {/* Format 2 */}
           <button
-            onClick={() => generatePDFWithFormat('modern')}
+            onClick={() => {
+              setShowPdfFormatModal(false);
+              setSelectedPdfFormat('modern');
+              setShowCustomerPdfModal(true);
+            }}
             className="group relative bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-purple-500 hover:shadow-lg transition-all duration-200"
           >
             <div className="absolute top-2 right-2 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center font-bold text-sm group-hover:bg-purple-500 group-hover:text-white transition-colors">
@@ -2577,11 +2607,16 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
               </svg>
             </div>
             <h4 className="text-base font-bold text-gray-900">Format 2</h4>
+            <p className="text-xs text-gray-500 mt-2">Navy Blue & Gold</p>
           </button>
 
           {/* Format 3 */}
           <button
-            onClick={() => generatePDFWithFormat('premium')}
+            onClick={() => {
+              setShowPdfFormatModal(false);
+              setSelectedPdfFormat('premium');
+              setShowCustomerPdfModal(true);
+            }}
             className="group relative bg-white border-2 border-gray-200 rounded-lg p-4 hover:border-amber-500 hover:shadow-lg transition-all duration-200"
           >
             <div className="absolute top-2 right-2 w-6 h-6 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center font-bold text-sm group-hover:bg-amber-500 group-hover:text-white transition-colors">
@@ -2593,6 +2628,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
               </svg>
             </div>
             <h4 className="text-base font-bold text-gray-900">Format 3</h4>
+            <p className="text-xs text-gray-500 mt-2">Executive Premium</p>
           </button>
           </div>
         </div>
