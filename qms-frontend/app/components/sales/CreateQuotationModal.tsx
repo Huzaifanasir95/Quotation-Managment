@@ -1268,27 +1268,31 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                         )}
                       </div>
                       
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Submission Date</label>
-                        <input
-                          type="date"
-                          value={formData.validUntil}
-                          onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
-                          className="w-full text-black p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                          placeholder="Valid until"
-                        />
-                        <p className="text-sm text-gray-500 mt-1">If not specified, default is 30 days from today</p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Reference No.</label>
-                        <input
-                          type="text"
-                          value={formData.referenceNo || ''}
-                          onChange={(e) => setFormData({ ...formData, referenceNo: e.target.value })}
-                          className="w-full text-black p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                          placeholder="Enter reference number"
-                        />
-                        <p className="text-sm text-gray-500 mt-1">Optional reference number for this quotation</p>
+                      {/* Date and Reference in 2 columns */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Reference No.</label>
+                          <input
+                            type="text"
+                            value={formData.referenceNo || ''}
+                            onChange={(e) => setFormData({ ...formData, referenceNo: e.target.value })}
+                            className="w-full text-black p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                            placeholder="Enter reference number"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">Optional reference number for this quotation</p>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Submission Date</label>
+                          <input
+                            type="date"
+                            value={formData.validUntil}
+                            onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
+                            className="w-full text-black p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                            placeholder="Valid until"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">If not specified, default is 30 days from today</p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1549,10 +1553,10 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         type="number"
                                         step="0.01"
                                         min="0"
-                                        value={item.actualPrice}
+                                        value={item.actualPrice || ''}
                                         onChange={(e) => {
                                           const newItems = [...items];
-                                          const price = Number(Number(e.target.value).toFixed(2));
+                                          const price = e.target.value === '' ? 0 : Number(Number(e.target.value).toFixed(2));
                                           const ratePerUnit = Number(calculateRatePerUnit(price, item.profitPercent, item.gstPercent).toFixed(2));
                                           newItems[index] = { 
                                             ...item, 
@@ -1575,10 +1579,10 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         step="0.01"
                                         min="0"
                                         max="100"
-                                        value={item.profitPercent}
+                                        value={item.profitPercent || ''}
                                         onChange={(e) => {
                                           const newItems = [...items];
-                                          const profit = Number(e.target.value);
+                                          const profit = e.target.value === '' ? 0 : Number(e.target.value);
                                           const ratePerUnit = calculateRatePerUnit(item.actualPrice, profit, item.gstPercent);
                                           newItems[index] = { 
                                             ...item, 
@@ -1618,10 +1622,10 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         step="0.01"
                                         min="0"
                                         max="100"
-                                        value={item.gstPercent}
+                                        value={item.gstPercent || ''}
                                         onChange={(e) => {
                                           const newItems = [...items];
-                                          const gst = Number(e.target.value);
+                                          const gst = e.target.value === '' ? 0 : Number(e.target.value);
                                           const ratePerUnit = calculateRatePerUnit(item.actualPrice, item.profitPercent, gst);
                                           newItems[index] = { 
                                             ...item, 
