@@ -413,10 +413,26 @@ app.post('/api/v1/quotations', async (req, res) => {
       discount_amount += discount;
       tax_amount += tax;
 
-      return {
-        ...item,
-        line_total: taxable_amount + tax
+      // Map frontend field names to database column names
+      const processedItem = {
+        product_id: item.product_id,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        discount_percent: item.discount_percent || 0,
+        tax_percent: item.tax_percent || 0,
+        line_total: taxable_amount + tax,
+        item_type: item.item_type || 'inventory',
+        category: item.category || null,
+        serial_number: item.serial_number || null,
+        item_name: item.item_name || null,
+        unit_of_measure: item.unit_of_measure || null,
+        gst_percent: item.gst_percent || 0,
+        au_field: item.au_field || item.auField || 'No', // Handle both camelCase and snake_case
+        item_notes: item.item_notes || null
       };
+
+      return processedItem;
     });
 
     const total_amount = subtotal - discount_amount + tax_amount;

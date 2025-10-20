@@ -287,6 +287,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
       profitPercent: 0,
       gstPercent: 0,
       ratePerUnit: 0,
+      unitPrice: 0, // Add unitPrice field for custom items
       isCustom: true, 
       customDescription: '',
       category: '',
@@ -893,6 +894,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
           items: items.map(item => {
             if (item.isCustom) {
               // Custom item - no product_id
+              // For custom items, use ratePerUnit as unit_price
+              const unitPrice = item.ratePerUnit || item.unitPrice || 0;
               return {
                 product_id: null,
                 description: item.customDescription || 'Custom item',
@@ -903,7 +906,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                 gst_percent: item.gstPercent || 0,
                 item_type: 'custom',
                 quantity: item.quantity,
-                unit_price: item.unitPrice
+                unit_price: Number(unitPrice) || 0
               };
             } else {
               // Inventory item - with product_id
@@ -913,7 +916,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                 description: product?.name || 'Product',
                 item_type: 'inventory',
                 quantity: item.quantity,
-                unit_price: item.unitPrice
+                unit_price: Number(item.unitPrice) || 0
               };
             }
           })
@@ -1524,10 +1527,12 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                           const newItems = [...items];
                                           const qty = Number(e.target.value);
                                           const total = calculateTotal(qty, item.actualPrice, item.profitPercent, item.gstPercent);
+                                          const ratePerUnit = calculateRatePerUnit(item.actualPrice, item.profitPercent, item.gstPercent);
                                           newItems[index] = { 
                                             ...item, 
                                             quantity: qty,
-                                            total: total
+                                            total: total,
+                                            unitPrice: ratePerUnit // Sync unitPrice with ratePerUnit
                                           };
                                           setItems(newItems);
                                         }}
@@ -1553,6 +1558,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                             ...item, 
                                             actualPrice: price,
                                             ratePerUnit: ratePerUnit,
+                                            unitPrice: ratePerUnit, // Sync unitPrice with ratePerUnit
                                             total: Number((ratePerUnit * item.quantity).toFixed(2))
                                           };
                                           setItems(newItems);
@@ -1578,6 +1584,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                             ...item, 
                                             profitPercent: profit,
                                             ratePerUnit: ratePerUnit,
+                                            unitPrice: ratePerUnit, // Sync unitPrice with ratePerUnit
                                             total: calculateTotal(item.quantity, item.actualPrice, profit, item.gstPercent)
                                           };
                                           setItems(newItems);
@@ -1620,6 +1627,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                             ...item, 
                                             gstPercent: gst,
                                             ratePerUnit: ratePerUnit,
+                                            unitPrice: ratePerUnit, // Sync unitPrice with ratePerUnit
                                             total: calculateTotal(item.quantity, item.actualPrice, item.profitPercent, gst)
                                           };
                                           setItems(newItems);
