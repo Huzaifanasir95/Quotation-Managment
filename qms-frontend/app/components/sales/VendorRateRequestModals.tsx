@@ -98,24 +98,35 @@ export default function VendorRateRequestModals({
             };
           });
 
-          // Create workbook
-          const ws = XLSX.utils.json_to_sheet(excelData);
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, 'Rate Request');
-
-          // Add header information
-          XLSX.utils.sheet_add_aoa(ws, [
+          // Create workbook with header information first
+          const headerData = [
             [`Rate Request for ${vendor.name}`],
             [`Category: ${category}`],
             [`Date: ${new Date().toLocaleDateString()}`],
             [`Reference: ${formData.referenceNo || 'N/A'}`],
             [], // Empty row
-          ], { origin: 'A1' });
+            // Column headers
+            ['S.No', 'Category', 'Serial No', 'Item Name', 'Description', 'Quantity', 'Unit of Measure', 'Your Rate (PKR)', 'Lead Time (Days)', 'Remarks']
+          ];
 
-          // Adjust for header rows
-          const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-          range.s.r += 5; // Start data after 5 header rows
-          ws['!ref'] = XLSX.utils.encode_range(range);
+          // Add data rows
+          const dataRows = excelData.map(row => [
+            row['S.No'],
+            row['Category'],
+            row['Serial No'],
+            row['Item Name'],
+            row['Description'],
+            row['Quantity'],
+            row['Unit of Measure'],
+            row['Your Rate (PKR)'],
+            row['Lead Time (Days)'],
+            row['Remarks']
+          ]);
+
+          const allData = [...headerData, ...dataRows];
+          const ws = XLSX.utils.aoa_to_sheet(allData);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, 'Rate Request');
 
           // Set column widths
           ws['!cols'] = [
@@ -155,9 +166,9 @@ export default function VendorRateRequestModals({
   const vendorRateModal = showVendorRateModal && (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-        <div className="bg-gradient-to-r from-purple-600 to-indigo-700 px-6 py-4">
-          <h3 className="text-xl font-bold text-white">Request Vendor Rates</h3>
-          <p className="text-purple-100 text-sm mt-1">Select vendors by category to request competitive rates</p>
+        <div className="bg-white px-6 py-4 border-b border-gray-200">
+          <h3 className="text-xl font-semibold text-gray-900">Request Vendor Rates</h3>
+          <p className="text-gray-600 text-sm mt-1">Select vendors by category to request competitive rates</p>
         </div>
         
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
@@ -230,7 +241,7 @@ export default function VendorRateRequestModals({
                               });
                             }
                           }}
-                          className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                          className="h-4 w-4 text-gray-900 focus:ring-gray-500 border-gray-300 rounded"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-gray-900 truncate">{vendor.name}</div>
@@ -269,7 +280,7 @@ export default function VendorRateRequestModals({
             <button
               onClick={generateVendorRateRequestFiles}
               disabled={isRequestingRates || Object.values(categoryVendors).flat().length === 0}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
+              className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
             >
               {isRequestingRates ? (
                 <>
@@ -298,9 +309,9 @@ export default function VendorRateRequestModals({
   const rateComparisonModal = showRateComparison && selectedItemForRates !== null && (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-hidden">
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-700 px-6 py-4">
-          <h3 className="text-xl font-bold text-white">Vendor Rate Comparison</h3>
-          <p className="text-indigo-100 text-sm mt-1">
+        <div className="bg-white px-6 py-4 border-b border-gray-200">
+          <h3 className="text-xl font-semibold text-gray-900">Vendor Rate Comparison</h3>
+          <p className="text-gray-600 text-sm mt-1">
             {(() => {
               const item = items[selectedItemForRates];
               const product = products.find(p => p.id === item?.productId);
@@ -313,7 +324,7 @@ export default function VendorRateRequestModals({
         
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
           {/* Current Item Details */}
-          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
             <h4 className="font-semibold text-gray-900 mb-2">Current Item Details</h4>
             {(() => {
               const item = items[selectedItemForRates];
@@ -350,7 +361,7 @@ export default function VendorRateRequestModals({
                 const currentRate = vendorRates[itemKey] || { rate: '', leadTime: '', remarks: '' };
                 
                 return (
-                  <div key={vendor.id} className="border border-gray-200 rounded-lg p-4 hover:border-purple-300 transition-colors">
+                  <div key={vendor.id} className="border border-gray-200 rounded-lg p-4 hover:border-gray-400 transition-colors">
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <h5 className="font-medium text-gray-900">{vendor.name}</h5>
@@ -370,7 +381,7 @@ export default function VendorRateRequestModals({
                               [itemKey]: { ...currentRate, rate: e.target.value }
                             });
                           }}
-                          className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                          className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
                           placeholder="Enter rate"
                         />
                       </div>
@@ -385,7 +396,7 @@ export default function VendorRateRequestModals({
                               [itemKey]: { ...currentRate, leadTime: e.target.value }
                             });
                           }}
-                          className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                          className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
                           placeholder="Days"
                         />
                       </div>
@@ -400,7 +411,7 @@ export default function VendorRateRequestModals({
                               [itemKey]: { ...currentRate, remarks: e.target.value }
                             });
                           }}
-                          className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                          className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
                           placeholder="Optional notes"
                         />
                       </div>
@@ -503,3 +514,4 @@ export default function VendorRateRequestModals({
     </>
   );
 }
+

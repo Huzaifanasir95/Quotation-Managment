@@ -642,9 +642,9 @@ export default function VendorCategoryManager({
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-700 px-6 py-4">
-          <h3 className="text-xl font-bold text-white">Vendor Category Management</h3>
-          <p className="text-indigo-100 text-sm mt-1">Manage vendor assignments and track rate requests by category</p>
+        <div className="bg-white px-6 py-4 border-b border-gray-200">
+          <h3 className="text-xl font-semibold text-gray-900">Vendor Category Management</h3>
+          <p className="text-gray-600 text-sm mt-1">Manage vendor assignments and track rate requests by category</p>
         </div>
         
         {/* Tabs */}
@@ -660,7 +660,7 @@ export default function VendorCategoryManager({
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
-                    ? 'border-indigo-500 text-indigo-600'
+                    ? 'border-gray-900 text-gray-900'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
