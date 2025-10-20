@@ -1555,7 +1555,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         type="number"
                                         step="0.01"
                                         min="0"
-                                        value={item.actualPrice}
+                                        value={item.actualPrice === 0 ? '' : item.actualPrice}
                                         onChange={(e) => {
                                           const newItems = [...items];
                                           const price = e.target.value === '' ? 0 : Number(Number(e.target.value).toFixed(2));
@@ -1571,6 +1571,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         }}
                                         onWheel={(e) => e.currentTarget.blur()}
                                         className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="0"
                                       />
                                     </div>
                                     
@@ -1581,7 +1582,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         step="0.01"
                                         min="0"
                                         max="100"
-                                        value={item.profitPercent}
+                                        value={item.profitPercent === 0 ? '' : item.profitPercent}
                                         onChange={(e) => {
                                           const newItems = [...items];
                                           const profit = e.target.value === '' ? 0 : Number(e.target.value);
@@ -1597,6 +1598,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         }}
                                         onWheel={(e) => e.currentTarget.blur()}
                                         className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="0"
                                       />
                                     </div>
                                   </div>
@@ -1624,7 +1626,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         step="0.01"
                                         min="0"
                                         max="100"
-                                        value={item.gstPercent}
+                                        value={item.gstPercent === 0 ? '' : item.gstPercent}
                                         onChange={(e) => {
                                           const newItems = [...items];
                                           const gst = e.target.value === '' ? 0 : Number(e.target.value);
@@ -1640,6 +1642,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         }}
                                         onWheel={(e) => e.currentTarget.blur()}
                                         className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                                        placeholder="0"
                                       />
                                     </div>
                                   </div>
