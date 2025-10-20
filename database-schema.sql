@@ -425,6 +425,7 @@ CREATE TABLE public.quotation_items (
   unit_of_measure character varying,
   gst_percent numeric DEFAULT 0,
   item_type character varying DEFAULT 'inventory'::character varying CHECK (item_type::text = ANY (ARRAY['inventory'::character varying, 'custom'::character varying]::text[])),
+  au_field character varying DEFAULT 'No'::character varying CHECK (au_field::text = ANY (ARRAY['Yes'::character varying, 'No'::character varying]::text[])),
   CONSTRAINT quotation_items_pkey PRIMARY KEY (id),
   CONSTRAINT quotation_items_quotation_id_fkey FOREIGN KEY (quotation_id) REFERENCES public.quotations(id),
   CONSTRAINT quotation_items_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id)
