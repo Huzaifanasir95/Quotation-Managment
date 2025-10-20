@@ -1162,6 +1162,35 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
             <div className="max-w-6xl mx-auto">
               <h3 className="text-lg font-medium text-gray-900 mb-6">Qoutation Information</h3>
               
+              {/* Reference Number and Submission Date at Top */}
+              <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Reference No.</label>
+                    <input
+                      type="text"
+                      value={formData.referenceNo || ''}
+                      onChange={(e) => setFormData({ ...formData, referenceNo: e.target.value })}
+                      className="w-full text-black p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                      placeholder="Enter reference number"
+                    />
+                    <p className="text-sm text-gray-500 mt-1">Optional reference number for this quotation</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Submission Date</label>
+                    <input
+                      type="date"
+                      value={formData.validUntil}
+                      onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
+                      className="w-full text-black p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
+                      placeholder="Valid until"
+                    />
+                    <p className="text-sm text-gray-500 mt-1">If not specified, default is 30 days from today</p>
+                  </div>
+                </div>
+              </div>
+              
               {/* Grid Layout */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Customer Selection - Takes 2 columns */}
@@ -1266,33 +1295,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                         {formData.customerIds.length === 0 && (
                           <p className="text-sm text-red-500 mt-2">Please select at least one customer</p>
                         )}
-                      </div>
-                      
-                      {/* Date and Reference in 2 columns */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Reference No.</label>
-                          <input
-                            type="text"
-                            value={formData.referenceNo || ''}
-                            onChange={(e) => setFormData({ ...formData, referenceNo: e.target.value })}
-                            className="w-full text-black p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                            placeholder="Enter reference number"
-                          />
-                          <p className="text-sm text-gray-500 mt-1">Optional reference number for this quotation</p>
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Submission Date</label>
-                          <input
-                            type="date"
-                            value={formData.validUntil}
-                            onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
-                            className="w-full text-black p-3 border border-gray-300 rounded-lg focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                            placeholder="Valid until"
-                          />
-                          <p className="text-sm text-gray-500 mt-1">If not specified, default is 30 days from today</p>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -1553,7 +1555,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         type="number"
                                         step="0.01"
                                         min="0"
-                                        value={item.actualPrice || ''}
+                                        value={item.actualPrice}
                                         onChange={(e) => {
                                           const newItems = [...items];
                                           const price = e.target.value === '' ? 0 : Number(Number(e.target.value).toFixed(2));
@@ -1567,8 +1569,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                           };
                                           setItems(newItems);
                                         }}
+                                        onWheel={(e) => e.currentTarget.blur()}
                                         className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                        placeholder="Enter actual price"
                                       />
                                     </div>
                                     
@@ -1579,7 +1581,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         step="0.01"
                                         min="0"
                                         max="100"
-                                        value={item.profitPercent || ''}
+                                        value={item.profitPercent}
                                         onChange={(e) => {
                                           const newItems = [...items];
                                           const profit = e.target.value === '' ? 0 : Number(e.target.value);
@@ -1593,8 +1595,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                           };
                                           setItems(newItems);
                                         }}
+                                        onWheel={(e) => e.currentTarget.blur()}
                                         className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                        placeholder="Enter profit percentage"
                                       />
                                     </div>
                                   </div>
@@ -1622,7 +1624,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                         step="0.01"
                                         min="0"
                                         max="100"
-                                        value={item.gstPercent || ''}
+                                        value={item.gstPercent}
                                         onChange={(e) => {
                                           const newItems = [...items];
                                           const gst = e.target.value === '' ? 0 : Number(e.target.value);
@@ -1636,8 +1638,8 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                                           };
                                           setItems(newItems);
                                         }}
+                                        onWheel={(e) => e.currentTarget.blur()}
                                         className="w-full text-black p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-gray-500 focus:border-gray-500"
-                                        placeholder="Enter GST percentage"
                                       />
                                     </div>
                                   </div>
