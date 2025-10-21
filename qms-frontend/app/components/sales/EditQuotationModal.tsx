@@ -1877,6 +1877,7 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
         quotationId={quotationId}
         items={items}
         vendors={vendors}
+        products={products}
         onCategoryVendorsUpdate={setCategoryVendors}
         showModal={showVendorCategoryModal}
         setShowModal={setShowVendorCategoryModal}
