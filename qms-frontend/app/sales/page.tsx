@@ -270,27 +270,20 @@ export default function SalesPage() {
       // Prepare data for export - ALL customer fields
       const exportData = filteredCustomers.map(customer => ({
         'Customer Name': customer.name,
-        'Customer Ref No': customer.customer_ref_no || 'N/A',
-        'Customer Type': customer.customer_type || 'N/A',
         'Email': customer.email || 'N/A',
         'Phone': customer.phone || 'N/A',
         'FAX': customer.fax || 'N/A',
-        'Website': customer.website || 'N/A',
         'Contact Person': customer.contact_person || 'N/A',
-        'Designation': customer.designation || 'N/A',
-        'Department': customer.department || 'N/A',
         'Address': customer.address || 'N/A',
         'City': customer.city || 'N/A',
         'State': customer.state || 'N/A',
         'Country': customer.country || 'N/A',
         'Postal Code': customer.postal_code || 'N/A',
-        'GST/Tax Number': customer.gst_number || 'N/A',
         'Credit Limit': customer.credit_limit ? `Rs. ${customer.credit_limit.toLocaleString()}` : 'N/A',
-        'Payment Term': customer.payment_terms || 'N/A',
+        'Payment Terms (Days)': customer.payment_terms || 'N/A',
         'Total Quotes Value': `Rs. ${(customer.totalQuotes || 0).toLocaleString()}`,
         'Number of Quotes': customer.quotesCount || 0,
-        'Status': customer.status,
-        'Notes': customer.notes || 'N/A'
+        'Status': customer.status
       }));
 
       // Create workbook and worksheet
@@ -363,15 +356,11 @@ export default function SalesPage() {
       // Prepare table data with ALL fields
       const tableData = filteredCustomers.map(customer => [
         customer.name,
-        customer.customer_ref_no || 'N/A',
-        customer.customer_type || 'N/A',
         customer.email || 'N/A',
         customer.phone || 'N/A',
         customer.contact_person || 'N/A',
-        customer.designation || 'N/A',
         customer.city || 'N/A',
         customer.state || 'N/A',
-        customer.gst_number || 'N/A',
         customer.credit_limit ? `Rs. ${customer.credit_limit.toLocaleString()}` : 'N/A',
         customer.payment_terms || 'N/A',
         `Rs. ${(customer.totalQuotes || 0).toLocaleString()}`,
@@ -380,7 +369,7 @@ export default function SalesPage() {
 
       // Add table using autoTable (if available) or manual rendering
       const startY = 30;
-      const headers = [['Name', 'Ref No', 'Type', 'Email', 'Phone', 'Contact', 'Designation', 'City', 'State', 'GST', 'Credit Limit', 'Payment Term', 'Total Quotes', 'Status']];
+      const headers = [['Name', 'Email', 'Phone', 'Contact', 'City', 'State', 'Credit Limit', 'Payment Terms', 'Total Quotes', 'Status']];
       
       // Check if autoTable is available (jspdf-autotable plugin)
       if (typeof (doc as any).autoTable === 'function') {
@@ -389,25 +378,21 @@ export default function SalesPage() {
           head: headers,
           body: tableData,
           theme: 'grid',
-          headStyles: { fillColor: [59, 130, 246], fontSize: 7, fontStyle: 'bold' },
-          bodyStyles: { fontSize: 6 },
+          headStyles: { fillColor: [59, 130, 246], fontSize: 8, fontStyle: 'bold' },
+          bodyStyles: { fontSize: 7 },
           alternateRowStyles: { fillColor: [245, 247, 250] },
           margin: { left: 5, right: 5 },
           columnStyles: {
-            0: { cellWidth: 25 },  // Name
-            1: { cellWidth: 15 },  // Ref No
-            2: { cellWidth: 15 },  // Type
-            3: { cellWidth: 25 },  // Email
-            4: { cellWidth: 18 },  // Phone
-            5: { cellWidth: 20 },  // Contact
-            6: { cellWidth: 18 },  // Designation
-            7: { cellWidth: 15 },  // City
-            8: { cellWidth: 15 },  // State
-            9: { cellWidth: 18 },  // GST
-            10: { cellWidth: 18 }, // Credit Limit
-            11: { cellWidth: 15 }, // Payment Terms
-            12: { cellWidth: 18 }, // Total Quotes
-            13: { cellWidth: 12 }  // Status
+            0: { cellWidth: 30 },  // Name
+            1: { cellWidth: 30 },  // Email
+            2: { cellWidth: 20 },  // Phone
+            3: { cellWidth: 25 },  // Contact
+            4: { cellWidth: 20 },  // City
+            5: { cellWidth: 20 },  // State
+            6: { cellWidth: 22 },  // Credit Limit
+            7: { cellWidth: 18 },  // Payment Terms
+            8: { cellWidth: 25 },  // Total Quotes
+            9: { cellWidth: 15 }   // Status
           }
         });
       } else {

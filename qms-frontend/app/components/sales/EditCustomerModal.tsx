@@ -16,15 +16,14 @@ export default function EditCustomerModal({ isOpen, onClose, onCustomerUpdated, 
     email: '',
     phone: '',
     fax: '',
-    customerRefNo: '',
-    customerType: '',
     address: '',
     city: '',
     state: '',
     postalCode: '',
     country: '',
     contactPerson: '',
-    gstNumber: '',
+    creditLimit: 0,
+    paymentTerms: 30,
     status: 'active' as 'active' | 'inactive' | 'suspended'
   });
   const [loading, setLoading] = useState(false);
@@ -37,15 +36,14 @@ export default function EditCustomerModal({ isOpen, onClose, onCustomerUpdated, 
         email: customer.email || '',
         phone: customer.phone || '',
         fax: customer.fax || '',
-        customerRefNo: customer.customer_ref_no || '',
-        customerType: customer.customer_type || '',
         address: customer.address || '',
         city: customer.city || '',
         state: customer.state || '',
         postalCode: customer.postal_code || '',
         country: customer.country || '',
         contactPerson: customer.contact_person || '',
-        gstNumber: customer.gst_number || '',
+        creditLimit: customer.credit_limit || 0,
+        paymentTerms: customer.payment_terms || 30,
         status: customer.status || 'active'
       });
       setError(null);
@@ -65,15 +63,14 @@ export default function EditCustomerModal({ isOpen, onClose, onCustomerUpdated, 
         email: formData.email,
         phone: formData.phone,
         fax: formData.fax || null,
-        customer_ref_no: formData.customerRefNo || null,
-        customer_type: formData.customerType || null,
         address: formData.address,
         city: formData.city,
         state: formData.state,
         postal_code: formData.postalCode,
         country: formData.country,
         contact_person: formData.contactPerson,
-        gst_number: formData.gstNumber,
+        credit_limit: formData.creditLimit,
+        payment_terms: formData.paymentTerms,
         status: formData.status
       };
 
@@ -185,27 +182,30 @@ export default function EditCustomerModal({ isOpen, onClose, onCustomerUpdated, 
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Customer Ref No.
+                Credit Limit
               </label>
               <input
-                type="text"
-                name="customerRefNo"
-                value={formData.customerRefNo}
+                type="number"
+                name="creditLimit"
+                value={formData.creditLimit}
                 onChange={handleChange}
+                min="0"
+                step="0.01"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Customer Type
+                Payment Terms (Days)
               </label>
               <input
-                type="text"
-                name="customerType"
-                value={formData.customerType}
+                type="number"
+                name="paymentTerms"
+                value={formData.paymentTerms}
                 onChange={handleChange}
-                placeholder="e.g., Regular, VIP, Corporate, Government"
+                min="0"
+                placeholder="e.g., 30, 60, 90"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
               />
             </div>
@@ -288,20 +288,7 @@ export default function EditCustomerModal({ isOpen, onClose, onCustomerUpdated, 
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                GST/Tax Number
-              </label>
-              <input
-                type="text"
-                name="gstNumber"
-                value={formData.gstNumber}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
-              />
-            </div>
-
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Status
               </label>

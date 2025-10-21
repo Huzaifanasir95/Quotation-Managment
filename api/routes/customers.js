@@ -131,10 +131,32 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = {
-      ...req.body,
-      updated_at: new Date().toISOString()
-    };
+    
+    // Filter to only include fields that exist in the database
+    const allowedFields = [
+      'name',
+      'contact_person',
+      'email',
+      'phone',
+      'address',
+      'city',
+      'state',
+      'country',
+      'postal_code',
+      'credit_limit',
+      'payment_terms',
+      'status',
+      'fax'
+    ];
+
+    const updateData = {};
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+    
+    updateData.updated_at = new Date().toISOString();
 
     console.log(`📝 Updating customer ${id} with data:`, updateData);
 
