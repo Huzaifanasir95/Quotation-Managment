@@ -554,27 +554,27 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                 <p className="text-gray-500">Try adjusting your search criteria or filters.</p>
               </div>
             ) : viewMode === 'list' ? (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {filteredQuotations.map((quotation) => (
                   <div 
                     key={quotation.id} 
-                    className="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200 bg-white"
+                    className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-all duration-200 bg-white hover:border-blue-300"
                   >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center space-x-3">
                         <div>
-                          <h3 className="text-xl font-bold text-gray-900">{quotation.number}</h3>
-                          <p className="text-gray-600">{quotation.customer}</p>
+                          <h3 className="text-sm font-bold text-gray-900">{quotation.number}</h3>
+                          <p className="text-xs text-gray-600">{quotation.customer}</p>
                           {quotation.customerEmail && (
-                            <p className="text-sm text-gray-500">{quotation.customerEmail}</p>
+                            <p className="text-xs text-gray-500">{quotation.customerEmail}</p>
                           )}
                         </div>
-                        <div className={`flex items-center space-x-1 px-3 py-1 rounded-full border text-sm font-medium ${getStatusColor(quotation.status)}`}>
+                        <div className={`flex items-center space-x-1 px-2 py-0.5 rounded-full border text-xs font-medium ${getStatusColor(quotation.status)}`}>
                           {getStatusIcon(quotation.status)}
                           <span>{quotation.status}</span>
                         </div>
                         {isExpired(quotation.validUntil) && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
@@ -583,44 +583,44 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-blue-600">Rs. {quotation.amount.toLocaleString()}</p>
-                        <p className="text-sm text-gray-500">{new Date(quotation.date).toLocaleDateString()}</p>
+                        <p className="text-lg font-bold text-blue-600">Rs. {quotation.amount.toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">{new Date(quotation.date).toLocaleDateString()}</p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Valid Until</p>
-                        <p className="text-gray-900">{quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString() : 'Not specified'}</p>
+                        <p className="text-xs font-medium text-gray-500">Valid Until</p>
+                        <p className="text-xs text-gray-900">{quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString() : 'Not specified'}</p>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Items</p>
-                        <p className="text-gray-900">{quotation.items.length} item(s)</p>
+                        <p className="text-xs font-medium text-gray-500">Items</p>
+                        <p className="text-xs text-gray-900">{quotation.items.length} item(s)</p>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Average Item Value</p>
-                        <p className="text-gray-900">
+                        <p className="text-xs font-medium text-gray-500">Avg Item Value</p>
+                        <p className="text-xs text-gray-900">
                           Rs. {quotation.items.length > 0 ? (quotation.amount / quotation.items.length).toFixed(2) : '0.00'}
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-500">Created</p>
-                        <p className="text-gray-900">{new Date(quotation.date).toLocaleDateString()}</p>
+                        <p className="text-xs font-medium text-gray-500">Created</p>
+                        <p className="text-xs text-gray-900">{new Date(quotation.date).toLocaleDateString()}</p>
                       </div>
                     </div>
 
                     {quotation.items.length > 0 && (
-                      <div className="mb-4">
-                        <p className="text-sm font-medium text-gray-500 mb-2">Items Summary</p>
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <div className="flex flex-wrap gap-2">
+                      <div className="mb-2">
+                        <p className="text-xs font-medium text-gray-500 mb-1">Items Summary</p>
+                        <div className="bg-gray-50 rounded-md p-2">
+                          <div className="flex flex-wrap gap-1">
                             {quotation.items.slice(0, 3).map((item, index) => (
-                              <span key={item.id} className="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-xs">
+                              <span key={item.id} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-800 text-xs">
                                 {item.description} (×{item.quantity})
                               </span>
                             ))}
                             {quotation.items.length > 3 && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-md bg-gray-200 text-gray-600 text-xs">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-gray-200 text-gray-600 text-xs">
                                 +{quotation.items.length - 3} more
                               </span>
                             )}
@@ -629,29 +629,29 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-200">
                       {quotation.notes && quotation.notes !== 'NULL' && quotation.notes.trim() !== '' && (
-                        <div className="flex-1 mr-4">
-                          <p className="text-sm text-gray-600 italic">"{quotation.notes}"</p>
+                        <div className="flex-1 mr-3">
+                          <p className="text-xs text-gray-600 italic truncate">"{quotation.notes}"</p>
                         </div>
                       )}
-                      <div className="flex space-x-3">
+                      <div className="flex space-x-1.5">
                         <button
                           onClick={() => handleViewQuotation(quotation)}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center"
+                          className="px-2 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 flex items-center text-xs font-medium"
                         >
-                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                           </svg>
-                          View Details
+                          View
                         </button>
                         {quotation.status.toLowerCase() === 'draft' && (
                           <button
                             onClick={() => handleApproveQuotation(quotation)}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center"
+                            className="px-2 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 flex items-center text-xs font-medium"
                           >
-                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             Approve
@@ -659,9 +659,9 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                         )}
                         <button
                           onClick={() => handleEditQuotation(quotation)}
-                          className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 flex items-center"
+                          className="px-2 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors duration-200 flex items-center text-xs font-medium"
                         >
-                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                           Edit
