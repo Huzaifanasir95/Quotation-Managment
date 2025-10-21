@@ -446,77 +446,77 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
             )}
 
             {currentStep === 'items' && selectedQuote && (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Select Items to Convert</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Select Items to Convert</h3>
                   
                   {/* Selected Quote Summary */}
-                  <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-xl p-6 mb-6">
+                  <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg p-3 mb-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-lg font-bold text-gray-900">{selectedQuote.number}</h4>
-                        <p className="text-gray-600">{selectedQuote.customer}</p>
-                        <p className="text-sm text-gray-500">{selectedQuote.items.length} total items</p>
+                        <h4 className="text-sm font-bold text-gray-900">{selectedQuote.number}</h4>
+                        <p className="text-xs text-gray-600">{selectedQuote.customer}</p>
+                        <p className="text-xs text-gray-500">{selectedQuote.items.length} total items</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-blue-600">Rs. {selectedQuote.amount.toLocaleString()}</p>
-                        <p className="text-sm text-gray-500">Original Quote Total</p>
+                        <p className="text-lg font-bold text-blue-600">Rs. {selectedQuote.amount.toLocaleString()}</p>
+                        <p className="text-xs text-gray-500">Original Quote Total</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Item Selection Controls */}
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center space-x-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2">
                       <button
                         onClick={handleSelectAllItems}
-                        className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                        className="px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
                       >
                         Select All
                       </button>
                       <button
                         onClick={handleDeselectAllItems}
-                        className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                        className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                       >
                         Deselect All
                       </button>
                     </div>
-                    <div className="text-sm text-gray-600">
+                    <div className="text-xs text-gray-600">
                       {getSelectedItems().length} of {selectedItems.length} items selected
                     </div>
                   </div>
 
                   {/* Items List */}
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     {selectedItems.map((item, index) => (
                       <div
                         key={item.id}
-                        className={`border rounded-xl p-6 transition-all duration-200 ${
+                        className={`border rounded-lg p-3 transition-all duration-200 ${
                           item.selected 
                             ? 'border-blue-300 bg-blue-50' 
                             : 'border-gray-200 bg-white'
                         }`}
                       >
-                        <div className="flex items-start space-x-4">
+                        <div className="flex items-start space-x-3">
                           {/* Checkbox */}
                           <div className="flex items-center pt-1">
                             <input
                               type="checkbox"
                               checked={item.selected || false}
                               onChange={() => handleItemToggle(item.id)}
-                              className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                             />
                           </div>
 
                           {/* Item Details */}
                           <div className="flex-1">
-                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
                               {/* Description */}
                               <div className="lg:col-span-2">
-                                <h4 className="font-semibold text-gray-900 mb-1">
+                                <h4 className="text-sm font-semibold text-gray-900 mb-1">
                                   Item #{index + 1}
                                 </h4>
-                                <p className="text-gray-700 mb-2">{item.description}</p>
+                                <p className="text-xs text-gray-700 mb-1 truncate">{item.description}</p>
                                 {item.product_id && (
                                   <p className="text-xs text-gray-500">Product ID: {item.product_id}</p>
                                 )}
@@ -524,7 +524,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
 
                               {/* Quantity */}
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
                                   Quantity
                                 </label>
                                 <input
@@ -533,7 +533,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                                   value={item.quantity}
                                   onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 0)}
                                   disabled={!item.selected}
-                                  className={`w-full px-3 py-2 border rounded-lg text-center ${
+                                  className={`w-full px-2 py-1.5 text-sm border rounded-lg text-center ${
                                     item.selected 
                                       ? 'border-gray-300 text-black focus:ring-2 focus:ring-blue-500' 
                                       : 'border-gray-200 bg-gray-100 text-gray-400'
@@ -543,10 +543,10 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
 
                               {/* Pricing */}
                               <div>
-                                <div className="text-sm text-gray-600 mb-1">
+                                <div className="text-xs text-gray-600 mb-1">
                                   Unit Price: Rs. {item.unitPrice.toFixed(2)}
                                 </div>
-                                <div className="text-lg font-bold text-green-600">
+                                <div className="text-sm font-bold text-green-600">
                                   Rs. {item.total.toFixed(2)}
                                 </div>
                                 <div className="text-xs text-gray-500">
@@ -562,42 +562,42 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
 
                   {/* Selected Items Summary */}
                   {getSelectedItems().length > 0 && (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-6 mt-6">
-                      <h4 className="text-lg font-semibold text-green-800 mb-4">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-4">
+                      <h4 className="text-sm font-semibold text-green-800 mb-3">
                         Selected Items Summary
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-green-600">
+                          <div className="text-lg font-bold text-green-600">
                             {getSelectedItems().length}
                           </div>
-                          <div className="text-sm text-green-700">Items Selected</div>
+                          <div className="text-xs text-green-700">Items Selected</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-green-600">
+                          <div className="text-lg font-bold text-green-600">
                             {getSelectedItems().reduce((sum, item) => sum + item.quantity, 0)}
                           </div>
-                          <div className="text-sm text-green-700">Total Quantity</div>
+                          <div className="text-xs text-green-700">Total Quantity</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-2xl font-bold text-green-600">
+                          <div className="text-lg font-bold text-green-600">
                             Rs. {getSelectedItems().reduce((sum, item) => sum + item.total, 0).toFixed(2)}
                           </div>
-                          <div className="text-sm text-green-700">Subtotal</div>
+                          <div className="text-xs text-green-700">Subtotal</div>
                         </div>
                       </div>
                     </div>
                   )}
 
                   {getSelectedItems().length === 0 && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mt-6">
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4">
                       <div className="flex items-center">
-                        <svg className="w-6 h-6 text-yellow-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                         </svg>
                         <div>
-                          <h4 className="font-medium text-yellow-800">No Items Selected</h4>
-                          <p className="text-sm text-yellow-700 mt-1">
+                          <h4 className="text-sm font-medium text-yellow-800">No Items Selected</h4>
+                          <p className="text-xs text-yellow-700 mt-1">
                             Please select at least one item to proceed with the order conversion.
                           </p>
                         </div>
@@ -609,50 +609,50 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
             )}
 
             {currentStep === 'configure' && selectedQuote && (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Configure Order Details</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Configure Order Details</h3>
                   
                   {/* Selected Items Summary */}
-                  <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-xl p-6 mb-6">
+                  <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg p-3 mb-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-lg font-bold text-gray-900">{selectedQuote.number}</h4>
-                        <p className="text-gray-600">{selectedQuote.customer}</p>
-                        <p className="text-sm text-gray-500">{getSelectedItems().length} of {selectedQuote.items.length} items selected</p>
+                        <h4 className="text-sm font-bold text-gray-900">{selectedQuote.number}</h4>
+                        <p className="text-xs text-gray-600">{selectedQuote.customer}</p>
+                        <p className="text-xs text-gray-500">{getSelectedItems().length} of {selectedQuote.items.length} items selected</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-blue-600">
+                        <p className="text-lg font-bold text-blue-600">
                           Rs. {getSelectedItems().reduce((sum, item) => sum + item.total, 0).toLocaleString()}
                         </p>
-                        <p className="text-sm text-gray-500">Selected Items Total</p>
+                        <p className="text-xs text-gray-500">Selected Items Total</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Order Configuration Form */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {/* Left Column */}
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <div>
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Order Information</h4>
-                        <div className="space-y-4">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Order Information</h4>
+                        <div className="space-y-3">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Expected Delivery Date *</label>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Expected Delivery Date *</label>
                             <input
                               type="date"
                               value={orderDetails.expectedDelivery}
                               onChange={(e) => setOrderDetails({ ...orderDetails, expectedDelivery: e.target.value })}
-                              className="w-full text-black px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              className="w-full text-black px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               required
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Priority Level</label>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Priority Level</label>
                             <select
                               value={orderDetails.priority}
                               onChange={(e) => setOrderDetails({ ...orderDetails, priority: e.target.value })}
-                              className="w-full text-black px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              className="w-full text-black px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             >
                               <option value="low">Low Priority</option>
                               <option value="normal">Normal Priority</option>
@@ -661,11 +661,11 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                             </select>
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Payment Terms (Days)</label>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Payment Terms (Days)</label>
                             <select
                               value={orderDetails.paymentTerms}
                               onChange={(e) => setOrderDetails({ ...orderDetails, paymentTerms: e.target.value })}
-                              className="w-full text-black px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              className="w-full text-black px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             >
                               <option value="0">Cash on Delivery</option>
                               <option value="15">Net 15 Days</option>
@@ -678,25 +678,25 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                       </div>
 
                       <div>
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Addresses</h4>
-                        <div className="space-y-4">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Addresses</h4>
+                        <div className="space-y-3">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Shipping Address</label>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Shipping Address</label>
                             <textarea
                               value={orderDetails.shippingAddress}
                               onChange={(e) => setOrderDetails({ ...orderDetails, shippingAddress: e.target.value })}
-                              className="w-full text-black px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              rows={3}
+                              className="w-full text-black px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              rows={2}
                               placeholder="Enter complete shipping address..."
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Billing Address</label>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Billing Address</label>
                             <textarea
                               value={orderDetails.billingAddress}
                               onChange={(e) => setOrderDetails({ ...orderDetails, billingAddress: e.target.value })}
-                              className="w-full text-black px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              rows={3}
+                              className="w-full text-black px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              rows={2}
                               placeholder="Enter billing address (leave blank if same as shipping)..."
                             />
                           </div>
@@ -705,12 +705,12 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                     </div>
 
                     {/* Right Column */}
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <div>
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Financial Details</h4>
-                        <div className="space-y-4">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Financial Details</h4>
+                        <div className="space-y-3">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Discount (%)</label>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Discount (%)</label>
                             <input
                               type="number"
                               min="0"
@@ -718,12 +718,12 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                               step="0.01"
                               value={orderDetails.discountPercentage}
                               onChange={(e) => setOrderDetails({ ...orderDetails, discountPercentage: parseFloat(e.target.value) || 0 })}
-                              className="w-full text-black px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              className="w-full text-black px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               placeholder="0.00"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Tax Rate (%)</label>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Tax Rate (%)</label>
                             <input
                               type="number"
                               min="0"
@@ -731,19 +731,19 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                               step="0.01"
                               value={orderDetails.taxPercentage}
                               onChange={(e) => setOrderDetails({ ...orderDetails, taxPercentage: parseFloat(e.target.value) || 0 })}
-                              className="w-full text-black px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              className="w-full text-black px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               placeholder="0.00"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Shipping Cost (Rs.)</label>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Shipping Cost (Rs.)</label>
                             <input
                               type="number"
                               min="0"
                               step="0.01"
                               value={orderDetails.shippingCost}
                               onChange={(e) => setOrderDetails({ ...orderDetails, shippingCost: parseFloat(e.target.value) || 0 })}
-                              className="w-full text-black px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              className="w-full text-black px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               placeholder="0.00"
                             />
                           </div>
@@ -751,38 +751,38 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                       </div>
 
                       <div>
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Order Total Preview</h4>
-                        <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Order Total Preview</h4>
+                        <div className="bg-gray-50 rounded-lg p-3">
                           {(() => {
                             const totals = calculateOrderTotal();
                             return (
-                              <div className="space-y-2">
-                                <div className="flex justify-between text-sm">
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between text-xs">
                                   <span className="text-gray-600">Subtotal:</span>
                                   <span className="text-gray-900">Rs. {typeof totals === 'object' ? totals.subtotal.toFixed(2) : '0.00'}</span>
                                 </div>
                                 {typeof totals === 'object' && totals.discount > 0 && (
-                                  <div className="flex justify-between text-sm">
+                                  <div className="flex justify-between text-xs">
                                     <span className="text-gray-600">Discount ({orderDetails.discountPercentage}%):</span>
                                     <span className="text-red-600">-Rs. {totals.discount.toFixed(2)}</span>
                                   </div>
                                 )}
                                 {typeof totals === 'object' && totals.tax > 0 && (
-                                  <div className="flex justify-between text-sm">
+                                  <div className="flex justify-between text-xs">
                                     <span className="text-gray-600">Tax ({orderDetails.taxPercentage}%):</span>
                                     <span className="text-gray-900">Rs. {typeof totals === 'object' ? totals.tax.toFixed(2) : '0.00'}</span>
                                   </div>
                                 )}
                                 {typeof totals === 'object' && totals.shipping > 0 && (
-                                  <div className="flex justify-between text-sm">
+                                  <div className="flex justify-between text-xs">
                                     <span className="text-gray-600">Shipping:</span>
                                     <span className="text-gray-900">Rs. {totals.shipping.toFixed(2)}</span>
                                   </div>
                                 )}
-                                <div className="border-t border-gray-300 pt-2">
+                                <div className="border-t border-gray-300 pt-1.5">
                                   <div className="flex justify-between">
-                                    <span className="font-semibold text-gray-900">Total:</span>
-                                    <span className="font-bold text-green-600 text-lg">Rs. {typeof totals === 'object' ? totals.total.toFixed(2) : '0.00'}</span>
+                                    <span className="text-xs font-semibold text-gray-900">Total:</span>
+                                    <span className="font-bold text-green-600 text-sm">Rs. {typeof totals === 'object' ? totals.total.toFixed(2) : '0.00'}</span>
                                   </div>
                                 </div>
                               </div>
@@ -792,12 +792,12 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Order Notes</label>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Order Notes</label>
                         <textarea
                           value={orderDetails.notes}
                           onChange={(e) => setOrderDetails({ ...orderDetails, notes: e.target.value })}
-                          className="w-full text-black px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          rows={4}
+                          className="w-full text-black px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          rows={3}
                           placeholder="Additional notes or special instructions..."
                         />
                       </div>
@@ -808,56 +808,56 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
             )}
 
             {currentStep === 'review' && selectedQuote && (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">Review Order Details</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Review Order Details</h3>
                   
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {/* Order Summary */}
-                    <div className="space-y-6">
-                      <div className="bg-white border border-gray-200 rounded-xl p-6">
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h4>
-                        <div className="space-y-3">
+                    <div className="space-y-3">
+                      <div className="bg-white border border-gray-200 rounded-lg p-3">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Order Summary</h4>
+                        <div className="space-y-2">
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Quote Number:</span>
-                            <span className="font-medium text-gray-900">{selectedQuote.number}</span>
+                            <span className="text-xs text-gray-600">Quote Number:</span>
+                            <span className="text-xs font-medium text-gray-900">{selectedQuote.number}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Customer:</span>
-                            <span className="font-medium text-gray-900">{selectedQuote.customer}</span>
+                            <span className="text-xs text-gray-600">Customer:</span>
+                            <span className="text-xs font-medium text-gray-900">{selectedQuote.customer}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Expected Delivery:</span>
-                            <span className="font-medium text-gray-900">
+                            <span className="text-xs text-gray-600">Expected Delivery:</span>
+                            <span className="text-xs font-medium text-gray-900">
                               {new Date(orderDetails.expectedDelivery).toLocaleDateString()}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Priority:</span>
-                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(orderDetails.priority)}`}>
+                            <span className="text-xs text-gray-600">Priority:</span>
+                            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(orderDetails.priority)}`}>
                               {orderDetails.priority.toUpperCase()}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Payment Terms:</span>
-                            <span className="font-medium text-gray-900">
+                            <span className="text-xs text-gray-600">Payment Terms:</span>
+                            <span className="text-xs font-medium text-gray-900">
                               {orderDetails.paymentTerms === '0' ? 'Cash on Delivery' : `Net ${orderDetails.paymentTerms} Days`}
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="bg-white border border-gray-200 rounded-xl p-6">
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Selected Items ({getSelectedItems().length})</h4>
-                        <div className="space-y-3">
+                      <div className="bg-white border border-gray-200 rounded-lg p-3">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Selected Items ({getSelectedItems().length})</h4>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
                           {getSelectedItems().map((item, index) => (
                             <div key={item.id} className="flex justify-between items-start">
-                              <div className="flex-1 mr-4">
-                                <p className="font-medium text-gray-900">
-                                  <span className="text-sm text-gray-500 mr-2">#{index + 1}</span>
+                              <div className="flex-1 mr-2">
+                                <p className="text-xs font-medium text-gray-900">
+                                  <span className="text-xs text-gray-500 mr-1">#{index + 1}</span>
                                   {item.description}
                                 </p>
-                                <p className="text-sm text-gray-600">
+                                <p className="text-xs text-gray-600">
                                   {item.quantity} × Rs. {item.unitPrice.toFixed(2)}
                                 </p>
                                 {item.product_id && (
@@ -865,56 +865,56 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                                 )}
                               </div>
                               <div className="text-right">
-                                <p className="font-medium text-gray-900">Rs. {item.total.toFixed(2)}</p>
+                                <p className="text-xs font-medium text-gray-900">Rs. {item.total.toFixed(2)}</p>
                               </div>
                             </div>
                           ))}
                         </div>
                         {getSelectedItems().length === 0 && (
-                          <div className="text-center py-8">
-                            <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="text-center py-4">
+                            <svg className="w-8 h-8 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8l-4 4m0 0l-4-4m4 4V3" />
                             </svg>
-                            <p className="text-gray-500">No items selected for conversion</p>
+                            <p className="text-xs text-gray-500">No items selected for conversion</p>
                           </div>
                         )}
                       </div>
                     </div>
 
                     {/* Financial Breakdown & Addresses */}
-                    <div className="space-y-6">
-                      <div className="bg-white border border-gray-200 rounded-xl p-6">
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Financial Breakdown</h4>
+                    <div className="space-y-3">
+                      <div className="bg-white border border-gray-200 rounded-lg p-3">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Financial Breakdown</h4>
                         {(() => {
                           const totals = calculateOrderTotal();
                           return (
-                            <div className="space-y-3">
+                            <div className="space-y-2">
                               <div className="flex justify-between">
-                                <span className="text-gray-600">Subtotal:</span>
-                                <span className="text-gray-900">Rs. {typeof totals === 'object' ? totals.subtotal.toFixed(2) : '0.00'}</span>
+                                <span className="text-xs text-gray-600">Subtotal:</span>
+                                <span className="text-xs text-gray-900">Rs. {typeof totals === 'object' ? totals.subtotal.toFixed(2) : '0.00'}</span>
                               </div>
                               {typeof totals === 'object' && totals.discount > 0 && (
                                 <div className="flex justify-between">
-                                  <span className="text-gray-600">Discount ({orderDetails.discountPercentage}%):</span>
-                                  <span className="text-red-600">-Rs. {totals.discount.toFixed(2)}</span>
+                                  <span className="text-xs text-gray-600">Discount ({orderDetails.discountPercentage}%):</span>
+                                  <span className="text-xs text-red-600">-Rs. {totals.discount.toFixed(2)}</span>
                                 </div>
                               )}
                               {typeof totals === 'object' && totals.tax > 0 && (
                                 <div className="flex justify-between">
-                                  <span className="text-gray-600">Tax ({orderDetails.taxPercentage}%):</span>
-                                  <span className="text-gray-900">Rs. {totals.tax.toFixed(2)}</span>
+                                  <span className="text-xs text-gray-600">Tax ({orderDetails.taxPercentage}%):</span>
+                                  <span className="text-xs text-gray-900">Rs. {totals.tax.toFixed(2)}</span>
                                 </div>
                               )}
                               {typeof totals === 'object' && totals.shipping > 0 && (
                                 <div className="flex justify-between">
-                                  <span className="text-gray-600">Shipping:</span>
-                                  <span className="text-gray-900">Rs. {totals.shipping.toFixed(2)}</span>
+                                  <span className="text-xs text-gray-600">Shipping:</span>
+                                  <span className="text-xs text-gray-900">Rs. {totals.shipping.toFixed(2)}</span>
                                 </div>
                               )}
-                              <div className="border-t border-gray-300 pt-3">
+                              <div className="border-t border-gray-300 pt-2">
                                 <div className="flex justify-between">
-                                  <span className="text-lg font-semibold text-gray-900">Total:</span>
-                                  <span className="text-2xl font-bold text-green-600">Rs. {typeof totals === 'object' ? totals.total.toFixed(2) : '0.00'}</span>
+                                  <span className="text-sm font-semibold text-gray-900">Total:</span>
+                                  <span className="text-lg font-bold text-green-600">Rs. {typeof totals === 'object' ? totals.total.toFixed(2) : '0.00'}</span>
                                 </div>
                               </div>
                             </div>
@@ -923,19 +923,19 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                       </div>
 
                       {(orderDetails.shippingAddress || orderDetails.billingAddress) && (
-                        <div className="bg-white border border-gray-200 rounded-xl p-6">
-                          <h4 className="text-lg font-semibold text-gray-900 mb-4">Addresses</h4>
-                          <div className="space-y-4">
+                        <div className="bg-white border border-gray-200 rounded-lg p-3">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-3">Addresses</h4>
+                          <div className="space-y-2">
                             {orderDetails.shippingAddress && (
                               <div>
-                                <p className="text-sm font-medium text-gray-700 mb-1">Shipping Address:</p>
-                                <p className="text-sm text-gray-600 whitespace-pre-line">{orderDetails.shippingAddress}</p>
+                                <p className="text-xs font-medium text-gray-700 mb-1">Shipping Address:</p>
+                                <p className="text-xs text-gray-600 whitespace-pre-line">{orderDetails.shippingAddress}</p>
                               </div>
                             )}
                             {orderDetails.billingAddress && (
                               <div>
-                                <p className="text-sm font-medium text-gray-700 mb-1">Billing Address:</p>
-                                <p className="text-sm text-gray-600 whitespace-pre-line">{orderDetails.billingAddress}</p>
+                                <p className="text-xs font-medium text-gray-700 mb-1">Billing Address:</p>
+                                <p className="text-xs text-gray-600 whitespace-pre-line">{orderDetails.billingAddress}</p>
                               </div>
                             )}
                           </div>
@@ -943,24 +943,24 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                       )}
 
                       {orderDetails.notes && (
-                        <div className="bg-white border border-gray-200 rounded-xl p-6">
-                          <h4 className="text-lg font-semibold text-gray-900 mb-4">Notes</h4>
-                          <p className="text-gray-700 whitespace-pre-line">{orderDetails.notes}</p>
+                        <div className="bg-white border border-gray-200 rounded-lg p-3">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-3">Notes</h4>
+                          <p className="text-xs text-gray-700 whitespace-pre-line">{orderDetails.notes}</p>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl p-6 mt-6">
+                  <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-3 mt-4">
                     <div className="flex items-start">
                       <div className="flex-shrink-0">
-                        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
-                      <div className="ml-3">
-                        <h5 className="font-medium text-green-800">Ready to Convert</h5>
-                        <p className="text-sm text-green-700 mt-1">
+                      <div className="ml-2">
+                        <h5 className="text-sm font-medium text-green-800">Ready to Convert</h5>
+                        <p className="text-xs text-green-700 mt-1">
                           This will create a sales order from quote {selectedQuote.number}. The quote status will be updated to "Converted" 
                           and inventory may be reserved based on your system settings.
                         </p>
@@ -974,9 +974,9 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
         </div>
 
         {/* Footer */}
-        <div className="bg-white border-t border-gray-200 px-8 py-6 flex-shrink-0">
+        <div className="bg-white border-t border-gray-200 px-4 py-3 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex space-x-3">
+            <div className="flex space-x-2">
               {currentStep !== 'select' && (
                 <button
                   onClick={() => {
@@ -988,9 +988,9 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                       setCurrentStep('configure');
                     }
                   }}
-                  className="px-6 py-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors duration-200 flex items-center"
+                  className="px-3 py-1.5 text-sm text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors duration-200 flex items-center"
                 >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                   Back
@@ -998,10 +998,10 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
               )}
             </div>
 
-            <div className="flex space-x-3">
+            <div className="flex space-x-2">
               <button 
                 onClick={onClose} 
-                className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+                className="px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
               >
                 Cancel
               </button>
@@ -1010,10 +1010,10 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                 <button
                   onClick={() => setCurrentStep('configure')}
                   disabled={getSelectedItems().length === 0}
-                  className="px-8 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
+                  className="px-4 py-1.5 text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
                 >
                   Configure Order
-                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
@@ -1023,10 +1023,10 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                 <button
                   onClick={() => setCurrentStep('review')}
                   disabled={!orderDetails.expectedDelivery}
-                  className="px-8 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
+                  className="px-4 py-1.5 text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
                 >
                   Review Order
-                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-3 h-3 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
@@ -1036,11 +1036,11 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                 <button
                   onClick={handleConvert}
                   disabled={isConverting || !orderDetails.expectedDelivery}
-                  className="px-8 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
+                  className="px-4 py-1.5 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg flex items-center"
                 >
                   {isConverting ? (
                     <>
-                      <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <svg className="animate-spin -ml-1 mr-2 h-3 w-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
@@ -1048,7 +1048,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                     </>
                   ) : (
                     <>
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                       Convert to Order
