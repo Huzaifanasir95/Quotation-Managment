@@ -532,6 +532,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                                   min="0"
                                   value={item.quantity}
                                   onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 0)}
+                                  onWheel={(e) => e.currentTarget.blur()}
                                   disabled={!item.selected}
                                   className={`w-full px-2 py-1.5 text-sm border rounded-lg text-center ${
                                     item.selected 
@@ -718,6 +719,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                               step="0.01"
                               value={orderDetails.discountPercentage || ''}
                               onChange={(e) => setOrderDetails({ ...orderDetails, discountPercentage: parseFloat(e.target.value) || 0 })}
+                              onWheel={(e) => e.currentTarget.blur()}
                               className="w-full text-black px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               placeholder="0.00"
                             />
@@ -731,6 +733,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                               step="0.01"
                               value={orderDetails.taxPercentage || ''}
                               onChange={(e) => setOrderDetails({ ...orderDetails, taxPercentage: parseFloat(e.target.value) || 0 })}
+                              onWheel={(e) => e.currentTarget.blur()}
                               className="w-full text-black px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               placeholder="0.00"
                             />
@@ -743,6 +746,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                               step="0.01"
                               value={orderDetails.shippingCost || ''}
                               onChange={(e) => setOrderDetails({ ...orderDetails, shippingCost: parseFloat(e.target.value) || 0 })}
+                              onWheel={(e) => e.currentTarget.blur()}
                               className="w-full text-black px-2 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               placeholder="0.00"
                             />
