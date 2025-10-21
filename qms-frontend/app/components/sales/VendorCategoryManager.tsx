@@ -430,46 +430,67 @@ export default function VendorCategoryManager({
 
   // Categories Tab
   const CategoriesTab = () => (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {vendorCategories.map(category => {
         const categoryItems = items.filter(item => (item.category || 'Uncategorized') === category.categoryName);
         
         return (
-          <div key={category.id} className="border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div>
+          <div key={category.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+            {/* Header with Action Buttons */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex-1">
                 <h3 className="text-base font-semibold text-gray-900">{category.categoryName}</h3>
-                <p className="text-sm text-gray-500">{categoryItems.length} items</p>
+                <p className="text-xs text-gray-500">{categoryItems.length} item(s)</p>
               </div>
+              
+              {/* Action Buttons */}
+              {category.vendorIds.length > 0 && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      category.vendorIds.forEach(vendorId => {
+                        addRateRequest(category.id, vendorId, 'email');
+                      });
+                    }}
+                    className="px-3 py-1.5 text-xs bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
+                  >
+                    📧 Send Email
+                  </button>
+                  <button
+                    onClick={() => sendWhatsAppRateRequestsToAll(category.id)}
+                    className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                  >
+                    📱 Send WhatsApp
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Items Preview */}
-            <div className="mb-4 bg-gray-50 rounded-lg p-3">
-              <p className="text-sm font-medium text-gray-700 mb-2">Items:</p>
-              <div className="space-y-1">
-                {categoryItems.slice(0, 3).map((item, idx) => (
-                  <div key={idx} className="text-sm text-gray-600">
-                    • {item.item_name || item.description} (Qty: {item.quantity})
-                  </div>
-                ))}
-                {categoryItems.length > 3 && (
-                  <div className="text-sm text-gray-500">+ {categoryItems.length - 3} more items</div>
-                )}
-              </div>
+            {/* Compact Items List */}
+            <div className="mb-3 text-xs text-gray-600 bg-gray-50 rounded p-2">
+              {categoryItems.slice(0, 2).map((item, idx) => (
+                <span key={idx}>
+                  {item.item_name || item.description} ({item.quantity})
+                  {idx < Math.min(categoryItems.length, 2) - 1 ? ', ' : ''}
+                </span>
+              ))}
+              {categoryItems.length > 2 && (
+                <span className="text-gray-500"> +{categoryItems.length - 2} more</span>
+              )}
             </div>
 
             {/* Vendor Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Vendors for {category.categoryName}
+              <label className="block text-xs font-medium text-gray-700 mb-2">
+                Select Vendors:
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2">
+              <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
                 {vendors.map(vendor => {
                   const isSelected = category.vendorIds.includes(vendor.id);
                   const requestStatus = getVendorRequestStatus(category.id, vendor.id);
                   
                   return (
-                    <label key={vendor.id} className={`flex items-center space-x-2 p-2 border rounded cursor-pointer transition-colors ${
+                    <label key={vendor.id} className={`flex items-center space-x-2 p-2 border rounded cursor-pointer text-xs ${
                       isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
                     }`}>
                       <input
@@ -481,26 +502,21 @@ export default function VendorCategoryManager({
                             : category.vendorIds.filter(id => id !== vendor.id);
                           updateCategoryVendors(category.id, newVendorIds);
                         }}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm font-medium text-gray-900 truncate">{vendor.name}</div>
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-medium text-gray-900 truncate">{vendor.name}</span>
                           {requestStatus !== 'not_sent' && (
-                            <span className={`ml-2 px-2 py-0.5 text-xs rounded ${
+                            <span className={`px-1.5 py-0.5 text-[10px] rounded ${
                               requestStatus === 'responded' ? 'bg-green-100 text-green-800' :
                               requestStatus === 'sent' ? 'bg-blue-100 text-blue-800' :
-                              requestStatus === 'delivered' ? 'bg-yellow-100 text-yellow-800' :
-                              requestStatus === 'read' ? 'bg-purple-100 text-purple-800' :
-                              'bg-red-100 text-red-800'
+                              'bg-yellow-100 text-yellow-800'
                             }`}>
                               {requestStatus}
                             </span>
                           )}
                         </div>
-                        {vendor.email && (
-                          <div className="text-xs text-gray-500 truncate">{vendor.email}</div>
-                        )}
                       </div>
                     </label>
                   );
@@ -508,29 +524,9 @@ export default function VendorCategoryManager({
               </div>
               
               {category.vendorIds.length > 0 && (
-                <div className="mt-3 flex items-center justify-between">
-                  <p className="text-sm text-green-600">
-                    ✓ {category.vendorIds.length} vendor(s) selected
-                  </p>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => {
-                        category.vendorIds.forEach(vendorId => {
-                          addRateRequest(category.id, vendorId, 'email');
-                        });
-                      }}
-                      className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                    >
-                      Send Email Requests
-                    </button>
-                    <button
-                      onClick={() => sendWhatsAppRateRequestsToAll(category.id)}
-                      className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                    >
-                      Send WhatsApp
-                    </button>
-                  </div>
-                </div>
+                <p className="text-xs text-green-600 mt-2">
+                  ✓ {category.vendorIds.length} vendor(s) selected
+                </p>
               )}
             </div>
           </div>
