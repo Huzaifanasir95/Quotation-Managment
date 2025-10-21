@@ -397,9 +397,10 @@ export default function SalesPage() {
           styles: {
             fontSize: 8,
             cellPadding: 2.5,
-            lineColor: [44, 62, 80],  // Dark gray for borders
-            lineWidth: 0.5,            // Increased from 0.1 to 0.5 for visible borders
-            valign: 'middle'
+            lineColor: [0, 0, 0],      // Black borders
+            lineWidth: 0.75,            // Thick visible borders
+            valign: 'middle',
+            overflow: 'linebreak'
           },
           headStyles: { 
             fillColor: [59, 130, 246],
@@ -407,33 +408,46 @@ export default function SalesPage() {
             fontSize: 9,
             fontStyle: 'bold',
             halign: 'center',
-            lineColor: [44, 62, 80],   // Dark gray for header borders
-            lineWidth: 0.75            // Thicker borders for header
+            lineColor: [0, 0, 0],      // Black borders for header
+            lineWidth: 1               // Extra thick borders for header
           },
           bodyStyles: { 
             fontSize: 7,
             textColor: [0, 0, 0],
-            lineColor: [44, 62, 80],   // Dark gray for body borders
-            lineWidth: 0.5             // Visible borders for all cells
+            lineColor: [0, 0, 0],      // Black borders for body
+            lineWidth: 0.75,           // Thick visible borders for all cells
+            cellPadding: 2
           },
           alternateRowStyles: { 
-            fillColor: [245, 247, 250]
+            fillColor: [245, 247, 250],
+            lineColor: [0, 0, 0],      // Ensure alternating rows also have borders
+            lineWidth: 0.75
           },
           columnStyles: {
-            0: { cellWidth: 22, halign: 'left' },    // Name
-            1: { cellWidth: 32, halign: 'left' },    // Email
-            2: { cellWidth: 18, halign: 'left' },    // Phone
-            3: { cellWidth: 20, halign: 'left' },    // Contact
-            4: { cellWidth: 16, halign: 'left' },    // City
-            5: { cellWidth: 16, halign: 'left' },    // State
-            6: { cellWidth: 18, halign: 'right' },   // Credit Limit
-            7: { cellWidth: 12, halign: 'center' },  // Payment Terms
-            8: { cellWidth: 20, halign: 'right' },   // Total Quotes
-            9: { cellWidth: 12, halign: 'center' }   // Status
+            0: { cellWidth: 22, halign: 'left', lineColor: [0, 0, 0], lineWidth: 0.75 },    // Name
+            1: { cellWidth: 32, halign: 'left', lineColor: [0, 0, 0], lineWidth: 0.75 },    // Email
+            2: { cellWidth: 18, halign: 'left', lineColor: [0, 0, 0], lineWidth: 0.75 },    // Phone
+            3: { cellWidth: 20, halign: 'left', lineColor: [0, 0, 0], lineWidth: 0.75 },    // Contact
+            4: { cellWidth: 16, halign: 'left', lineColor: [0, 0, 0], lineWidth: 0.75 },    // City
+            5: { cellWidth: 16, halign: 'left', lineColor: [0, 0, 0], lineWidth: 0.75 },    // State
+            6: { cellWidth: 18, halign: 'right', lineColor: [0, 0, 0], lineWidth: 0.75 },   // Credit Limit
+            7: { cellWidth: 12, halign: 'center', lineColor: [0, 0, 0], lineWidth: 0.75 },  // Payment Terms
+            8: { cellWidth: 20, halign: 'right', lineColor: [0, 0, 0], lineWidth: 0.75 },   // Total Quotes
+            9: { cellWidth: 12, halign: 'center', lineColor: [0, 0, 0], lineWidth: 0.75 }   // Status
           },
           margin: { left: 10, right: 10, top: 40, bottom: 10 },
-          tableLineColor: [44, 62, 80],
-          tableLineWidth: 0.75
+          tableLineColor: [0, 0, 0],
+          tableLineWidth: 1,
+          // Force draw cell borders
+          didDrawCell: function(data: any) {
+            const doc = data.doc;
+            const cell = data.cell;
+            
+            // Draw cell border manually to ensure visibility
+            doc.setDrawColor(0, 0, 0); // Black color
+            doc.setLineWidth(0.75);
+            doc.rect(cell.x, cell.y, cell.width, cell.height);
+          }
         });
         
         // Add footer with page numbers
@@ -545,62 +559,55 @@ export default function SalesPage() {
       <div className="mb-8"></div>
         {/* KPI Widgets */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {/* Pending Quotations */}
+          {/* Total Customers */}
           <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-md font-medium text-gray-600">Pending Quotations</p>
+                <p className="text-md font-medium text-gray-600">Total Customers</p>
                 <p className="text-4xl font-bold text-gray-900">
-                  {salesData?.pendingQuotations ?? (
-                    <span className="inline-block w-8 h-8 bg-gray-200 rounded animate-pulse"></span>
-                  )}
+                  {customers.length}
                 </p>
               </div> 
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Top Customers */}
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-md font-medium text-gray-600">Top Customers</p>
-                <p className="text-4xl font-bold text-gray-900">
-                  {salesData?.topCustomers?.length ?? (
-                    <span className="inline-block w-8 h-8 bg-gray-200 rounded animate-pulse"></span>
-                  )}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
             </div>
           </div>
 
-          {/* Recent Inquiries */}
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500">
+          {/* Active Customers */}
+          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-md font-medium text-gray-600">Recent Inquiries</p>
+                <p className="text-md font-medium text-gray-600">Active Customers</p>
                 <p className="text-4xl font-bold text-gray-900">
-                  {salesData?.recentInquiries ?? (
-                    <span className="inline-block w-8 h-8 bg-gray-200 rounded animate-pulse"></span>
-                  )}
+                  {customers.filter(c => c.status === 'active').length}
                 </p>
               </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
             </div>
-            <p className="mt-2 text-sm text-orange-600">Unprocessed</p>
+          </div>
+
+          {/* Total Quotations Value */}
+          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-md font-medium text-gray-600">Total Quotations Value</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  Rs. {customers.reduce((sum, c) => sum + (c.totalQuotes || 0), 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
 
