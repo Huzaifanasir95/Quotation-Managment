@@ -94,10 +94,34 @@ router.get('/:id', async (req, res) => {
 // Create new customer
 router.post('/', async (req, res) => {
   try {
-    const customerData = {
-      ...req.body,
-      created_at: new Date().toISOString()
-    };
+    // Filter to only include fields that exist in the database
+    const allowedFields = [
+      'name',
+      'contact_person',
+      'email',
+      'phone',
+      'address',
+      'city',
+      'state',
+      'country',
+      'postal_code',
+      'credit_limit',
+      'payment_terms',
+      'status',
+      'fax',
+      'created_by'
+    ];
+
+    const customerData = {};
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        customerData[field] = req.body[field];
+      }
+    });
+    
+    customerData.created_at = new Date().toISOString();
+
+    console.log('📝 Creating customer with data:', customerData);
 
     const { data: customer, error } = await supabase
       .from('customers')
@@ -106,12 +130,15 @@ router.post('/', async (req, res) => {
       .single();
 
     if (error) {
+      console.error('❌ Customer creation error:', error);
       return res.status(400).json({
         error: 'Failed to create customer',
         code: 'CREATION_FAILED',
         details: error.message
       });
     }
+
+    console.log('✅ Customer created successfully:', customer.id);
 
     res.status(201).json({
       success: true,

@@ -690,7 +690,7 @@ export default function SalesPage() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tax/GST Info</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Quotes</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -756,9 +756,10 @@ export default function SalesPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                            {customer.gst_number || 'N/A'}
-                          </span>
+                          <div>
+                            <p className="text-sm text-gray-900">{customer.city || 'N/A'}</p>
+                            <p className="text-sm text-gray-500">{customer.state || 'N/A'}</p>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
@@ -877,10 +878,6 @@ export default function SalesPage() {
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500">Phone:</span>
                           <span className="text-gray-900">{customer.phone || 'N/A'}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-500">GST:</span>
-                          <span className="text-gray-900">{customer.gst_number || 'N/A'}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-500">Total Quotes:</span>
