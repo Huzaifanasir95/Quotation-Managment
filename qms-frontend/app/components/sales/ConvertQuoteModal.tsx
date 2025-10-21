@@ -313,7 +313,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-2xl shadow-2xl max-w-7xl w-full flex flex-col border border-gray-100"
+        className="bg-white rounded-2xl shadow-2xl max-w-7xl w-full flex flex-col border border-gray-100 overflow-hidden"
         style={{ 
           maxHeight: '95vh',
           position: 'relative',
@@ -322,7 +322,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-white px-4 py-3 border-b border-gray-200 flex-shrink-0">
+        <div className="bg-white px-4 py-3 border-b border-gray-200 flex-shrink-0 rounded-t-2xl">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Convert Quote to Order</h2>
@@ -974,7 +974,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
         </div>
 
         {/* Footer */}
-        <div className="bg-white border-t border-gray-200 px-4 py-3 flex-shrink-0">
+        <div className="bg-white border-t border-gray-200 px-4 py-3 flex-shrink-0 rounded-b-2xl">
           <div className="flex items-center justify-between">
             <div className="flex space-x-2">
               {currentStep !== 'select' && (
