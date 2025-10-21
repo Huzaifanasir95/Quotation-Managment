@@ -734,7 +734,7 @@ const InvoicePage = () => {
         {/* Create Invoice from Order Modal - Redesigned */}
         {showCreateFromOrder && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full h-[85vh] flex flex-col">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
                 <h2 className="text-xl font-semibold text-gray-900">Create Invoice from Sales Order</h2>
@@ -753,10 +753,10 @@ const InvoicePage = () => {
               </div>
 
               {/* Content - Two Column Layout */}
-              <div className="flex-1 overflow-hidden">
+              <div className="flex-1 overflow-hidden min-h-0">
                 <div className="grid grid-cols-1 lg:grid-cols-3 h-full">
                   {/* Left Column - Order Selection (2/3 width) */}
-                  <div className="lg:col-span-2 border-r border-gray-200 flex flex-col">
+                  <div className="lg:col-span-2 border-r border-gray-200 flex flex-col h-full">
                     <div className="p-6 border-b border-gray-200 flex-shrink-0">
                       <h3 className="text-lg font-medium text-gray-900 mb-3">Select Sales Order</h3>
                       {/* Search Bar */}
@@ -775,7 +775,7 @@ const InvoicePage = () => {
                     </div>
 
                     {/* Orders List - Scrollable */}
-                    <div className="flex-1 overflow-y-auto p-6">
+                    <div className="flex-1 overflow-y-auto p-6 min-h-0">
                       {salesOrders.length === 0 ? (
                         <div className="text-center py-8">
                           <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -847,8 +847,8 @@ const InvoicePage = () => {
                   </div>
 
                   {/* Right Column - Invoice Details Form (1/3 width) */}
-                  <div className="bg-gray-50 flex flex-col">
-                    <div className="p-6 flex-shrink-0">
+                  <div className="bg-gray-50 flex flex-col h-full overflow-y-auto">
+                    <div className="p-6">
                       <h3 className="text-lg font-medium text-gray-900 mb-4">Invoice Details</h3>
                       {!selectedOrder ? (
                         <div className="text-center py-12 text-gray-500">
