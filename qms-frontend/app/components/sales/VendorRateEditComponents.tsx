@@ -427,7 +427,7 @@ export default function VendorRateEditComponents({
 
   // Vendor Rate Upload Modal
   const vendorRateUploadModal = showUploadModal && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10002] p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
         <div className="bg-gradient-to-r from-green-600 to-blue-700 px-6 py-4">
           <h3 className="text-xl font-bold text-white">Upload Vendor Rates</h3>
@@ -503,7 +503,7 @@ export default function VendorRateEditComponents({
 
   // Main Vendor Rate Modal
   const vendorRateModal = showVendorRateModal && selectedItemIndex !== null && (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10002] p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
         <div className="bg-gradient-to-r from-purple-600 to-indigo-700 px-6 py-4">
           <h3 className="text-xl font-bold text-white">Vendor Rate Management</h3>
