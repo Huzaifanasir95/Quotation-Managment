@@ -275,7 +275,7 @@ router.post('/upload', handleOptionalUpload, async (req, res) => {
       issuing_authority: issuing_authority || null,
       country_of_origin: country_of_origin || null,
       notes: notes || description || null,
-      uploaded_by: 'admin'
+      uploaded_by: null // Set to null instead of 'admin' since it's a UUID field
     };
 
     console.log('💾 Inserting document data:', documentData);
