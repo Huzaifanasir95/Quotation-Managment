@@ -176,6 +176,7 @@ export default function AddCustomerModalMultiStep({ isOpen, onClose, onCustomerA
         name: formData.name.trim(),
         email: formData.email.trim(),
         phone: formData.phone.trim(),
+        fax: formData.fax.trim() || null,
         contact_person: formData.contactPerson.trim(),
         address: formData.address.trim() || null,
         city: formData.city.trim() || null,
