@@ -19,6 +19,7 @@ interface Quotation {
   date: string;
   validUntil: string;
   notes?: string;
+  attachmentCount?: number;
   items: Array<{
     id: string;
     description: string;
@@ -629,7 +630,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                     )}
 
                     <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                      {quotation.notes && (
+                      {quotation.notes && quotation.notes !== 'NULL' && quotation.notes.trim() !== '' && (
                         <div className="flex-1 mr-4">
                           <p className="text-sm text-gray-600 italic">"{quotation.notes}"</p>
                         </div>
@@ -752,9 +753,19 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
           <div className="fixed inset-0 flex items-center justify-center z-60 p-4" style={{ backdropFilter: 'blur(8px)' }}>
             <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900">{selectedQuotation.number}</h3>
-                  <p className="text-gray-600 text-sm">{selectedQuotation.customer}</p>
+                <div className="flex items-center gap-3">
+                  <div>
+                    <h3 className="text-xl font-semibold text-gray-900">{selectedQuotation.number}</h3>
+                    <p className="text-gray-600 text-sm">{selectedQuotation.customer}</p>
+                  </div>
+                  {quotationAttachments.length > 0 && (
+                    <div className="flex items-center px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-medium">
+                      <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      </svg>
+                      {quotationAttachments.length} {quotationAttachments.length === 1 ? 'Attachment' : 'Attachments'}
+                    </div>
+                  )}
                 </div>
                 <button 
                   onClick={() => setSelectedQuotation(null)} 
@@ -812,7 +823,7 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                   </div>
                 </div>
 
-                {selectedQuotation.notes && (
+                {selectedQuotation.notes && selectedQuotation.notes !== 'NULL' && selectedQuotation.notes.trim() !== '' && (
                   <div className="mb-6">
                     <h4 className="text-lg font-semibold text-gray-900 mb-2">Notes</h4>
                     <div className="bg-gray-50 rounded-lg p-4">
