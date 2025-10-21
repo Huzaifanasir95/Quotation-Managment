@@ -39,7 +39,7 @@ const vendorCategoriesRoutes = require('./routes/vendor-categories');
 
 // Use route modules
 app.use('/api/v1/customers', customersRoutes);
-app.use('/api/documents', documentsRoutes);
+app.use('/api/v1/documents', documentsRoutes);
 app.use('/api/v1/vendor-categories', vendorCategoriesRoutes);
 
 // Health check endpoint
