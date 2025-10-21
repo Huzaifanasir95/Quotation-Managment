@@ -497,7 +497,7 @@ CREATE TABLE public.rate_requests (
   specifications jsonb,
   deadline date,
   status character varying DEFAULT 'draft'::character varying CHECK (status::text = ANY (ARRAY['draft'::character varying::text, 'sent'::character varying::text, 'completed'::character varying::text, 'cancelled'::character varying::text])),
-  created_by uuid NOT NULL,
+  created_by uuid,
   created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
   sent_at timestamp without time zone,

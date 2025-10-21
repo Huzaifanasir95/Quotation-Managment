@@ -16,20 +16,6 @@ interface VendorCategory {
   updatedAt: string;
 }
 
-interface VendorRateRequest {
-  id: string;
-  quotationId: string;
-  vendorId: string;
-  categoryId: string;
-  requestDate: string;
-  responseDate?: string;
-  status: 'sent' | 'delivered' | 'read' | 'responded' | 'expired';
-  communicationMethod: 'email' | 'whatsapp' | 'manual';
-  requestData: any;
-  responseData?: any;
-  expiryDate: string;
-}
-
 interface VendorCategoryManagerProps {
   quotationId: string;
   items: any[];
@@ -50,10 +36,8 @@ export default function VendorCategoryManager({
   setShowModal
 }: VendorCategoryManagerProps) {
   const [vendorCategories, setVendorCategories] = useState<VendorCategory[]>([]);
-  const [rateRequests, setRateRequests] = useState<VendorRateRequest[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'categories' | 'requests'>('categories');
   const [categories, setCategories] = useState<any[]>([]);
 
   // Get unique categories from items
@@ -63,7 +47,6 @@ export default function VendorCategoryManager({
   useEffect(() => {
     if (showModal) {
       loadVendorCategories();
-      loadRateRequests();
       loadCategories();
     }
   }, [showModal, quotationId]);
@@ -151,56 +134,7 @@ export default function VendorCategoryManager({
     }
   };
 
-  const loadRateRequests = async () => {
-    try {
-      // Try to load from backend API first
-      const categoryIds = vendorCategories.map(cat => cat.id);
-      let allRequests: VendorRateRequest[] = [];
-      
-      for (const categoryId of categoryIds) {
-        try {
-          const response = await apiClient.getCategoryRateRequests(categoryId);
-          if (response.success && response.data) {
-            // Transform backend data to match our component structure
-            const backendRequests = response.data.map((req: any) => ({
-              id: req.id,
-              quotationId,
-              vendorId: req.vendor_id || '',
-              categoryId,
-              requestDate: req.created_at,
-              responseDate: req.response_date,
-              status: req.status || 'sent',
-              communicationMethod: req.specifications?.communicationMethod || 'manual',
-              requestData: req.specifications || {},
-              responseData: req.response_data,
-              expiryDate: req.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-            }));
-            
-            allRequests = [...allRequests, ...backendRequests];
-          }
-        } catch (error) {
-          console.warn(`Failed to load rate requests for category ${categoryId}:`, error);
-        }
-      }
-      
-      if (allRequests.length > 0) {
-        setRateRequests(allRequests);
-        return;
-      }
-    } catch (error) {
-      console.error('Failed to load rate requests from API:', error);
-    }
-    
-    // Fallback to localStorage
-    try {
-      const stored = localStorage.getItem(`rate_requests_${quotationId}`);
-      if (stored) {
-        setRateRequests(JSON.parse(stored));
-      }
-    } catch (error) {
-      console.error('Failed to load rate requests from localStorage:', error);
-    }
-  };
+
 
   const saveVendorCategories = (categories: VendorCategory[]) => {
     try {
@@ -262,97 +196,6 @@ export default function VendorCategoryManager({
     }
   };
 
-  const addRateRequest = async (categoryId: string, vendorId: string, method: 'email' | 'whatsapp' | 'manual') => {
-    try {
-      const category = vendorCategories.find(c => c.id === categoryId);
-      if (!category) return;
-
-      const categoryItems = items.filter(item => (item.category || 'Uncategorized') === category.categoryName);
-      
-      // Create rate request via API
-      const response = await apiClient.createRateRequest({
-        category_id: categoryId,
-        quotation_id: quotationId,
-        title: `Rate Request for ${category.categoryName}`,
-        description: `Rate request for category: ${category.categoryName}`,
-        request_type: 'category',
-        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        specifications: {
-          items: categoryItems,
-          quotationId,
-          categoryName: category.categoryName,
-          communicationMethod: method
-        },
-        vendor_ids: [vendorId]
-      });
-
-      if (response.success) {
-        // Reload rate requests
-        await loadRateRequests();
-        
-        // Update category status
-        const updatedCategories = vendorCategories.map(cat => 
-          cat.id === categoryId 
-            ? { ...cat, responseStatus: 'pending' as const, lastRequestDate: new Date().toISOString() }
-            : cat
-        );
-        saveVendorCategories(updatedCategories);
-      } else {
-        console.error('Failed to create rate request:', response.error);
-      }
-    } catch (error) {
-      console.error('Error creating rate request:', error);
-      
-      // Fallback to localStorage
-      const newRequest: VendorRateRequest = {
-        id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        quotationId,
-        vendorId,
-        categoryId,
-        requestDate: new Date().toISOString(),
-        status: 'sent',
-        communicationMethod: method,
-        requestData: {
-          items: items.filter(item => (item.category || 'Uncategorized') === vendorCategories.find(c => c.id === categoryId)?.categoryName)
-        },
-        expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-      };
-
-      const updatedRequests = [...rateRequests, newRequest];
-      setRateRequests(updatedRequests);
-      localStorage.setItem(`rate_requests_${quotationId}`, JSON.stringify(updatedRequests));
-
-      // Update category status
-      const updatedCategories = vendorCategories.map(cat => 
-        cat.id === categoryId 
-          ? { ...cat, responseStatus: 'pending' as const, lastRequestDate: new Date().toISOString() }
-          : cat
-      );
-      saveVendorCategories(updatedCategories);
-    }
-  };
-
-  const getVendorRequestStatus = (categoryId: string, vendorId: string) => {
-    const requests = rateRequests.filter(req => req.categoryId === categoryId && req.vendorId === vendorId);
-    if (requests.length === 0) return 'not_sent';
-    
-    const latestRequest = requests.sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime())[0];
-    return latestRequest.status;
-  };
-
-  const getCategoryStats = (categoryId: string) => {
-    const category = vendorCategories.find(c => c.id === categoryId);
-    if (!category) return { total: 0, sent: 0, responded: 0, pending: 0 };
-
-    const total = category.vendorIds.length;
-    const requests = rateRequests.filter(req => req.categoryId === categoryId);
-    const sent = requests.length;
-    const responded = requests.filter(req => req.status === 'responded').length;
-    const pending = requests.filter(req => ['sent', 'delivered', 'read'].includes(req.status)).length;
-
-    return { total, sent, responded, pending };
-  };
-
   // Send rate request via WhatsApp to a single vendor
   const sendWhatsAppRateRequest = async (categoryId: string, vendorId: string) => {
     try {
@@ -396,9 +239,6 @@ export default function VendorCategoryManager({
 
       // Send via WhatsApp
       await whatsappService.sendVendorRateRequest(whatsappData);
-
-      // Also create rate request in backend
-      await addRateRequest(categoryId, vendorId, 'whatsapp');
 
       alert(vendor.phone 
         ? `Rate request sent to ${vendor.name} via WhatsApp`
@@ -477,7 +317,6 @@ export default function VendorCategoryManager({
               <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
                 {vendors.map(vendor => {
                   const isSelected = category.vendorIds.includes(vendor.id);
-                  const requestStatus = getVendorRequestStatus(category.id, vendor.id);
                   
                   return (
                     <label key={vendor.id} className={`flex items-center space-x-2 p-2 border rounded cursor-pointer text-xs ${
@@ -497,15 +336,6 @@ export default function VendorCategoryManager({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
                           <span className="font-medium text-gray-900 truncate">{vendor.name}</span>
-                          {requestStatus !== 'not_sent' && (
-                            <span className={`px-1.5 py-0.5 text-[10px] rounded ${
-                              requestStatus === 'responded' ? 'bg-green-100 text-green-800' :
-                              requestStatus === 'sent' ? 'bg-blue-100 text-blue-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {requestStatus}
-                            </span>
-                          )}
                         </div>
                       </div>
                     </label>
@@ -525,84 +355,6 @@ export default function VendorCategoryManager({
     </div>
   );
 
-  // Requests Tab
-  const RequestsTab = () => (
-    <div className="space-y-4">
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
-          <h3 className="font-semibold text-gray-900">Rate Request History</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sent</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expires</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {rateRequests.map(request => {
-                const vendor = vendors.find(v => v.id === request.vendorId);
-                const category = vendorCategories.find(c => c.id === request.categoryId);
-                const isExpired = new Date(request.expiryDate) < new Date();
-                
-                return (
-                  <tr key={request.id}>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{vendor?.name}</div>
-                      <div className="text-xs text-gray-500">{vendor?.email}</div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {category?.categoryName}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                        request.communicationMethod === 'email' ? 'bg-blue-100 text-blue-800' :
-                        request.communicationMethod === 'whatsapp' ? 'bg-green-100 text-green-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {request.communicationMethod}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(request.requestDate).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                        request.status === 'responded' ? 'bg-green-100 text-green-800' :
-                        request.status === 'sent' ? 'bg-blue-100 text-blue-800' :
-                        request.status === 'delivered' ? 'bg-yellow-100 text-yellow-800' :
-                        request.status === 'read' ? 'bg-purple-100 text-purple-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {request.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className={isExpired ? 'text-red-600' : ''}>
-                        {new Date(request.expiryDate).toLocaleDateString()}
-                        {isExpired && <div className="text-xs text-red-500">Expired</div>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                      <button className="text-indigo-600 hover:text-indigo-900">
-                        View Details
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
   if (!showModal) return null;
 
   return (
@@ -613,31 +365,8 @@ export default function VendorCategoryManager({
           <p className="text-gray-600 text-sm mt-1">Manage vendor assignments and track rate requests by category</p>
         </div>
         
-        {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
-            {[
-              { id: 'categories', label: 'Categories', icon: '📂' },
-              { id: 'requests', label: 'Requests', icon: '📤' }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.id
-                    ? 'border-gray-900 text-gray-900'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {tab.icon} {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-        
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
-          {activeTab === 'categories' && <CategoriesTab />}
-          {activeTab === 'requests' && <RequestsTab />}
+          <CategoriesTab />
         </div>
 
         <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-2 border-t border-gray-200">
