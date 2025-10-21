@@ -45,13 +45,15 @@ export default function SalesPage() {
   const [salesData, setSalesData] = useState<SalesDashboardData | null>(null);
   const [quotationTrends, setQuotationTrends] = useState<QuotationTrend[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [loading, setLoading] = useState(false); // Changed to false for immediate UI
   const [dataLoading, setDataLoading] = useState({
     customers: true,
     dashboard: true,
     trends: true,
-    orders: true
+    orders: true,
+    vendors: true
   });
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -124,12 +126,28 @@ export default function SalesPage() {
           }
         };
 
+        // Load vendors
+        const fetchVendors = async () => {
+          try {
+            const vendorsResponse = await apiClient.getVendors({ limit: 100 });
+            
+            if (vendorsResponse.success) {
+              setVendors(vendorsResponse.data.vendors || []);
+            }
+          } catch (err) {
+            console.error('❌ Failed to fetch vendors:', err);
+          } finally {
+            setDataLoading(prev => ({ ...prev, vendors: false }));
+          }
+        };
+
         // Start all fetches in parallel for fastest loading
         Promise.all([
           fetchCustomers(),
           fetchDashboard(),
           fetchTrends(),
-          fetchOrders()
+          fetchOrders(),
+          fetchVendors()
         ]).then(() => {
         });
         
@@ -576,18 +594,22 @@ export default function SalesPage() {
             </div>
           </div>
 
-          {/* Active Customers */}
+          {/* Total Vendors */}
           <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-md font-medium text-gray-600">Active Customers</p>
+                <p className="text-md font-medium text-gray-600">Total Vendors</p>
                 <p className="text-4xl font-bold text-gray-900">
-                  {customers.filter(c => c.status === 'active').length}
+                  {dataLoading.vendors ? (
+                    <span className="inline-block w-8 h-8 bg-gray-200 rounded animate-pulse"></span>
+                  ) : (
+                    vendors.length
+                  )}
                 </p>
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               </div>
             </div>
