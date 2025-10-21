@@ -672,34 +672,34 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 {filteredQuotations.map((quotation) => (
                   <div 
                     key={quotation.id} 
-                    className="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200 bg-white"
+                    className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-all duration-200 bg-white hover:border-blue-300"
                   >
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900">{quotation.number}</h3>
-                        <p className="text-gray-600 text-sm">{quotation.customer}</p>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-bold text-gray-900 truncate">{quotation.number}</h3>
+                        <p className="text-gray-600 text-xs truncate">{quotation.customer}</p>
                       </div>
-                      <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(quotation.status)}`}>
+                      <div className={`flex items-center space-x-1 px-1.5 py-0.5 rounded-full text-xs font-medium ml-2 ${getStatusColor(quotation.status)}`}>
                         {getStatusIcon(quotation.status)}
-                        <span>{quotation.status}</span>
+                        <span className="text-xs">{quotation.status}</span>
                       </div>
                     </div>
 
-                    <div className="mb-4">
-                      <p className="text-2xl font-bold text-blue-600">Rs. {quotation.amount.toLocaleString()}</p>
-                      <p className="text-sm text-gray-500">{quotation.items.length} items</p>
+                    <div className="mb-2">
+                      <p className="text-lg font-bold text-blue-600">Rs. {quotation.amount.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500">{quotation.items.length} items</p>
                     </div>
 
-                    <div className="space-y-2 mb-4">
-                      <div className="flex justify-between text-sm">
+                    <div className="space-y-1 mb-3">
+                      <div className="flex justify-between text-xs">
                         <span className="text-gray-500">Created:</span>
                         <span className="text-gray-900">{new Date(quotation.date).toLocaleDateString()}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-xs">
                         <span className="text-gray-500">Valid Until:</span>
                         <span className="text-gray-900">
                           {quotation.validUntil ? new Date(quotation.validUntil).toLocaleDateString() : 'N/A'}
@@ -707,24 +707,24 @@ export default function SearchQuotationsModal({ isOpen, onClose }: SearchQuotati
                       </div>
                     </div>
 
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-1.5">
                       <button
                         onClick={() => handleViewQuotation(quotation)}
-                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm"
+                        className="flex-1 px-2 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 text-xs font-medium"
                       >
                         View
                       </button>
                       {quotation.status.toLowerCase() === 'draft' && (
                         <button
                           onClick={() => handleApproveQuotation(quotation)}
-                          className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm"
+                          className="flex-1 px-2 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 text-xs font-medium"
                         >
                           Approve
                         </button>
                       )}
                       <button
                         onClick={() => handleEditQuotation(quotation)}
-                        className="flex-1 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200 text-sm"
+                        className="flex-1 px-2 py-1.5 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors duration-200 text-xs font-medium"
                       >
                         Edit
                       </button>
