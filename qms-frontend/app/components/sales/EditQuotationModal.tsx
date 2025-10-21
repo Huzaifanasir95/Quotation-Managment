@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { apiClient, Vendor } from '../../lib/api';
-import VendorRateEditComponents from './VendorRateEditComponents';
+import VendorRateRequestModals from './VendorRateRequestModals';
 import VendorCategoryManager from './VendorCategoryManager';
 
 interface EditQuotationModalProps {
@@ -97,6 +97,9 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
   const [showVendorRateModal, setShowVendorRateModal] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
   const [categoryVendors, setCategoryVendors] = useState<{[key: string]: string[]}>({});
+  const [vendorRates, setVendorRates] = useState<{[key: string]: any}>({});
+  const [showRateComparison, setShowRateComparison] = useState(false);
+  const [selectedItemForRates, setSelectedItemForRates] = useState<number | null>(null);
 
   // Enhanced vendor management states
   const [showVendorCategoryModal, setShowVendorCategoryModal] = useState(false);
@@ -909,7 +912,7 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                         <div className="flex border border-gray-200 rounded-md overflow-hidden mr-3">
                           <button 
                             onClick={() => {
-                              setSelectedItemIndex(0);
+                              setSelectedItemForRates(0);
                               setShowVendorRateModal(true);
                             }} 
                             className="px-3 py-1.5 text-xs text-purple-700 bg-purple-50 hover:bg-purple-100 border-r border-gray-200 flex items-center space-x-1.5"
@@ -1866,15 +1869,23 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
     <>
       {modalContent}
       {filePreviewModal}
-      <VendorRateEditComponents
+      <VendorRateRequestModals
+        showVendorRateModal={showVendorRateModal}
+        setShowVendorRateModal={setShowVendorRateModal}
+        showRateComparison={showRateComparison}
+        setShowRateComparison={setShowRateComparison}
+        selectedItemForRates={selectedItemForRates}
+        setSelectedItemForRates={setSelectedItemForRates}
         items={items}
         setItems={setItems}
         vendors={vendors}
         isLoadingVendors={isLoadingVendors}
-        selectedItemIndex={selectedItemIndex}
-        setSelectedItemIndex={setSelectedItemIndex}
-        showVendorRateModal={showVendorRateModal}
-        setShowVendorRateModal={setShowVendorRateModal}
+        products={products}
+        formData={formData}
+        categoryVendors={categoryVendors}
+        setCategoryVendors={setCategoryVendors}
+        vendorRates={vendorRates}
+        setVendorRates={setVendorRates}
       />
       <VendorCategoryManager
         quotationId={quotationId}
