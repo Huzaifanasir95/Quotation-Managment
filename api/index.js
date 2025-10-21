@@ -3306,6 +3306,9 @@ app.get('/api/v1/orders', async (req, res) => {
 // Convert quotation to order endpoint
 app.post('/api/v1/orders/convert-quote', async (req, res) => {
   try {
+    console.log('🔄 ============ CONVERT QUOTE TO ORDER ============');
+    console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
+    
     const { 
       quotation_id, 
       expected_delivery, 
@@ -3414,51 +3417,61 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
     // Generate order number
     const orderNumber = `O-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
+    console.log('📝 Preparing order data...');
+    const orderDataToInsert = {
+      order_number: orderNumber,
+      customer_id: quotation.customer_id,
+      quotation_id: quotation.id,
+      order_date: new Date().toISOString().split('T')[0], // Date only
+      expected_delivery_date: expected_delivery || null,
+      status: 'pending',
+      priority: priority || 'normal',
+      subtotal: orderSubtotal,
+      tax_amount: orderTaxAmount,
+      discount_amount: orderDiscountAmount,
+      total_amount: orderTotal,
+      shipping_cost: shipping_cost ? Number(shipping_cost) : 0,
+      shipping_address: shipping_address || null,
+      billing_address: billing_address || null,
+      payment_terms: payment_terms || '30',
+      notes: notes || null,
+      created_by: null, // Set to null instead of 'system'
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    console.log('📋 Order data to insert:', JSON.stringify(orderDataToInsert, null, 2));
+
     // Create the order
     const { data: order, error: orderError } = await supabase
       .from('sales_orders')
-      .insert({
-        order_number: orderNumber,
-        customer_id: quotation.customer_id,
-        quotation_id: quotation.id,
-        order_date: new Date().toISOString().split('T')[0], // Date only
-        expected_delivery_date: expected_delivery || null,
-        status: 'pending',
-        priority: priority || 'normal',
-        subtotal: orderSubtotal,
-        tax_amount: orderTaxAmount,
-        discount_amount: orderDiscountAmount,
-        total_amount: orderTotal,
-        shipping_cost: shipping_cost ? Number(shipping_cost) : 0,
-        shipping_address: shipping_address || null,
-        billing_address: billing_address || null,
-        payment_terms: payment_terms || '30',
-        notes: notes || null,
-        created_by: null, // Set to null instead of 'system'
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+      .insert(orderDataToInsert)
       .select()
       .single();
 
     if (orderError) {
-      console.error('Order creation error:', orderError);
-      console.error('Order data that failed:', {
+      console.error('❌ Order creation error:', orderError);
+      console.error('❌ Full error details:', JSON.stringify(orderError, null, 2));
+      console.error('❌ Order data that failed:', {
         order_number: orderNumber,
         customer_id: quotation.customer_id,
         quotation_id: quotation.id,
         order_date: new Date().toISOString().split('T')[0],
         expected_delivery_date: expected_delivery || null,
         status: 'pending',
-        subtotal: quotation.subtotal,
-        tax_amount: quotation.tax_amount,
-        discount_amount: quotation.discount_amount,
-        total_amount: quotation.total_amount
+        subtotal: orderSubtotal,
+        tax_amount: orderTaxAmount,
+        discount_amount: orderDiscountAmount,
+        total_amount: orderTotal,
+        shipping_cost: shipping_cost ? Number(shipping_cost) : 0
       });
       return res.status(500).json({
         success: false,
         message: 'Failed to create order',
-        error: orderError.message || 'Unknown database error'
+        error: orderError.message || 'Unknown database error',
+        details: orderError.details || '',
+        hint: orderError.hint || '',
+        code: orderError.code || ''
       });
     }
 
