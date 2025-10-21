@@ -908,7 +908,10 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                         {/* Management Actions Group */}
                         <div className="flex border border-gray-200 rounded-md overflow-hidden mr-3">
                           <button 
-                            onClick={() => setShowVendorRateModal(true)} 
+                            onClick={() => {
+                              setSelectedItemIndex(0);
+                              setShowVendorRateModal(true);
+                            }} 
                             className="px-3 py-1.5 text-xs text-purple-700 bg-purple-50 hover:bg-purple-100 border-r border-gray-200 flex items-center space-x-1.5"
                             disabled={items.length === 0}
                             title="Manage Rates"
