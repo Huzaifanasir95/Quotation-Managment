@@ -55,6 +55,7 @@ const InvoicePage = () => {
   const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
 
   // Create invoice form data
   const [invoiceFormData, setInvoiceFormData] = useState({
@@ -730,14 +731,19 @@ const InvoicePage = () => {
           </div>
         </div>
 
-        {/* Create Invoice from Order Modal */}
+        {/* Create Invoice from Order Modal - Redesigned */}
         {showCreateFromOrder && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
                 <h2 className="text-xl font-semibold text-gray-900">Create Invoice from Sales Order</h2>
                 <button
-                  onClick={() => setShowCreateFromOrder(false)}
+                  onClick={() => {
+                    setShowCreateFromOrder(false);
+                    setSelectedOrder(null);
+                    setOrderSearchQuery('');
+                  }}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -746,116 +752,185 @@ const InvoicePage = () => {
                 </button>
               </div>
 
-              <div className="p-6">
-                {/* Select Sales Order */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Select Sales Order</h3>
-                  {salesOrders.length === 0 ? (
-                    <div className="text-center py-8">
-                      <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <h4 className="text-lg font-medium text-gray-900 mb-2">No orders available for invoicing</h4>
-                      <div className="text-sm text-gray-500 space-y-1">
-                        <p>• Orders must have status: delivered, shipped, completed, or invoiced</p>
-                        <p>• Orders that already have invoices are excluded</p>
-                        <p>• Create some sales orders from quotations first</p>
+              {/* Content - Two Column Layout */}
+              <div className="flex-1 overflow-hidden">
+                <div className="grid grid-cols-1 lg:grid-cols-3 h-full">
+                  {/* Left Column - Order Selection (2/3 width) */}
+                  <div className="lg:col-span-2 border-r border-gray-200 flex flex-col">
+                    <div className="p-6 border-b border-gray-200 flex-shrink-0">
+                      <h3 className="text-lg font-medium text-gray-900 mb-3">Select Sales Order</h3>
+                      {/* Search Bar */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={orderSearchQuery}
+                          onChange={(e) => setOrderSearchQuery(e.target.value)}
+                          placeholder="Search by order number, customer name..."
+                          className="w-full pl-10 pr-4 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <svg className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
                       </div>
-                      <button
-                        onClick={() => {
-                          fetchDeliveredOrders();
-                          fetchInvoices();
-                        }}
-                        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                      >
-                        Refresh Orders
-                      </button>
                     </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-3">
-                      {salesOrders.map((order) => (
-                        <div
-                          key={order.id}
-                          onClick={() => setSelectedOrder(order)}
-                          className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                            selectedOrder?.id === order.id 
-                              ? 'border-blue-500 bg-blue-50' 
-                              : 'border-gray-200 hover:bg-gray-50'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-medium text-gray-900">{order.order_number}</h4>
-                              <p className="text-sm text-gray-600">{order.customers?.name}</p>
-                              <p className="text-sm text-gray-500">
-                                Order Date: {new Date(order.created_at).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold text-gray-900">Rs. {order.total_amount.toLocaleString()}</p>
-                              <p className="text-sm text-green-600">{order.status}</p>
-                            </div>
+
+                    {/* Orders List - Scrollable */}
+                    <div className="flex-1 overflow-y-auto p-6">
+                      {salesOrders.length === 0 ? (
+                        <div className="text-center py-8">
+                          <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <h4 className="text-lg font-medium text-gray-900 mb-2">No orders available for invoicing</h4>
+                          <div className="text-sm text-gray-500 space-y-1">
+                            <p>• Orders must have status: delivered, shipped, completed, or invoiced</p>
+                            <p>• Orders that already have invoices are excluded</p>
+                            <p>• Create some sales orders from quotations first</p>
                           </div>
+                          <button
+                            onClick={() => {
+                              fetchDeliveredOrders();
+                              fetchInvoices();
+                            }}
+                            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                          >
+                            Refresh Orders
+                          </button>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Invoice Details Form */}
-                {selectedOrder && (
-                  <div className="border-t pt-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Invoice Details</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Invoice Date</label>
-                        <input
-                          type="date"
-                          value={invoiceFormData.invoice_date}
-                          onChange={(e) => setInvoiceFormData({ ...invoiceFormData, invoice_date: e.target.value })}
-                          className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
-                        <input
-                          type="date"
-                          value={invoiceFormData.due_date}
-                          onChange={(e) => setInvoiceFormData({ ...invoiceFormData, due_date: e.target.value })}
-                          className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-                        <textarea
-                          value={invoiceFormData.notes}
-                          onChange={(e) => setInvoiceFormData({ ...invoiceFormData, notes: e.target.value })}
-                          rows={3}
-                          className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Additional notes for the invoice..."
-                        />
-                      </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {salesOrders
+                            .filter((order) => {
+                              const query = orderSearchQuery.toLowerCase();
+                              return (
+                                order.order_number.toLowerCase().includes(query) ||
+                                order.customers?.name.toLowerCase().includes(query) ||
+                                ''
+                              );
+                            })
+                            .map((order) => (
+                              <div
+                                key={order.id}
+                                onClick={() => setSelectedOrder(order)}
+                                className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                                  selectedOrder?.id === order.id 
+                                    ? 'border-blue-500 bg-blue-50 shadow-md' 
+                                    : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                                }`}
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <h4 className="font-semibold text-gray-900">{order.order_number}</h4>
+                                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                        order.status === 'invoiced' ? 'bg-green-100 text-green-800' :
+                                        order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                        'bg-blue-100 text-blue-800'
+                                      }`}>
+                                        {order.status}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-gray-600 mt-1">{order.customers?.name}</p>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Order Date: {new Date(order.created_at).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                  <div className="text-right ml-4">
+                                    <p className="font-semibold text-gray-900">Rs. {order.total_amount.toLocaleString()}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
+
+                  {/* Right Column - Invoice Details Form (1/3 width) */}
+                  <div className="bg-gray-50 flex flex-col">
+                    <div className="p-6 flex-shrink-0">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">Invoice Details</h3>
+                      {!selectedOrder ? (
+                        <div className="text-center py-12 text-gray-500">
+                          <svg className="w-16 h-16 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                          <p className="text-sm">Select an order to continue</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {/* Selected Order Summary */}
+                          <div className="bg-white p-4 rounded-lg border border-gray-200">
+                            <p className="text-xs text-gray-500 mb-1">Selected Order</p>
+                            <p className="font-semibold text-gray-900">{selectedOrder.order_number}</p>
+                            <p className="text-sm text-gray-600">{selectedOrder.customers?.name}</p>
+                            <p className="text-lg font-bold text-blue-600 mt-2">Rs. {selectedOrder.total_amount.toLocaleString()}</p>
+                          </div>
+
+                          {/* Invoice Date */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Invoice Date</label>
+                            <input
+                              type="date"
+                              value={invoiceFormData.invoice_date}
+                              onChange={(e) => setInvoiceFormData({ ...invoiceFormData, invoice_date: e.target.value })}
+                              className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+
+                          {/* Due Date */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                            <input
+                              type="date"
+                              value={invoiceFormData.due_date}
+                              onChange={(e) => setInvoiceFormData({ ...invoiceFormData, due_date: e.target.value })}
+                              className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+
+                          {/* Notes */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                            <textarea
+                              value={invoiceFormData.notes}
+                              onChange={(e) => setInvoiceFormData({ ...invoiceFormData, notes: e.target.value })}
+                              rows={4}
+                              className="w-full px-3 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Additional notes for the invoice..."
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
-                <button
-                  onClick={() => setShowCreateFromOrder(false)}
-                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateInvoiceFromOrder}
-                  disabled={!selectedOrder || isLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isLoading ? 'Creating...' : 'Create Invoice'}
-                </button>
+              {/* Footer with Actions */}
+              <div className="flex justify-between items-center p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                <p className="text-sm text-gray-600">
+                  {selectedOrder ? `Creating invoice for ${selectedOrder.order_number}` : 'Please select an order to create an invoice'}
+                </p>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowCreateFromOrder(false);
+                      setSelectedOrder(null);
+                      setOrderSearchQuery('');
+                    }}
+                    className="px-5 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateInvoiceFromOrder}
+                    disabled={!selectedOrder || isLoading}
+                    className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                  >
+                    {isLoading ? 'Creating Invoice...' : 'Create Invoice'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
