@@ -322,31 +322,31 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-white px-6 py-4 border-b border-gray-200 flex-shrink-0">
+        <div className="bg-white px-4 py-3 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Convert Quote to Order</h2>
-              <p className="text-gray-500 text-sm">Step {currentStepIndex + 1} of {steps.length}</p>
+              <h2 className="text-lg font-semibold text-gray-900">Convert Quote to Order</h2>
+              <p className="text-gray-500 text-xs">Step {currentStepIndex + 1} of {steps.length}</p>
             </div>
             <button 
               onClick={onClose} 
-              className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1.5 rounded transition-colors"
+              className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
           
           {/* Progress Bar */}
-          <div className="mt-3">
+          <div className="mt-2">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-medium text-gray-600">Progress</span>
               <span className="text-xs font-medium text-gray-600">{Math.round(((currentStepIndex + 1) / steps.length) * 100)}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-1.5">
+            <div className="w-full bg-gray-200 rounded-full h-1">
               <div 
-                className="bg-blue-500 h-1.5 rounded-full transition-all duration-500 ease-out"
+                className="bg-blue-500 h-1 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${((currentStepIndex + 1) / steps.length) * 100}%` }}
               ></div>
             </div>
@@ -355,90 +355,76 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="p-6">
+          <div className="p-4">
             {currentStep === 'select' && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Select a Quote to Convert</h3>
+                  <h3 className="text-base font-semibold text-gray-900 mb-2">Select a Quote to Convert</h3>
                   
-                  {/* Search and Filter */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="md:col-span-2">
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="Search quotes by number, customer, or email..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full text-black pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <svg className="w-5 h-5 text-gray-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div>
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="w-full text-black px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="All">All Statuses</option>
-                        <option value="approved">Approved</option>
-                        <option value="accepted">Accepted</option>
-                        <option value="pending">Pending</option>
-                      </select>
+                  {/* Search Only - Removed Status Filter */}
+                  <div className="mb-3">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search quotes by number, customer, or email..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full text-black pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <svg className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
                     </div>
                   </div>
 
                   {isLoading ? (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                      <span className="ml-3 text-gray-600">Loading quotes...</span>
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-2 text-sm text-gray-600">Loading quotes...</span>
                     </div>
                   ) : filteredQuotes.length === 0 ? (
-                    <div className="text-center py-12">
-                      <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="text-center py-8">
+                      <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No convertible quotes found</h3>
-                      <p className="text-gray-500">Only approved, accepted, or pending quotes that haven't expired can be converted to orders.</p>
+                      <h3 className="text-sm font-medium text-gray-900 mb-1">No convertible quotes found</h3>
+                      <p className="text-xs text-gray-500">Only approved, accepted, or pending quotes that haven't expired can be converted to orders.</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {filteredQuotes.map((quote) => (
                         <div
                           key={quote.id}
                           onClick={() => handleQuoteSelect(quote)}
-                          className="border border-gray-200 rounded-xl p-6 cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-blue-300 bg-white"
+                          className="border border-gray-200 rounded-lg p-3 cursor-pointer transition-all duration-200 hover:shadow-md hover:border-blue-300 bg-white"
                         >
-                          <div className="flex items-start justify-between mb-4">
-                            <div>
-                              <h4 className="text-lg font-bold text-gray-900">{quote.number}</h4>
-                              <p className="text-gray-600">{quote.customer}</p>
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-bold text-gray-900 truncate">{quote.number}</h4>
+                              <p className="text-xs text-gray-600 truncate">{quote.customer}</p>
                               {quote.customerEmail && (
-                                <p className="text-sm text-gray-500">{quote.customerEmail}</p>
+                                <p className="text-xs text-gray-500 truncate">{quote.customerEmail}</p>
                               )}
                             </div>
-                            <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(quote.status)}`}>
+                            <div className={`flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ml-2 ${getStatusColor(quote.status)}`}>
                               {quote.status}
                             </div>
                           </div>
 
-                          <div className="space-y-2 mb-4">
-                            <div className="flex justify-between text-sm">
+                          <div className="space-y-1 mb-2">
+                            <div className="flex justify-between text-xs">
                               <span className="text-gray-500">Amount:</span>
                               <span className="font-bold text-green-600">Rs. {quote.amount.toLocaleString()}</span>
                             </div>
-                            <div className="flex justify-between text-sm">
+                            <div className="flex justify-between text-xs">
                               <span className="text-gray-500">Items:</span>
                               <span className="text-gray-900">{quote.items.length}</span>
                             </div>
-                            <div className="flex justify-between text-sm">
+                            <div className="flex justify-between text-xs">
                               <span className="text-gray-500">Created:</span>
                               <span className="text-gray-900">{new Date(quote.quotationDate).toLocaleDateString()}</span>
                             </div>
-                            <div className="flex justify-between text-sm">
+                            <div className="flex justify-between text-xs">
                               <span className="text-gray-500">Valid Until:</span>
                               <span className="text-gray-900">
                                 {quote.validUntil ? new Date(quote.validUntil).toLocaleDateString() : 'No expiry'}
@@ -446,8 +432,8 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                             </div>
                           </div>
 
-                          <div className="pt-4 border-t border-gray-200">
-                            <button className="w-full px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium">
+                          <div className="pt-2 border-t border-gray-200">
+                            <button className="w-full px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-md hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium text-xs">
                               Select This Quote
                             </button>
                           </div>
