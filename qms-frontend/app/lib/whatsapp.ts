@@ -28,6 +28,21 @@ interface VendorBillData {
   status: string;
 }
 
+interface VendorRateRequestData {
+  vendor_name: string;
+  vendor_phone?: string;
+  vendor_email?: string;
+  category: string;
+  reference_no?: string;
+  items_count: number;
+  items: Array<{
+    item_name: string;
+    description: string;
+    quantity: number;
+    uom: string;
+  }>;
+}
+
 class WhatsAppService {
   private baseUrl = process.env.NEXT_PUBLIC_WHATSAPP_API_URL || 'https://api.whatsapp.com/send';
   
@@ -206,10 +221,78 @@ Thank you for your prompt attention to this matter! 🙏`;
     const whatsappUrl = `${this.baseUrl}?phone=${formattedPhone}&text=${encodedMessage}`;
     window.open(whatsappUrl, '_blank');
   }
+
+  /**
+   * Generate vendor rate request message template
+   */
+  private generateVendorRateRequestMessage(data: VendorRateRequestData): string {
+    const itemsList = data.items.slice(0, 5).map((item, idx) => 
+      `${idx + 1}. ${item.item_name} - Qty: ${item.quantity} ${item.uom}`
+    ).join('\n');
+
+    const moreItems = data.items.length > 5 ? `\n... and ${data.items.length - 5} more items` : '';
+    
+    return `📋 *Rate Request from QMS*
+
+Dear ${data.vendor_name},
+
+We would like to request competitive rates for the following items:
+
+📦 *Request Details:*
+• Category: ${data.category}
+• Reference: ${data.reference_no || 'N/A'}
+• Total Items: ${data.items_count}
+• Date: ${new Date().toLocaleDateString()}
+
+🛒 *Items (Sample):*
+${itemsList}${moreItems}
+
+📊 *Required Information:*
+Please provide us with:
+• Your best rate per unit (PKR)
+• Lead time for delivery (days)
+• Any special terms or remarks
+
+📧 You can reply via WhatsApp or email: ${data.vendor_email || 'our email'}
+
+⏰ Please respond within 3-5 business days.
+
+Thank you for your cooperation! 🤝
+
+_This is an automated message from QMS - Quotation Management System_`;
+  }
+
+  /**
+   * Send vendor rate request via WhatsApp
+   */
+  async sendVendorRateRequest(data: VendorRateRequestData): Promise<void> {
+    try {
+      const message = this.generateVendorRateRequestMessage(data);
+      const encodedMessage = encodeURIComponent(message);
+      
+      let whatsappUrl;
+      
+      if (data.vendor_phone && this.isValidPhoneNumber(data.vendor_phone)) {
+        // If phone number is available, pre-fill it
+        const formattedPhone = this.formatPhoneNumber(data.vendor_phone);
+        whatsappUrl = `${this.baseUrl}?phone=${formattedPhone}&text=${encodedMessage}`;
+      } else {
+        // If no phone number, just open WhatsApp with the message
+        whatsappUrl = `${this.baseUrl}?text=${encodedMessage}`;
+      }
+      
+      // Open WhatsApp Web in a new tab
+      window.open(whatsappUrl, '_blank');
+      
+    } catch (error) {
+      console.error('Error sending vendor rate request via WhatsApp:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance
 export const whatsappService = new WhatsAppService();
 
 // Export types for use in components
-export type { InvoiceData, VendorBillData, WhatsAppMessage };
+export type { InvoiceData, VendorBillData, WhatsAppMessage, VendorRateRequestData };

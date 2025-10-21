@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Vendor, apiClient } from '../../lib/api';
+import { whatsappService, type VendorRateRequestData } from '../../lib/whatsapp';
 
 interface VendorCategory {
   id: string;
@@ -33,6 +34,7 @@ interface VendorCategoryManagerProps {
   quotationId: string;
   items: any[];
   vendors: Vendor[];
+  products: any[];
   onCategoryVendorsUpdate: (categoryVendors: {[key: string]: string[]}) => void;
   showModal: boolean;
   setShowModal: (show: boolean) => void;
@@ -42,6 +44,7 @@ export default function VendorCategoryManager({
   quotationId,
   items,
   vendors,
+  products,
   onCategoryVendorsUpdate,
   showModal,
   setShowModal
@@ -350,6 +353,81 @@ export default function VendorCategoryManager({
     return { total, sent, responded, pending };
   };
 
+  // Send rate request via WhatsApp to a single vendor
+  const sendWhatsAppRateRequest = async (categoryId: string, vendorId: string) => {
+    try {
+      const category = vendorCategories.find(c => c.id === categoryId);
+      if (!category) {
+        alert('Category not found');
+        return;
+      }
+
+      const vendor = vendors.find(v => v.id === vendorId);
+      if (!vendor) {
+        alert('Vendor not found');
+        return;
+      }
+
+      const categoryItems = items.filter(item => (item.category || 'Uncategorized') === category.categoryName);
+      
+      if (categoryItems.length === 0) {
+        alert('No items found in this category');
+        return;
+      }
+
+      // Prepare data for WhatsApp
+      const whatsappData: VendorRateRequestData = {
+        vendor_name: vendor.name,
+        vendor_phone: vendor.phone,
+        vendor_email: vendor.email,
+        category: category.categoryName,
+        reference_no: quotationId,
+        items_count: categoryItems.length,
+        items: categoryItems.map(item => {
+          const product = products.find(p => p.id === item.productId);
+          return {
+            item_name: item.itemName || (item.isCustom ? item.customDescription : product?.name) || 'N/A',
+            description: item.isCustom ? item.customDescription : (product?.description || product?.name) || 'N/A',
+            quantity: item.quantity || 0,
+            uom: item.uom || 'pcs'
+          };
+        })
+      };
+
+      // Send via WhatsApp
+      await whatsappService.sendVendorRateRequest(whatsappData);
+
+      // Also create rate request in backend
+      await addRateRequest(categoryId, vendorId, 'whatsapp');
+
+      alert(vendor.phone 
+        ? `Rate request sent to ${vendor.name} via WhatsApp`
+        : `WhatsApp opened with rate request for ${vendor.name}. Please select the contact manually.`
+      );
+    } catch (error) {
+      console.error('Error sending WhatsApp rate request:', error);
+      alert('Failed to send WhatsApp rate request. Please try again.');
+    }
+  };
+
+  // Send rate requests to all vendors in a category via WhatsApp
+  const sendWhatsAppRateRequestsToAll = async (categoryId: string) => {
+    const category = vendorCategories.find(c => c.id === categoryId);
+    if (!category || category.vendorIds.length === 0) {
+      alert('No vendors selected for this category');
+      return;
+    }
+
+    const confirmSend = confirm(`Send rate request via WhatsApp to ${category.vendorIds.length} vendor(s)?`);
+    if (!confirmSend) return;
+
+    for (const vendorId of category.vendorIds) {
+      await sendWhatsAppRateRequest(categoryId, vendorId);
+      // Add small delay between messages
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  };
+
   // Categories Tab
   const CategoriesTab = () => (
     <div className="space-y-6">
@@ -477,11 +555,7 @@ export default function VendorCategoryManager({
                       Send Email Requests
                     </button>
                     <button
-                      onClick={() => {
-                        category.vendorIds.forEach(vendorId => {
-                          addRateRequest(category.id, vendorId, 'whatsapp');
-                        });
-                      }}
+                      onClick={() => sendWhatsAppRateRequestsToAll(category.id)}
                       className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
                     >
                       Send WhatsApp

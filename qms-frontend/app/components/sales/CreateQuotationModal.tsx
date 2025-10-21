@@ -2474,6 +2474,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         quotationId={formData.referenceNo || 'DRAFT'}
         items={items}
         vendors={vendors}
+        products={products}
         onCategoryVendorsUpdate={setCategoryVendors}
         showModal={showVendorCategoryModal}
         setShowModal={setShowVendorCategoryModal}
