@@ -341,7 +341,7 @@ export default function SalesPage() {
 
       // Create A4 portrait document
       const doc = new jsPDF({
-        orientation: 'landscape',
+        orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
       });
@@ -396,9 +396,10 @@ export default function SalesPage() {
           theme: 'grid',
           styles: {
             fontSize: 8,
-            cellPadding: 3,
-            lineColor: [0, 0, 0],
-            lineWidth: 0.1
+            cellPadding: 2.5,
+            lineColor: [44, 62, 80],  // Dark gray for borders
+            lineWidth: 0.5,            // Increased from 0.1 to 0.5 for visible borders
+            valign: 'middle'
           },
           headStyles: { 
             fillColor: [59, 130, 246],
@@ -406,33 +407,33 @@ export default function SalesPage() {
             fontSize: 9,
             fontStyle: 'bold',
             halign: 'center',
-            lineColor: [0, 0, 0],
-            lineWidth: 0.5
+            lineColor: [44, 62, 80],   // Dark gray for header borders
+            lineWidth: 0.75            // Thicker borders for header
           },
           bodyStyles: { 
             fontSize: 7,
             textColor: [0, 0, 0],
-            lineColor: [0, 0, 0],
-            lineWidth: 0.1
+            lineColor: [44, 62, 80],   // Dark gray for body borders
+            lineWidth: 0.5             // Visible borders for all cells
           },
           alternateRowStyles: { 
             fillColor: [245, 247, 250]
           },
           columnStyles: {
-            0: { cellWidth: 28, halign: 'left' },    // Name
-            1: { cellWidth: 35, halign: 'left' },    // Email
-            2: { cellWidth: 22, halign: 'left' },    // Phone
-            3: { cellWidth: 25, halign: 'left' },    // Contact
-            4: { cellWidth: 20, halign: 'left' },    // City
-            5: { cellWidth: 20, halign: 'left' },    // State
-            6: { cellWidth: 22, halign: 'right' },   // Credit Limit
-            7: { cellWidth: 18, halign: 'center' },  // Payment Terms
-            8: { cellWidth: 25, halign: 'right' },   // Total Quotes
-            9: { cellWidth: 15, halign: 'center' }   // Status
+            0: { cellWidth: 22, halign: 'left' },    // Name
+            1: { cellWidth: 32, halign: 'left' },    // Email
+            2: { cellWidth: 18, halign: 'left' },    // Phone
+            3: { cellWidth: 20, halign: 'left' },    // Contact
+            4: { cellWidth: 16, halign: 'left' },    // City
+            5: { cellWidth: 16, halign: 'left' },    // State
+            6: { cellWidth: 18, halign: 'right' },   // Credit Limit
+            7: { cellWidth: 12, halign: 'center' },  // Payment Terms
+            8: { cellWidth: 20, halign: 'right' },   // Total Quotes
+            9: { cellWidth: 12, halign: 'center' }   // Status
           },
           margin: { left: 10, right: 10, top: 40, bottom: 10 },
-          tableLineColor: [0, 0, 0],
-          tableLineWidth: 0.5
+          tableLineColor: [44, 62, 80],
+          tableLineWidth: 0.75
         });
         
         // Add footer with page numbers
@@ -453,7 +454,7 @@ export default function SalesPage() {
         doc.setFontSize(6);
         let y = startY;
         const lineHeight = 5;
-        const colWidths = [28, 35, 22, 25, 20, 20, 22, 18, 25, 15];
+        const colWidths = [22, 32, 18, 20, 16, 16, 18, 12, 20, 12];
         let x = 10;
 
         // Draw headers
