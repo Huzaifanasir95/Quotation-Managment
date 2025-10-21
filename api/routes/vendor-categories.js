@@ -346,6 +346,17 @@ router.post('/rate-requests', async (req, res) => {
     const timestamp = Date.now();
     const request_number = `RR-${new Date().getFullYear()}-${timestamp.toString().slice(-6)}`;
 
+    // Get the actual admin user from database
+    const { data: adminUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('role', 'admin')
+      .limit(1)
+      .single();
+
+    // Use admin user ID if found, otherwise null (field is now nullable)
+    const validUserId = adminUser?.id || null;
+
     // Create rate request
     const { data: rateRequest, error: requestError } = await supabase
       .from('rate_requests')
@@ -361,7 +372,7 @@ router.post('/rate-requests', async (req, res) => {
         unit_of_measure,
         specifications,
         deadline,
-        created_by: userId
+        created_by: validUserId
       })
       .select()
       .single();
