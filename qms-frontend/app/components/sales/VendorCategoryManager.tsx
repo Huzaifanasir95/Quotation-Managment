@@ -53,7 +53,7 @@ export default function VendorCategoryManager({
   const [rateRequests, setRateRequests] = useState<VendorRateRequest[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'categories' | 'requests' | 'analytics'>('categories');
+  const [activeTab, setActiveTab] = useState<'categories' | 'requests'>('categories');
   const [categories, setCategories] = useState<any[]>([]);
 
   // Get unique categories from items
@@ -430,53 +430,22 @@ export default function VendorCategoryManager({
 
   // Categories Tab
   const CategoriesTab = () => (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {vendorCategories.map(category => {
         const categoryItems = items.filter(item => (item.category || 'Uncategorized') === category.categoryName);
-        const stats = getCategoryStats(category.id);
         
         return (
-          <div key={category.id} className="border border-gray-200 rounded-lg p-6">
+          <div key={category.id} className="border border-gray-200 rounded-lg p-4">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">{category.categoryName}</h3>
+                <h3 className="text-base font-semibold text-gray-900">{category.categoryName}</h3>
                 <p className="text-sm text-gray-500">{categoryItems.length} items</p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  category.responseStatus === 'received' ? 'bg-green-100 text-green-800' :
-                  category.responseStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                  category.responseStatus === 'expired' ? 'bg-red-100 text-red-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {category.responseStatus.replace('_', ' ').toUpperCase()}
-                </span>
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-4 gap-4 mb-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-                <div className="text-xs text-gray-500">Total Vendors</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{stats.sent}</div>
-                <div className="text-xs text-gray-500">Requests Sent</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-                <div className="text-xs text-gray-500">Pending</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{stats.responded}</div>
-                <div className="text-xs text-gray-500">Responded</div>
               </div>
             </div>
 
             {/* Items Preview */}
             <div className="mb-4 bg-gray-50 rounded-lg p-3">
-              <p className="text-sm font-medium text-gray-700 mb-2">Items in this category:</p>
+              <p className="text-sm font-medium text-gray-700 mb-2">Items:</p>
               <div className="space-y-1">
                 {categoryItems.slice(0, 3).map((item, idx) => (
                   <div key={idx} className="text-sm text-gray-600">
@@ -648,69 +617,6 @@ export default function VendorCategoryManager({
       </div>
     </div>
   );
-
-  // Analytics Tab
-  const AnalyticsTab = () => {
-    const totalRequests = rateRequests.length;
-    const respondedRequests = rateRequests.filter(req => req.status === 'responded').length;
-    const pendingRequests = rateRequests.filter(req => ['sent', 'delivered', 'read'].includes(req.status)).length;
-    const expiredRequests = rateRequests.filter(req => new Date(req.expiryDate) < new Date()).length;
-    
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="text-2xl font-bold text-gray-900">{totalRequests}</div>
-            <div className="text-sm text-gray-500">Total Requests</div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="text-2xl font-bold text-green-600">{respondedRequests}</div>
-            <div className="text-sm text-gray-500">Responses Received</div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="text-2xl font-bold text-yellow-600">{pendingRequests}</div>
-            <div className="text-sm text-gray-500">Pending Responses</div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="text-2xl font-bold text-red-600">{expiredRequests}</div>
-            <div className="text-sm text-gray-500">Expired Requests</div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Response Rate by Vendor</h3>
-          <div className="space-y-3">
-            {vendors.map(vendor => {
-              const vendorRequests = rateRequests.filter(req => req.vendorId === vendor.id);
-              const vendorResponses = vendorRequests.filter(req => req.status === 'responded');
-              const responseRate = vendorRequests.length > 0 ? (vendorResponses.length / vendorRequests.length) * 100 : 0;
-              
-              if (vendorRequests.length === 0) return null;
-              
-              return (
-                <div key={vendor.id} className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium text-gray-900">{vendor.name}</div>
-                    <div className="text-sm text-gray-500">{vendorResponses.length}/{vendorRequests.length} responses</div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-32 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-green-600 h-2 rounded-full" 
-                        style={{ width: `${responseRate}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">{responseRate.toFixed(0)}%</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   if (!showModal) return null;
 
   return (
@@ -726,8 +632,7 @@ export default function VendorCategoryManager({
           <nav className="flex space-x-8 px-6">
             {[
               { id: 'categories', label: 'Categories', icon: '📂' },
-              { id: 'requests', label: 'Requests', icon: '📤' },
-              { id: 'analytics', label: 'Analytics', icon: '📊' }
+              { id: 'requests', label: 'Requests', icon: '📤' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -747,7 +652,6 @@ export default function VendorCategoryManager({
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
           {activeTab === 'categories' && <CategoriesTab />}
           {activeTab === 'requests' && <RequestsTab />}
-          {activeTab === 'analytics' && <AnalyticsTab />}
         </div>
 
         <div className="bg-gray-50 px-6 py-4 flex justify-end space-x-2 border-t border-gray-200">

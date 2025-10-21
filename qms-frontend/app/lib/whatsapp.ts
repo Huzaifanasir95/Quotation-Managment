@@ -232,7 +232,7 @@ Thank you for your prompt attention to this matter! 🙏`;
 
     const moreItems = data.items.length > 5 ? `\n... and ${data.items.length - 5} more items` : '';
     
-    return `📋 *Rate Request from QMS*
+    return `📋 *Rate Request from Anoosh International*
 
 Dear ${data.vendor_name},
 
@@ -253,13 +253,11 @@ Please provide us with:
 • Lead time for delivery (days)
 • Any special terms or remarks
 
-📧 You can reply via WhatsApp or email: ${data.vendor_email || 'our email'}
-
 ⏰ Please respond within 3-5 business days.
 
 Thank you for your cooperation! 🤝
 
-_This is an automated message from QMS - Quotation Management System_`;
+_This is an automated message from Anoosh International_`;
   }
 
   /**
