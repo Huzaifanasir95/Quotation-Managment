@@ -1022,7 +1022,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
 
   const modalContent = (
     <div 
-      className="fixed z-50" 
+      className="fixed z-[9999]" 
       style={{ 
         top: 0,
         left: 0,
@@ -1042,7 +1042,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         style={{ 
           maxHeight: '95vh',
           position: 'relative',
-          zIndex: 51
+          zIndex: 10000
         }}
         onClick={(e) => e.stopPropagation()}
       >
