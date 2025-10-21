@@ -268,16 +268,9 @@ _This is an automated message from Anoosh International_`;
       const message = this.generateVendorRateRequestMessage(data);
       const encodedMessage = encodeURIComponent(message);
       
-      let whatsappUrl;
-      
-      if (data.vendor_phone && this.isValidPhoneNumber(data.vendor_phone)) {
-        // If phone number is available, pre-fill it
-        const formattedPhone = this.formatPhoneNumber(data.vendor_phone);
-        whatsappUrl = `${this.baseUrl}?phone=${formattedPhone}&text=${encodedMessage}`;
-      } else {
-        // If no phone number, just open WhatsApp with the message
-        whatsappUrl = `${this.baseUrl}?text=${encodedMessage}`;
-      }
+      // Always open WhatsApp with just the message (no phone number)
+      // This will open the share/forward dialog in WhatsApp
+      const whatsappUrl = `${this.baseUrl}?text=${encodedMessage}`;
       
       // Open WhatsApp Web in a new tab
       window.open(whatsappUrl, '_blank');

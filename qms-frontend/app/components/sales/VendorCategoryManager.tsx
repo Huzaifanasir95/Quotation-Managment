@@ -447,16 +447,6 @@ export default function VendorCategoryManager({
               {category.vendorIds.length > 0 && (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => {
-                      category.vendorIds.forEach(vendorId => {
-                        addRateRequest(category.id, vendorId, 'email');
-                      });
-                    }}
-                    className="px-3 py-1.5 text-xs bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
-                  >
-                    📧 Send Email
-                  </button>
-                  <button
                     onClick={() => sendWhatsAppRateRequestsToAll(category.id)}
                     className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
                   >
