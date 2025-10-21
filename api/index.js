@@ -3418,6 +3418,8 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
     const orderNumber = `O-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
     console.log('📝 Preparing order data...');
+    
+    // Prepare basic order data (only fields that definitely exist in DB)
     const orderDataToInsert = {
       order_number: orderNumber,
       customer_id: quotation.customer_id,
@@ -3425,20 +3427,23 @@ app.post('/api/v1/orders/convert-quote', async (req, res) => {
       order_date: new Date().toISOString().split('T')[0], // Date only
       expected_delivery_date: expected_delivery || null,
       status: 'pending',
-      priority: priority || 'normal',
       subtotal: orderSubtotal,
       tax_amount: orderTaxAmount,
       discount_amount: orderDiscountAmount,
       total_amount: orderTotal,
-      shipping_cost: shipping_cost ? Number(shipping_cost) : 0,
-      shipping_address: shipping_address || null,
-      billing_address: billing_address || null,
-      payment_terms: payment_terms || '30',
       notes: notes || null,
       created_by: null, // Set to null instead of 'system'
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
+    
+    // Add optional fields if they exist in the database schema
+    // These fields were added in a migration - include them if provided
+    if (priority) orderDataToInsert.priority = priority;
+    if (shipping_cost !== undefined && shipping_cost !== null) orderDataToInsert.shipping_cost = Number(shipping_cost);
+    if (shipping_address) orderDataToInsert.shipping_address = shipping_address;
+    if (billing_address) orderDataToInsert.billing_address = billing_address;
+    if (payment_terms) orderDataToInsert.payment_terms = payment_terms;
     
     console.log('📋 Order data to insert:', JSON.stringify(orderDataToInsert, null, 2));
 
