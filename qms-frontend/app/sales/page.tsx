@@ -339,21 +339,37 @@ export default function SalesPage() {
         return;
       }
 
-      const doc = new jsPDF('landscape');
+      // Create A4 portrait document
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       
-      // Add title
-      doc.setFontSize(18);
+      // Add company name
+      doc.setFontSize(20);
       doc.setFont('helvetica', 'bold');
-      doc.text('Customer List', pageWidth / 2, 15, { align: 'center' });
+      doc.text('Anoosh International', pageWidth / 2, 15, { align: 'center' });
+      
+      // Add title
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Customer List', pageWidth / 2, 25, { align: 'center' });
       
       // Add export date
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Export Date: ${new Date().toLocaleDateString()}`, pageWidth / 2, 22, { align: 'center' });
+      const exportDate = new Date().toLocaleDateString('en-GB', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric' 
+      });
+      doc.text(`Export Date: ${exportDate}`, pageWidth / 2, 32, { align: 'center' });
       
-      // Prepare table data with ALL fields
+      // Prepare table data
       const tableData = filteredCustomers.map(customer => [
         customer.name,
         customer.email || 'N/A',
@@ -362,13 +378,13 @@ export default function SalesPage() {
         customer.city || 'N/A',
         customer.state || 'N/A',
         customer.credit_limit ? `Rs. ${customer.credit_limit.toLocaleString()}` : 'N/A',
-        customer.payment_terms || 'N/A',
+        customer.payment_terms ? `${customer.payment_terms}` : 'N/A',
         `Rs. ${(customer.totalQuotes || 0).toLocaleString()}`,
         customer.status
       ]);
 
-      // Add table using autoTable (if available) or manual rendering
-      const startY = 30;
+      // Add table using autoTable with proper borders
+      const startY = 40;
       const headers = [['Name', 'Email', 'Phone', 'Contact', 'City', 'State', 'Credit Limit', 'Payment Terms', 'Total Quotes', 'Status']];
       
       // Check if autoTable is available (jspdf-autotable plugin)
@@ -378,30 +394,67 @@ export default function SalesPage() {
           head: headers,
           body: tableData,
           theme: 'grid',
-          headStyles: { fillColor: [59, 130, 246], fontSize: 8, fontStyle: 'bold' },
-          bodyStyles: { fontSize: 7 },
-          alternateRowStyles: { fillColor: [245, 247, 250] },
-          margin: { left: 5, right: 5 },
+          styles: {
+            fontSize: 8,
+            cellPadding: 3,
+            lineColor: [0, 0, 0],
+            lineWidth: 0.1
+          },
+          headStyles: { 
+            fillColor: [59, 130, 246],
+            textColor: [255, 255, 255],
+            fontSize: 9,
+            fontStyle: 'bold',
+            halign: 'center',
+            lineColor: [0, 0, 0],
+            lineWidth: 0.5
+          },
+          bodyStyles: { 
+            fontSize: 7,
+            textColor: [0, 0, 0],
+            lineColor: [0, 0, 0],
+            lineWidth: 0.1
+          },
+          alternateRowStyles: { 
+            fillColor: [245, 247, 250]
+          },
           columnStyles: {
-            0: { cellWidth: 30 },  // Name
-            1: { cellWidth: 30 },  // Email
-            2: { cellWidth: 20 },  // Phone
-            3: { cellWidth: 25 },  // Contact
-            4: { cellWidth: 20 },  // City
-            5: { cellWidth: 20 },  // State
-            6: { cellWidth: 22 },  // Credit Limit
-            7: { cellWidth: 18 },  // Payment Terms
-            8: { cellWidth: 25 },  // Total Quotes
-            9: { cellWidth: 15 }   // Status
-          }
+            0: { cellWidth: 28, halign: 'left' },    // Name
+            1: { cellWidth: 35, halign: 'left' },    // Email
+            2: { cellWidth: 22, halign: 'left' },    // Phone
+            3: { cellWidth: 25, halign: 'left' },    // Contact
+            4: { cellWidth: 20, halign: 'left' },    // City
+            5: { cellWidth: 20, halign: 'left' },    // State
+            6: { cellWidth: 22, halign: 'right' },   // Credit Limit
+            7: { cellWidth: 18, halign: 'center' },  // Payment Terms
+            8: { cellWidth: 25, halign: 'right' },   // Total Quotes
+            9: { cellWidth: 15, halign: 'center' }   // Status
+          },
+          margin: { left: 10, right: 10, top: 40, bottom: 10 },
+          tableLineColor: [0, 0, 0],
+          tableLineWidth: 0.5
         });
+        
+        // Add footer with page numbers
+        const pageCount = (doc as any).internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i);
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          doc.text(
+            `Page ${i} of ${pageCount}`,
+            pageWidth / 2,
+            pageHeight - 10,
+            { align: 'center' }
+          );
+        }
       } else {
         // Manual table rendering as fallback
         doc.setFontSize(6);
         let y = startY;
         const lineHeight = 5;
-        const colWidths = [25, 15, 15, 25, 18, 20, 18, 15, 15, 18, 18, 15, 18, 12];
-        let x = 5;
+        const colWidths = [28, 35, 22, 25, 20, 20, 22, 18, 25, 15];
+        let x = 10;
 
         // Draw headers
         doc.setFont('helvetica', 'bold');
@@ -416,28 +469,38 @@ export default function SalesPage() {
         tableData.forEach(row => {
           if (y > pageHeight - 20) {
             doc.addPage();
-            y = 20;
+            y = 40;
+            
+            // Redraw headers on new page
+            doc.setFont('helvetica', 'bold');
+            let headerX = 10;
+            headers[0].forEach((header, i) => {
+              doc.text(header, headerX, y);
+              headerX += colWidths[i];
+            });
+            y += lineHeight;
+            doc.setFont('helvetica', 'normal');
           }
-          x = 5;
+          x = 10;
           row.forEach((cell, i) => {
-            doc.text(String(cell).substring(0, 15), x, y); // Truncate long text
+            doc.text(String(cell).substring(0, 20), x, y); // Truncate long text
             x += colWidths[i];
           });
           y += lineHeight;
         });
-      }
-      
-      // Add footer
-      const totalPages = (doc as any).internal.getNumberOfPages();
-      for (let i = 1; i <= totalPages; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.text(
-          `Page ${i} of ${totalPages}`,
-          pageWidth / 2,
-          pageHeight - 10,
-          { align: 'center' }
-        );
+        
+        // Add footer with page numbers for manual rendering
+        const totalPages = (doc as any).internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+          doc.setPage(i);
+          doc.setFontSize(8);
+          doc.text(
+            `Page ${i} of ${totalPages}`,
+            pageWidth / 2,
+            pageHeight - 10,
+            { align: 'center' }
+          );
+        }
       }
 
       // Generate filename with current date
