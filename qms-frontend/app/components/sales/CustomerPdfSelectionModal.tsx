@@ -7,7 +7,7 @@ interface CustomerPdfSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   customers: Customer[];
-  onGeneratePDF: (selectedCustomers: Customer[], combinedPDF: boolean, format?: 'format1' | 'format2') => Promise<void>;
+  onGeneratePDF: (selectedCustomers: Customer[], combinedPDF: boolean, format?: 'format1' | 'format2' | 'enhanced') => Promise<void>;
   isGenerating?: boolean;
 }
 
@@ -20,7 +20,7 @@ const CustomerPdfSelectionModal: React.FC<CustomerPdfSelectionModalProps> = ({
 }) => {
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
   const [pdfType, setPdfType] = useState<'individual' | 'combined'>('individual');
-  const [pdfFormat, setPdfFormat] = useState<'format1' | 'format2'>('format1');
+  const [pdfFormat, setPdfFormat] = useState<'format1' | 'format2' | 'enhanced'>('format1');
 
   if (!isOpen) return null;
 
@@ -162,7 +162,7 @@ const CustomerPdfSelectionModal: React.FC<CustomerPdfSelectionModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 PDF Format
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <button
                   onClick={() => setPdfFormat('format1')}
                   disabled={isGenerating}
@@ -210,6 +210,32 @@ const CustomerPdfSelectionModal: React.FC<CustomerPdfSelectionModalProps> = ({
                       <div className="font-medium text-gray-900 text-sm">Format 2 - Corporate</div>
                       <div className="text-xs text-gray-500 mt-1">
                         Navy blue & gold professional design
+                      </div>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setPdfFormat('enhanced')}
+                  disabled={isGenerating}
+                  className={`p-4 border-2 rounded-lg transition-all ${
+                    pdfFormat === 'enhanced'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  } disabled:opacity-50`}
+                >
+                  <div className="flex items-start space-x-3">
+                    <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      pdfFormat === 'enhanced' ? 'border-blue-500' : 'border-gray-300'
+                    }`}>
+                      {pdfFormat === 'enhanced' && (
+                        <div className="w-3 h-3 bg-blue-500 rounded-full" />
+                      )}
+                    </div>
+                    <div className="text-left flex-1">
+                      <div className="font-medium text-gray-900 text-sm">Enhanced - Detailed</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Comprehensive format with detailed specifications
                       </div>
                     </div>
                   </div>

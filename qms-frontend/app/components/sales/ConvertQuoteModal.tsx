@@ -117,14 +117,19 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
             selected: true // Default to selected
           })) || []
         }));
-        
         // Filter out quotes that are not ready for conversion
         const convertibleQuotes = quotes.filter((q: any) => {
           const status = q.status.toLowerCase();
-          // Include approved quotes and pending quotes, exclude converted/rejected/draft
-          return ['approved', 'accepted', 'pending'].includes(status) && 
-                 (!q.validUntil || new Date(q.validUntil) >= new Date());
+          const isValidStatus = ['approved', 'sent'].includes(status);
+          const isNotExpired = !q.validUntil || new Date(q.validUntil) >= new Date();
+
+          console.log(`Quote ${q.number}: status=${status}, isValidStatus=${isValidStatus}, isNotExpired=${isNotExpired}`);
+
+          // Include approved and sent quotes, exclude converted/rejected/draft/expired
+          return isValidStatus && isNotExpired;
         });
+
+        console.log('Convertible quotes:', convertibleQuotes.length);
         setAvailableQuotes(convertibleQuotes);
       }
     } catch (error) {
@@ -136,13 +141,13 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
   };
 
   const filteredQuotes = availableQuotes.filter(quote => {
-    const matchesSearch = 
+    const matchesSearch =
       quote.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       quote.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
       quote.customerEmail?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === 'All' || quote.status.toLowerCase() === statusFilter.toLowerCase();
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -160,8 +165,8 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
 
   // Item selection handlers
   const handleItemToggle = (itemId: string) => {
-    setSelectedItems(prev => 
-      prev.map(item => 
+    setSelectedItems(prev =>
+      prev.map(item =>
         item.id === itemId ? { ...item, selected: !item.selected } : item
       )
     );
@@ -177,9 +182,9 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
 
   const handleQuantityChange = (itemId: string, newQuantity: number) => {
     if (newQuantity < 0) return;
-    setSelectedItems(prev => 
-      prev.map(item => 
-        item.id === itemId 
+    setSelectedItems(prev =>
+      prev.map(item =>
+        item.id === itemId
           ? { ...item, quantity: newQuantity, total: newQuantity * item.unitPrice }
           : item
       )
@@ -193,13 +198,13 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
   const calculateOrderTotal = () => {
     const selectedItemsOnly = getSelectedItems();
     if (selectedItemsOnly.length === 0) return { subtotal: 0, discount: 0, tax: 0, shipping: 0, total: 0 };
-    
+
     const subtotal = selectedItemsOnly.reduce((sum, item) => sum + item.total, 0);
     const discount = (subtotal * orderDetails.discountPercentage) / 100;
     const subtotalAfterDiscount = subtotal - discount;
     const tax = (subtotalAfterDiscount * orderDetails.taxPercentage) / 100;
     const total = subtotalAfterDiscount + tax + orderDetails.shippingCost;
-    
+
     return {
       subtotal,
       discount,
@@ -219,7 +224,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
     }
 
     setIsConverting(true);
-    
+
     try {
       const orderData = {
         quotation_id: selectedQuote.id, // Keep as string, let backend handle conversion
@@ -240,19 +245,19 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
           product_id: item.product_id
         }))
       };
-      
+
       console.log('Converting quote with data:', orderData);
       const response = await apiClient.convertQuoteToOrder(orderData);
-      
+
       if (response.success) {
         alert(`Quote ${selectedQuote.number} successfully converted to order!`);
         onClose();
-        
+
         // Call callback to refresh order list
         if (onOrderCreated) {
           onOrderCreated();
         }
-        
+
         resetModalState();
       } else {
         throw new Error(response.message || 'Failed to convert quote');
@@ -296,9 +301,9 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
   if (!isOpen || !mounted) return null;
 
   const modalContent = (
-    <div 
-      className="fixed z-50" 
-      style={{ 
+    <div
+      className="fixed z-50"
+      style={{
         top: 0,
         left: 0,
         right: 0,
@@ -312,9 +317,9 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
       }}
       onClick={onClose}
     >
-      <div 
+      <div
         className="bg-white rounded-2xl shadow-2xl max-w-7xl w-full flex flex-col border border-gray-100 overflow-hidden"
-        style={{ 
+        style={{
           maxHeight: '95vh',
           position: 'relative',
           zIndex: 51
@@ -328,8 +333,8 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
               <h2 className="text-lg font-semibold text-gray-900">Convert Quote to Order</h2>
               <p className="text-gray-500 text-xs">Step {currentStepIndex + 1} of {steps.length}</p>
             </div>
-            <button 
-              onClick={onClose} 
+            <button
+              onClick={onClose}
               className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -337,7 +342,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
               </svg>
             </button>
           </div>
-          
+
           {/* Progress Bar */}
           <div className="mt-2">
             <div className="flex items-center justify-between mb-1">
@@ -345,7 +350,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
               <span className="text-xs font-medium text-gray-600">{Math.round(((currentStepIndex + 1) / steps.length) * 100)}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-1">
-              <div 
+              <div
                 className="bg-blue-500 h-1 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${((currentStepIndex + 1) / steps.length) * 100}%` }}
               ></div>
@@ -360,7 +365,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
               <div className="space-y-3">
                 <div>
                   <h3 className="text-base font-semibold text-gray-900 mb-2">Select a Quote to Convert</h3>
-                  
+
                   {/* Search Only - Removed Status Filter */}
                   <div className="mb-3">
                     <div className="relative">
@@ -449,7 +454,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">Select Items to Convert</h3>
-                  
+
                   {/* Selected Quote Summary */}
                   <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg p-3 mb-4">
                     <div className="flex items-center justify-between">
@@ -491,11 +496,10 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                     {selectedItems.map((item, index) => (
                       <div
                         key={item.id}
-                        className={`border rounded-lg p-3 transition-all duration-200 ${
-                          item.selected 
-                            ? 'border-blue-300 bg-blue-50' 
-                            : 'border-gray-200 bg-white'
-                        }`}
+                        className={`border rounded-lg p-3 transition-all duration-200 ${item.selected
+                          ? 'border-blue-300 bg-blue-50'
+                          : 'border-gray-200 bg-white'
+                          }`}
                       >
                         <div className="flex items-start space-x-3">
                           {/* Checkbox */}
@@ -534,11 +538,10 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                                   onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 0)}
                                   onWheel={(e) => e.currentTarget.blur()}
                                   disabled={!item.selected}
-                                  className={`w-full px-2 py-1.5 text-sm border rounded-lg text-center ${
-                                    item.selected 
-                                      ? 'border-gray-300 text-black focus:ring-2 focus:ring-blue-500' 
-                                      : 'border-gray-200 bg-gray-100 text-gray-400'
-                                  }`}
+                                  className={`w-full px-2 py-1.5 text-sm border rounded-lg text-center ${item.selected
+                                    ? 'border-gray-300 text-black focus:ring-2 focus:ring-blue-500'
+                                    : 'border-gray-200 bg-gray-100 text-gray-400'
+                                    }`}
                                 />
                               </div>
 
@@ -613,7 +616,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">Configure Order Details</h3>
-                  
+
                   {/* Selected Items Summary */}
                   <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg p-3 mb-4">
                     <div className="flex items-center justify-between">
@@ -815,7 +818,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">Review Order Details</h3>
-                  
+
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {/* Order Summary */}
                     <div className="space-y-3">
@@ -965,7 +968,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                       <div className="ml-2">
                         <h5 className="text-sm font-medium text-green-800">Ready to Convert</h5>
                         <p className="text-xs text-green-700 mt-1">
-                          This will create a sales order from quote {selectedQuote.number}. The quote status will be updated to "Converted" 
+                          This will create a sales order from quote {selectedQuote.number}. The quote status will be updated to "Converted"
                           and inventory may be reserved based on your system settings.
                         </p>
                       </div>
@@ -1003,13 +1006,13 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
             </div>
 
             <div className="flex space-x-2">
-              <button 
-                onClick={onClose} 
+              <button
+                onClick={onClose}
                 className="px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
               >
                 Cancel
               </button>
-              
+
               {currentStep === 'items' && selectedQuote && (
                 <button
                   onClick={() => setCurrentStep('configure')}
@@ -1022,7 +1025,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                   </svg>
                 </button>
               )}
-              
+
               {currentStep === 'configure' && selectedQuote && (
                 <button
                   onClick={() => setCurrentStep('review')}
@@ -1035,7 +1038,7 @@ export default function ConvertQuoteModal({ isOpen, onClose, onOrderCreated }: C
                   </svg>
                 </button>
               )}
-              
+
               {currentStep === 'review' && (
                 <button
                   onClick={handleConvert}

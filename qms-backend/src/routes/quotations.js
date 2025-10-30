@@ -18,10 +18,7 @@ router.get('/', authenticateToken, authorize(['admin', 'sales', 'finance', 'proc
       customers(name, email),
       business_entities(name),
       quotation_items(
-        id, quantity, unit_price, line_total, 
-        is_custom, custom_description, actual_price, profit_percent,
-        gst_percent, rate_per_unit, total,
-        product_id, description, category, unit_of_measure
+        id, quantity, unit_price, line_total, product_id, description
       )
     `, { count: 'exact' })
     .order('created_at', { ascending: false })
@@ -74,10 +71,7 @@ router.get('/:id', authenticateToken, authorize(['admin', 'sales', 'finance', 'p
       customers(*),
       business_entities(*),
       quotation_items(
-        id, quantity, unit_price, line_total, 
-        is_custom, custom_description, actual_price, profit_percent,
-        gst_percent, rate_per_unit, total,
-        product_id, description, category, unit_of_measure
+        id, quantity, unit_price, line_total, product_id, description
       )
     `)
     .eq('id', id)
@@ -141,37 +135,16 @@ router.post('/', authenticateToken, authorize(['admin', 'sales']), validate(sche
   let discount_amount = 0;
 
   const processedItems = items.map(item => {
-    if (item.is_custom) {
-      // For custom items, use the pre-calculated values
-      const line_total = item.total;
-      subtotal += line_total;
-      
-      return {
-        ...item,
-        // Map frontend field names to database column names
-        custom_description: item.customDescription,
-        actual_price: item.actualPrice,
-        profit_percent: item.profitPercent,
-        gst_percent: item.gstPercent,
-        rate_per_unit: item.ratePerUnit,
-        line_total
-      };
-    } else {
-      // For regular inventory items
-      const line_total = item.quantity * item.unit_price;
-      const discount = line_total * (item.discount_percent || 0) / 100;
-      const taxable_amount = line_total - discount;
-      const tax = taxable_amount * (item.tax_percent || 0) / 100;
-
-      subtotal += line_total;
-      discount_amount += discount;
-      tax_amount += tax;
-
-      return {
-        ...item,
-        line_total: taxable_amount + tax
-      };
-    }
+    const line_total = item.quantity * item.unit_price;
+    subtotal += line_total;
+    
+    return {
+      product_id: item.product_id || null,
+      description: item.description,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      line_total: line_total
+    };
   });
 
   const total_amount = subtotal - discount_amount + tax_amount;
@@ -297,17 +270,14 @@ router.put('/:id', authenticateToken, authorize(['admin', 'sales']), validate(sc
 
   const processedItems = items.map(item => {
     const line_total = item.quantity * item.unit_price;
-    const discount = line_total * (item.discount_percent || 0) / 100;
-    const taxable_amount = line_total - discount;
-    const tax = taxable_amount * (item.tax_percent || 0) / 100;
-
     subtotal += line_total;
-    discount_amount += discount;
-    tax_amount += tax;
-
+    
     return {
-      ...item,
-      line_total: taxable_amount + tax
+      product_id: item.product_id || null,
+      description: item.description,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      line_total: line_total
     };
   });
 

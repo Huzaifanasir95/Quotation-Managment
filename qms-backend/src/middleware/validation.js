@@ -4,11 +4,11 @@ const Joi = require('joi');
 const validate = (schema) => {
   return (req, res, next) => {
     const { error } = schema.validate(req.body);
-    
+
     if (error) {
       console.error('❌ Validation error:', error.details);
       console.error('📝 Request body:', JSON.stringify(req.body, null, 2));
-      
+
       const errorDetails = error.details.map(detail => ({
         field: detail.path.join('.'),
         message: detail.message,
@@ -21,7 +21,7 @@ const validate = (schema) => {
         details: errorDetails
       });
     }
-    
+
     next();
   };
 };
@@ -105,47 +105,13 @@ const schemas = {
       Joi.object({
         product_id: Joi.string().uuid().allow(null).optional(),
         description: Joi.string().required(),
-        category: Joi.string().allow('', null).optional().default(''),
-        serial_number: Joi.string().allow('', null).optional().default(''),
-        item_name: Joi.string().allow('', null).optional().default(''),
-        unit_of_measure: Joi.string().allow('', null).optional().default(''),
+        category: Joi.string().allow('', null).optional(),
+        serial_number: Joi.string().allow('', null).optional(),
+        item_name: Joi.string().allow('', null).optional(),
+        unit_of_measure: Joi.string().allow('', null).optional(),
         gst_percent: Joi.number().min(0).max(100).optional(),
-        is_custom: Joi.boolean().optional(),
-        // Custom item fields
-        customDescription: Joi.string().when('is_custom', {
-          is: true,
-          then: Joi.string().required(),
-          otherwise: Joi.string().optional()
-        }),
-        actualPrice: Joi.number().min(0).when('is_custom', {
-          is: true,
-          then: Joi.number().min(0).required(),
-          otherwise: Joi.number().min(0).optional()
-        }),
-        profitPercent: Joi.number().min(0).max(100).when('is_custom', {
-          is: true,
-          then: Joi.number().min(0).max(100).required(),
-          otherwise: Joi.number().min(0).max(100).optional()
-        }),
-        ratePerUnit: Joi.number().min(0).when('is_custom', {
-          is: true,
-          then: Joi.number().min(0).required(),
-          otherwise: Joi.number().min(0).optional()
-        }),
-        total: Joi.number().min(0).when('is_custom', {
-          is: true,
-          then: Joi.number().min(0).required(),
-          otherwise: Joi.number().min(0).optional()
-        }),
-        // Common fields
         quantity: Joi.number().positive().required(),
-        unit_price: Joi.number().min(0).when('is_custom', {
-          is: false,
-          then: Joi.number().min(0).required(),
-          otherwise: Joi.number().min(0).optional()
-        }),
-        discount_percent: Joi.number().min(0).max(100).optional(),
-        tax_percent: Joi.number().min(0).max(100).optional()
+        unit_price: Joi.number().min(0).required()
       })
     ).min(1).required()
   }),
