@@ -6,7 +6,6 @@ import { apiClient, Customer, Vendor } from '../../lib/api';
 import { generateQuotationPDF, generateEnhancedQuotationPDF, generateDetailedQuotationPDF, generateMultiCustomerQuotationPDF, generateQuotationPDFFormat2, generateMultiCustomerQuotationPDFFormat2 } from '../../../lib/pdfUtils';
 import { loadJsPDF, loadXLSX } from '../../../lib/dynamicImports';
 import VendorRateRequestModals from './VendorRateRequestModals';
-import VendorCategoryManager from './VendorCategoryManager';
 import CustomerPdfSelectionModal from './CustomerPdfSelectionModal';
 
 // Calculation functions
@@ -70,9 +69,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
   const [showRateComparison, setShowRateComparison] = useState(false);
   const [selectedItemForRates, setSelectedItemForRates] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Enhanced vendor management states
-  const [showVendorCategoryModal, setShowVendorCategoryModal] = useState(false);
 
   // Handle mounting for portal
   useEffect(() => {
@@ -1429,7 +1425,7 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                     <div className="flex border border-gray-200 rounded-md overflow-hidden mr-3">
                       <button
                         onClick={() => setShowVendorRateModal(true)}
-                        className="px-3 py-1.5 text-xs text-purple-700 bg-purple-50 hover:bg-purple-100 border-r border-gray-200 flex items-center space-x-1.5"
+                        className="px-3 py-1.5 text-xs text-purple-700 bg-purple-50 hover:bg-purple-100 flex items-center space-x-1.5"
                         disabled={items.length === 0}
                         title="Manage Rates"
                       >
@@ -1437,18 +1433,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H9a2 2 0 00-2 2v.01" />
                         </svg>
                         <span>Rates</span>
-                      </button>
-
-                      <button
-                        onClick={() => setShowVendorCategoryModal(true)}
-                        className="px-3 py-1.5 text-xs text-indigo-700 bg-indigo-50 hover:bg-indigo-100 flex items-center space-x-1.5"
-                        disabled={items.length === 0}
-                        title="Category Setup"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 00-2 2v2a2 2 0 002 2m0 0h14m-14 0a2 2 0 002 2v2a2 2 0 01-2 2M5 9V7a2 2 0 012-2h10a2 2 0 012 2v2M7 7V5a2 2 0 012-2h6a2 2 0 012 2v2" />
-                        </svg>
-                        <span>Category</span>
                       </button>
                     </div>
 
@@ -2544,15 +2528,6 @@ export default function CreateQuotationModal({ isOpen, onClose, onQuotationCreat
         setCategoryVendors={setCategoryVendors}
         vendorRates={vendorRates}
         setVendorRates={setVendorRates}
-      />
-      <VendorCategoryManager
-        quotationId={formData.referenceNo || 'DRAFT'}
-        items={items}
-        vendors={vendors}
-        products={products}
-        onCategoryVendorsUpdate={setCategoryVendors}
-        showModal={showVendorCategoryModal}
-        setShowModal={setShowVendorCategoryModal}
       />
       <CustomerPdfSelectionModal
         isOpen={showCustomerPdfModal}

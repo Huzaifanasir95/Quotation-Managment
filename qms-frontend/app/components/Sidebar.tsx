@@ -75,8 +75,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   // Show loading state while checking authentication
   if (loading) {
     return (
-      <div className="fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-40">
-        <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a] px-4">
+      <div className="fixed left-0 top-0 h-full w-64 bg-white shadow-lg border-r border-slate-200 z-40">
+        <div className="flex items-center justify-center h-16 border-b border-slate-200 px-4">
           <div className="flex items-center space-x-2">
             <Image
               src="/Logo.png"
@@ -85,11 +85,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               height={40}
               className="rounded-full"
             />
-            <h1 className="text-xl font-bold text-white">Anoosh International</h1>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Anoosh International</h1>
           </div>
         </div>
         <div className="flex items-center justify-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       </div>
     );
@@ -98,8 +98,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   // If no user after loading, still show sidebar with minimal content
   if (!user) {
     return (
-      <div className="fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-40">
-        <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a] px-4">
+      <div className="fixed left-0 top-0 h-full w-64 bg-white shadow-lg border-r border-slate-200 z-40">
+        <div className="flex items-center justify-center h-16 border-b border-slate-200 px-4">
           <div className="flex items-center space-x-2">
             <Image
               src="/Logo.png"
@@ -108,11 +108,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               height={40}
               className="rounded-full"
             />
-            <h1 className="text-xl font-bold text-white">Anoosh International</h1>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Anoosh International</h1>
           </div>
         </div>
         <div className="p-4 text-center">
-          <p className="text-white text-sm">Please log in to continue</p>
+          <p className="text-slate-600 text-sm">Please log in to continue</p>
         </div>
       </div>
     );
@@ -130,7 +130,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   // Responsive: show sidebar on md+ always, on mobile only if open
   return (
     <div
-      className={`fixed left-0 top-0 h-full w-64 bg-[#56425b] shadow-lg z-40
+      className={`fixed left-0 top-0 h-full w-64 bg-white shadow-lg border-r border-slate-200 z-40
         transition-transform duration-300
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0
@@ -141,7 +141,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       <div className="md:hidden flex justify-end p-2">
         <button
           onClick={onClose}
-          className="text-white p-2 rounded hover:bg-[#6b5b7a] focus:outline-none"
+          className="text-slate-600 p-2 rounded-lg hover:bg-slate-100 focus:outline-none transition-colors"
           aria-label="Close sidebar"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -150,7 +150,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         </button>
       </div>
       {/* Logo Section */}
-      <div className="flex items-center justify-center h-16 border-b border-[#6b5b7a] px-4">
+      <div className="flex items-center justify-center h-16 border-b border-slate-200 px-4">
         <div className="flex items-center space-x-2">
           <Image
             src="/Logo.png"
@@ -159,12 +159,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             height={40}
             className="rounded-full"
           />
-          <h1 className="text-xl font-bold text-white">Anoosh International</h1>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Anoosh International</h1>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2 mt-4">{navigationItems.map((item) => {
+      <nav className="flex-1 p-4 space-y-1.5 mt-4">{navigationItems.map((item) => {
           const isItemActive = isActive(item.href);
           return (
             <Link
@@ -172,16 +172,16 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               href={item.href}
               className={`flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
                 isItemActive
-                  ? 'bg-white text-[#56425b] shadow-md'
-                  : 'text-white hover:bg-[#6b5b7a] hover:text-white'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                  : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <span className={`mr-3 ${isItemActive ? 'text-[#56425b]' : 'text-white'}`}>
+              <span className={`mr-3 ${isItemActive ? 'text-blue-600' : 'text-slate-500'}`}>
                 {iconMap[item.icon] || iconMap.dashboard}
               </span>
               {item.label}
               {item.badge && (
-                <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                <span className="ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-500 text-white">
                   {item.badge}
                 </span>
               )}
@@ -191,10 +191,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       </nav>
 
       {/* Bottom Section */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#6b5b7a]">
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200">
         <button
           onClick={logout}
-          className="flex items-center w-full px-4 py-2 text-sm font-medium text-white hover:bg-red-600 hover:text-white rounded-lg transition-colors duration-200"
+          className="flex items-center w-full px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-rose-50 hover:text-rose-700 rounded-lg transition-all duration-200 border border-transparent hover:border-rose-200"
         >
           <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

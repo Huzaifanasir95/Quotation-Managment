@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { apiClient, Vendor } from '../../lib/api';
+import { apiClient, Vendor, Customer } from '../../lib/api';
+import { generateQuotationPDF, generateEnhancedQuotationPDF, generateDetailedQuotationPDF, generateMultiCustomerQuotationPDF, generateQuotationPDFFormat2, generateMultiCustomerQuotationPDFFormat2 } from '../../../lib/pdfUtils';
 import VendorRateRequestModals from './VendorRateRequestModals';
 import VendorCategoryManager from './VendorCategoryManager';
+import CustomerPdfSelectionModal from './CustomerPdfSelectionModal';
 
 interface EditQuotationModalProps {
   isOpen: boolean;
@@ -90,6 +92,10 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
   const [previewExisting, setPreviewExisting] = useState<any | null>(null);
   const [attachmentsToDelete, setAttachmentsToDelete] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // PDF generation states
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [showCustomerPdfModal, setShowCustomerPdfModal] = useState(false);
 
   // Vendor rate states
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -527,6 +533,173 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
       taxAmount,
       total
     };
+  };
+
+  // PDF Download Handlers
+  const handleDownloadPDF = async () => {
+    if (!formData.customer_id) {
+      alert('Please select a customer to generate PDF');
+      return;
+    }
+
+    if (items.length === 0) {
+      alert('Please add at least one item to generate PDF');
+      return;
+    }
+
+    // Show customer PDF selection modal
+    setShowCustomerPdfModal(true);
+  };
+
+  // Handler for generating PDF after customer selection
+  const handleGeneratePDFForCustomers = async (selectedCustomers: Customer[], combinedPDF: boolean, format: 'format1' | 'format2' | 'enhanced' = 'format1') => {
+    setIsGeneratingPDF(true);
+
+    try {
+      // Transform items to match PDF function expectations
+      const transformedItems = items.map(item => {
+        const product = products.find(p => p.id === item.product_id);
+        const isCustom = !item.product_id;
+        return {
+          description: isCustom
+            ? (item.description || item.item_name || 'Custom Item')
+            : (product?.name || item.description || 'Inventory Item'),
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          line_total: item.line_total,
+          is_custom: isCustom,
+          product_id: item.product_id,
+          gst_percent: item.gst_percent || item.tax_percent || 18,
+          unit_of_measure: item.unit_of_measure || 'No'
+        };
+      });
+
+      const calculations = calculateTotals();
+
+      if (combinedPDF) {
+        // Generate one combined PDF with all customers displayed separately
+        const multiCustomerData = {
+          customers: selectedCustomers,
+          quotation_number: quotationId,
+          reference_no: formData.reference_no || '',
+          quotation_date: formData.quotation_date || new Date().toISOString().split('T')[0],
+          valid_until: formData.valid_until || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          items: transformedItems,
+          subtotal: calculations.subtotal,
+          tax_amount: calculations.taxAmount,
+          total_amount: calculations.total,
+          terms_conditions: formData.terms_conditions || 'Standard terms and conditions apply.',
+          notes: formData.notes && formData.notes !== 'NULL' ? formData.notes : ''
+        };
+
+        // Generate combined PDF based on selected format
+        if (format === 'format2') {
+          await generateMultiCustomerQuotationPDFFormat2(multiCustomerData);
+        } else if (format === 'enhanced') {
+          const enhancedData = {
+            quotationFor: selectedCustomers.map(c => c.name).join(', '),
+            date: new Date(formData.quotation_date || Date.now()).toLocaleDateString('en-GB'),
+            refNo: formData.reference_no || '-',
+            companyName: selectedCustomers.length === 1 ? selectedCustomers[0].name : 'Multiple Customers',
+            companyAddress: selectedCustomers.length === 1 ? (selectedCustomers[0].address || selectedCustomers[0].email || 'Address not provided') : 'Multiple Addresses',
+            items: items.map((item, index) => {
+              const product = products.find(p => p.id === item.product_id);
+              return {
+                id: item.id?.toString() || index.toString(),
+                srNo: index + 1,
+                description: item.product_id
+                  ? (product?.name || 'Unknown Product')
+                  : (item.description || item.item_name || 'Custom Item'),
+                uom: item.unit_of_measure || 'No',
+                quantity: item.quantity,
+                unitPrice: item.unit_price,
+                totalPrice: item.line_total,
+                gstRate: item.gst_percent || item.tax_percent || 18,
+              };
+            }),
+            subTotal: calculations.subtotal,
+            gstAmount: calculations.taxAmount,
+            total: calculations.total,
+            termsConditions: formData.terms_conditions ? {
+              fullText: formData.terms_conditions
+            } : {
+              validity: 'Prices are valid for 25 Days Only.',
+              delivery: '6-10 Days after receiving the PO. (F.O.R Rawalpindi).',
+              optionalItems: 'Optional items other than quoted will be charged separately'
+            }
+          };
+          await generateEnhancedQuotationPDF(enhancedData);
+        } else {
+          await generateMultiCustomerQuotationPDF(multiCustomerData);
+        }
+      } else {
+        // Generate separate PDFs for each customer
+        for (const customer of selectedCustomers) {
+          const quotationData = {
+            customer,
+            quotation_number: quotationId,
+            reference_no: formData.reference_no || '',
+            quotation_date: formData.quotation_date || new Date().toISOString().split('T')[0],
+            valid_until: formData.valid_until || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            items: transformedItems,
+            subtotal: calculations.subtotal,
+            tax_amount: calculations.taxAmount,
+            total_amount: calculations.total,
+            terms_conditions: formData.terms_conditions || 'Standard terms and conditions apply.',
+            notes: formData.notes && formData.notes !== 'NULL' ? formData.notes : ''
+          };
+
+          // Generate PDF based on selected format
+          if (format === 'format2') {
+            await generateQuotationPDFFormat2(quotationData);
+          } else if (format === 'enhanced') {
+            const enhancedData = {
+              quotationFor: customer.name,
+              date: new Date(formData.quotation_date || Date.now()).toLocaleDateString('en-GB'),
+              refNo: formData.reference_no || '-',
+              companyName: customer.name,
+              companyAddress: customer.address || customer.email || 'Address not provided',
+              items: items.map((item, index) => {
+                const product = products.find(p => p.id === item.product_id);
+                return {
+                  id: item.id?.toString() || index.toString(),
+                  srNo: index + 1,
+                  description: item.product_id
+                    ? (product?.name || 'Unknown Product')
+                    : (item.description || item.item_name || 'Custom Item'),
+                  uom: item.unit_of_measure || 'No',
+                  quantity: item.quantity,
+                  unitPrice: item.unit_price,
+                  totalPrice: item.line_total,
+                  gstRate: item.gst_percent || item.tax_percent || 18,
+                };
+              }),
+              subTotal: calculations.subtotal,
+              gstAmount: calculations.taxAmount,
+              total: calculations.total,
+              termsConditions: formData.terms_conditions ? {
+                fullText: formData.terms_conditions
+              } : {
+                validity: 'Prices are valid for 25 Days Only.',
+                delivery: '6-10 Days after receiving the PO. (F.O.R Rawalpindi).',
+                optionalItems: 'Optional items other than quoted will be charged separately'
+              }
+            };
+            await generateEnhancedQuotationPDF(enhancedData);
+          } else {
+            await generateQuotationPDF(quotationData);
+          }
+        }
+      }
+
+      alert('PDF(s) downloaded successfully!');
+      setShowCustomerPdfModal(false);
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -1718,36 +1891,65 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end space-x-3 px-6 py-4 border-t border-gray-200">
-                  <button
-                    onClick={onClose}
-                    disabled={isLoading || isUploading}
-                    className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSubmit}
-                    disabled={isLoading || isUploading || !formData.customer_id || items.length === 0}
-                    className="px-4 py-2 text-white bg-gray-800 rounded-lg hover:bg-gray-900 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                  >
-                    {isLoading || isUploading ? (
-                      <>
-                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span>{isLoading ? 'Updating...' : 'Uploading Files...'}</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span>Update Quotation</span>
-                      </>
-                    )}
-                  </button>
+                <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
+                  <div className="flex items-center space-x-3">
+                    {/* Download PDF Button */}
+                    <button
+                      onClick={handleDownloadPDF}
+                      disabled={isGeneratingPDF || !formData.customer_id || items.length === 0}
+                      className="px-3 py-1.5 text-xs text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-md flex items-center space-x-1.5"
+                      title="Download PDF"
+                    >
+                      {isGeneratingPDF ? (
+                        <>
+                          <svg className="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Generating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span>Download PDF</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={onClose}
+                      disabled={isLoading || isUploading}
+                      className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSubmit}
+                      disabled={isLoading || isUploading || !formData.customer_id || items.length === 0}
+                      className="px-4 py-2 text-white bg-gray-800 rounded-lg hover:bg-gray-900 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                    >
+                      {isLoading || isUploading ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>{isLoading ? 'Updating...' : 'Uploading Files...'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span>Update Quotation</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </>
             )}
@@ -1895,6 +2097,13 @@ export default function EditQuotationModal({ isOpen, onClose, quotationId, onQuo
         onCategoryVendorsUpdate={setCategoryVendors}
         showModal={showVendorCategoryModal}
         setShowModal={setShowVendorCategoryModal}
+      />
+      <CustomerPdfSelectionModal
+        isOpen={showCustomerPdfModal}
+        onClose={() => setShowCustomerPdfModal(false)}
+        customers={customers.filter(c => c.id === formData.customer_id)}
+        onGeneratePDF={handleGeneratePDFForCustomers}
+        isGenerating={isGeneratingPDF}
       />
     </>,
     document.body

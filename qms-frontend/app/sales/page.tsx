@@ -578,16 +578,16 @@ export default function SalesPage() {
         {/* KPI Widgets */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {/* Total Customers */}
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-md font-medium text-gray-600">Total Customers</p>
-                <p className="text-4xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-slate-600 mb-1">Total Customers</p>
+                <p className="text-4xl font-bold text-slate-900">
                   {customers.length}
                 </p>
               </div> 
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center">
+                <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
@@ -595,20 +595,20 @@ export default function SalesPage() {
           </div>
 
           {/* Total Vendors */}
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-md font-medium text-gray-600">Total Vendors</p>
-                <p className="text-4xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-slate-600 mb-1">Total Vendors</p>
+                <p className="text-4xl font-bold text-slate-900">
                   {dataLoading.vendors ? (
-                    <span className="inline-block w-8 h-8 bg-gray-200 rounded animate-pulse"></span>
+                    <span className="inline-block w-8 h-8 bg-slate-200 rounded animate-pulse"></span>
                   ) : (
                     vendors.length
                   )}
                 </p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-14 h-14 bg-emerald-50 rounded-xl flex items-center justify-center">
+                <svg className="w-7 h-7 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
               </div>
@@ -616,16 +616,16 @@ export default function SalesPage() {
           </div>
 
           {/* Total Quotations Value */}
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-6 hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-md font-medium text-gray-600">Total Quotations Value</p>
-                <p className="text-3xl font-bold text-gray-900">
+                <p className="text-sm font-medium text-slate-600 mb-1">Total Quotations Value</p>
+                <p className="text-3xl font-bold text-slate-900">
                   Rs. {customers.reduce((sum, c) => sum + (c.totalQuotes || 0), 0).toLocaleString()}
                 </p>
               </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-14 h-14 bg-violet-50 rounded-xl flex items-center justify-center">
+                <svg className="w-7 h-7 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
@@ -634,87 +634,114 @@ export default function SalesPage() {
         </div>
 
         {/* RFQ & Sales Workflow Actions */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 p-8 mb-8">
+          <h3 className="text-xl font-semibold text-slate-900 mb-7 flex items-center">
+            <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center mr-3">
+              <svg className="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
             RFQ & Quotation Management
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
             {/* Step 1: Receive RFQ / Create Quotation */}
             <button
               onClick={() => setShowCreateQuotation(true)}
-              className="flex flex-col items-center justify-center p-5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md"
+              className="group relative flex flex-col items-center justify-center p-6 bg-gradient-to-br from-slate-700 to-slate-800 text-white rounded-xl hover:from-slate-800 hover:to-slate-900 transition-all duration-300 shadow-sm hover:shadow-lg border border-slate-600/20 min-h-[160px] overflow-hidden"
             >
-              <svg className="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span className="text-sm font-medium text-center">Receive RFQ</span>
-              <span className="text-xs opacity-90 mt-1">Create Quotation</span>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.07] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-white/15 transition-colors">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <span className="text-sm font-semibold text-center mb-1">Receive RFQ</span>
+                <span className="text-xs text-slate-300">Create Quotation</span>
+              </div>
             </button>
 
             {/* Step 2: Manage Quotations */}
             <button
               onClick={() => setShowSearchQuotations(true)}
-              className="flex flex-col items-center justify-center p-5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200 shadow-sm hover:shadow-md"
+              className="group relative flex flex-col items-center justify-center p-6 bg-gradient-to-br from-violet-600 to-violet-700 text-white rounded-xl hover:from-violet-700 hover:to-violet-800 transition-all duration-300 shadow-sm hover:shadow-lg border border-violet-500/20 min-h-[160px] overflow-hidden"
             >
-              <svg className="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <span className="text-sm font-medium text-center">Manage Quotations</span>
-              <span className="text-xs opacity-90 mt-1">Search & Edit</span>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.07] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-white/15 transition-colors">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <span className="text-sm font-semibold text-center mb-1">Manage Quotations</span>
+                <span className="text-xs text-violet-100">Search & Edit</span>
+              </div>
             </button>
 
             {/* Step 3: Convert to Order */}
             <button
               onClick={() => setShowConvertQuote(true)}
-              className="flex flex-col items-center justify-center p-5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 shadow-sm hover:shadow-md"
+              className="group relative flex flex-col items-center justify-center p-6 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300 shadow-sm hover:shadow-lg border border-emerald-500/20 min-h-[160px] overflow-hidden"
             >
-              <svg className="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-              <span className="text-sm font-medium text-center">Convert to Order</span>
-              <span className="text-xs opacity-90 mt-1">Order Received</span>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.07] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-white/15 transition-colors">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </div>
+                <span className="text-sm font-semibold text-center mb-1">Convert to Order</span>
+                <span className="text-xs text-emerald-100">Order Received</span>
+              </div>
             </button>
 
             {/* Step 4: Manage Orders & Delivery */}
             <button
               onClick={() => setShowOrderManagement(true)}
-              className="flex flex-col items-center justify-center p-5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all duration-200 shadow-sm hover:shadow-md"
+              className="group relative flex flex-col items-center justify-center p-6 bg-gradient-to-br from-amber-600 to-amber-700 text-white rounded-xl hover:from-amber-700 hover:to-amber-800 transition-all duration-300 shadow-sm hover:shadow-lg border border-amber-500/20 min-h-[160px] overflow-hidden"
             >
-              <svg className="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-              </svg>
-              <span className="text-sm font-medium text-center">Track Orders</span>
-              <span className="text-xs opacity-90 mt-1">Delivery & Invoice</span>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.07] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-white/15 transition-colors">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                </div>
+                <span className="text-sm font-semibold text-center mb-1">Track Orders</span>
+                <span className="text-xs text-amber-100">Delivery & Invoice</span>
+              </div>
             </button>
 
             {/* Step 5: Customer Management */}
             <button
               onClick={() => setShowAddCustomer(true)}
-              className="flex flex-col items-center justify-center p-5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-all duration-200 shadow-sm hover:shadow-md"
+              className="group relative flex flex-col items-center justify-center p-6 bg-gradient-to-br from-cyan-600 to-cyan-700 text-white rounded-xl hover:from-cyan-700 hover:to-cyan-800 transition-all duration-300 shadow-sm hover:shadow-lg border border-cyan-500/20 min-h-[160px] overflow-hidden"
             >
-              <svg className="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
-              <span className="text-sm font-medium text-center">Add Customer</span>
-              <span className="text-xs opacity-90 mt-1">New Customer</span>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.07] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-3 group-hover:bg-white/15 transition-colors">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                  </svg>
+                </div>
+                <span className="text-sm font-semibold text-center mb-1">Add Customer</span>
+                <span className="text-xs text-cyan-100">New Customer</span>
+              </div>
             </button>
           </div>
         </div>
 
         {/* Customers List */}
-        <div className="bg-white rounded-lg shadow-md mb-8">
-          <div className="px-6 py-4 border-b border-gray-200">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 mb-8">
+          <div className="px-6 py-5 border-b border-slate-200">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Customers</h3>
+              <h3 className="text-xl font-semibold text-slate-900">Customers</h3>
               <div className="flex items-center space-x-4">
                 {/* Export Buttons */}
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={exportToExcel}
-                    className="flex items-center px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors duration-200 shadow-sm"
+                    className="flex items-center px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors duration-200 shadow-sm"
                     title="Export to Excel"
                   >
                     <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -724,7 +751,7 @@ export default function SalesPage() {
                   </button>
                   <button
                     onClick={exportToPDF}
-                    className="flex items-center px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors duration-200 shadow-sm"
+                    className="flex items-center px-4 py-2 bg-rose-600 text-white text-sm font-medium rounded-lg hover:bg-rose-700 transition-colors duration-200 shadow-sm"
                     title="Export to PDF"
                   >
                     <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -735,11 +762,11 @@ export default function SalesPage() {
                 </div>
 
                 {/* View Mode Toggles */}
-                <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+                <div className="flex items-center space-x-1 bg-slate-100 rounded-lg p-1">
                   <button
                     onClick={() => setCustomersViewMode('list')}
-                    className={`p-2 rounded-md transition-colors duration-200 ${
-                      customersViewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                    className={`p-2 rounded-lg transition-colors duration-200 ${
+                      customersViewMode === 'list' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                     }`}
                     title="List View"
                   >
@@ -749,8 +776,8 @@ export default function SalesPage() {
                   </button>
                   <button
                     onClick={() => setCustomersViewMode('grid')}
-                    className={`p-2 rounded-md transition-colors duration-200 ${
-                      customersViewMode === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                    className={`p-2 rounded-lg transition-colors duration-200 ${
+                      customersViewMode === 'grid' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
                     }`}
                     title="Grid View"
                   >
@@ -766,9 +793,9 @@ export default function SalesPage() {
                     placeholder="Search customers..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 text-black border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="pl-10 pr-4 py-2 text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
@@ -778,18 +805,18 @@ export default function SalesPage() {
 
           {customersViewMode === 'list' ? (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-slate-200">
+                <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Quotes</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Customer</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Contact</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Location</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Total Quotes</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-slate-200">
                   {dataLoading.customers ? (
                     // Skeleton rows while loading
                     Array.from({ length: 5 }).map((_, index) => (
@@ -835,43 +862,43 @@ export default function SalesPage() {
                     </tr>
                   ) : (
                     filteredCustomers.map((customer) => (
-                      <tr key={customer.id} className="hover:bg-gray-50">
+                      <tr key={customer.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <p className="font-medium text-gray-900">{customer.name}</p>
-                            <p className="text-sm text-gray-500">{customer.email}</p>
+                            <p className="font-semibold text-slate-900">{customer.name}</p>
+                            <p className="text-sm text-slate-500">{customer.email}</p>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <p className="text-sm text-gray-900">{customer.contact_person || 'N/A'}</p>
-                            <p className="text-sm text-gray-500">{customer.phone}</p>
+                            <p className="text-sm text-slate-900">{customer.contact_person || 'N/A'}</p>
+                            <p className="text-sm text-slate-500">{customer.phone}</p>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <p className="text-sm text-gray-900">{customer.city || 'N/A'}</p>
-                            <p className="text-sm text-gray-500">{customer.state || 'N/A'}</p>
+                            <p className="text-sm text-slate-900">{customer.city || 'N/A'}</p>
+                            <p className="text-sm text-slate-500">{customer.state || 'N/A'}</p>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <p className="text-sm font-medium text-gray-900">Rs. {(customer.totalQuotes || 0).toLocaleString()}</p>
-                            <p className="text-xs text-gray-500">{customer.quotesCount || 0} quotes</p>
+                            <p className="text-sm font-semibold text-slate-900">Rs. {(customer.totalQuotes || 0).toLocaleString()}</p>
+                            <p className="text-xs text-slate-500">{customer.quotesCount || 0} quotes</p>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            customer.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
+                            customer.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
                           }`}>
                             {customer.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div className="flex items-center space-x-3">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                          <div className="flex items-center space-x-2">
                             <button 
                               onClick={() => handleEditCustomer(customer)}
-                              className="text-blue-600 hover:text-blue-700 p-1 rounded hover:bg-blue-50 transition-colors duration-200"
+                              className="text-blue-600 hover:text-blue-700 p-1.5 rounded-lg hover:bg-blue-50 transition-colors duration-200"
                               title="Edit Customer"
                             >
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -880,7 +907,7 @@ export default function SalesPage() {
                             </button>
                             <button 
                               onClick={() => handleViewQuotes(customer)}
-                              className="text-green-600 hover:text-green-700 p-1 rounded hover:bg-green-50 transition-colors duration-200"
+                              className="text-emerald-600 hover:text-emerald-700 p-1.5 rounded-lg hover:bg-emerald-50 transition-colors duration-200"
                               title="View Quotes"
                             >
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -890,7 +917,7 @@ export default function SalesPage() {
                             </button>
                             <button 
                               onClick={() => handleDeleteCustomer(customer)}
-                              className="text-red-600 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors duration-200"
+                              className="text-rose-600 hover:text-rose-700 p-1.5 rounded-lg hover:bg-rose-50 transition-colors duration-200"
                               title="Delete Customer"
                             >
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -950,18 +977,18 @@ export default function SalesPage() {
                   {filteredCustomers.map((customer) => (
                     <div 
                       key={customer.id} 
-                      className="border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-all duration-200 bg-white"
+                      className="border border-slate-200 rounded-xl p-6 hover:shadow-md transition-all duration-200 bg-white hover:border-slate-300"
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div>
-                          <h4 className="text-lg font-bold text-gray-900">{customer.name}</h4>
-                          <p className="text-gray-600 text-sm">{customer.email}</p>
+                          <h4 className="text-lg font-bold text-slate-900">{customer.name}</h4>
+                          <p className="text-slate-600 text-sm">{customer.email}</p>
                           {customer.contact_person && (
-                            <p className="text-gray-500 text-xs">{customer.contact_person}</p>
+                            <p className="text-slate-500 text-xs mt-1">{customer.contact_person}</p>
                           )}
                         </div>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          customer.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
+                          customer.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
                         }`}>
                           {customer.status}
                         </span>
@@ -969,23 +996,23 @@ export default function SalesPage() {
 
                       <div className="space-y-2 mb-4">
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-500">Phone:</span>
-                          <span className="text-gray-900">{customer.phone || 'N/A'}</span>
+                          <span className="text-slate-500">Phone:</span>
+                          <span className="text-slate-900 font-medium">{customer.phone || 'N/A'}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-500">Total Quotes:</span>
-                          <span className="text-gray-900 font-medium">Rs. {(customer.totalQuotes || 0).toLocaleString()}</span>
+                          <span className="text-slate-500">Total Quotes:</span>
+                          <span className="text-slate-900 font-semibold">Rs. {(customer.totalQuotes || 0).toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-500">Quotes Count:</span>
-                          <span className="text-gray-900">{customer.quotesCount || 0}</span>
+                          <span className="text-slate-500">Quotes Count:</span>
+                          <span className="text-slate-900 font-medium">{customer.quotesCount || 0}</span>
                         </div>
                       </div>
 
                       <div className="flex space-x-2">
                         <button
                           onClick={() => handleEditCustomer(customer)}
-                          className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm flex items-center justify-center"
+                          className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium flex items-center justify-center"
                           title="Edit Customer"
                         >
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -995,7 +1022,7 @@ export default function SalesPage() {
                         </button>
                         <button
                           onClick={() => handleViewQuotes(customer)}
-                          className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm flex items-center justify-center"
+                          className="flex-1 px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors duration-200 text-sm font-medium flex items-center justify-center"
                           title="View Quotes"
                         >
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1006,7 +1033,7 @@ export default function SalesPage() {
                         </button>
                         <button
                           onClick={() => handleDeleteCustomer(customer)}
-                          className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 text-sm flex items-center justify-center"
+                          className="px-3 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors duration-200 text-sm font-medium flex items-center justify-center"
                           title="Delete Customer"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
